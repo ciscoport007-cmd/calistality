@@ -878,7 +878,10 @@ export default function PESTELDetailPage() {
               </div>
               <div>
                 <Label>Zaman Dilimi</Label>
-                <Select value={factorForm.timeframe} onValueChange={(v) => setFactorForm({ ...factorForm, timeframe: v })}>
+                <Select
+                  value={factorForm.timeframe || 'none'}
+                  onValueChange={(v) => setFactorForm({ ...factorForm, timeframe: v === 'none' ? '' : v })}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Seçin" />
                   </SelectTrigger>
@@ -925,15 +928,15 @@ export default function PESTELDetailPage() {
             </div>
             <div>
               <Label>Sorumlu</Label>
-              <Select 
-                value={factorForm.responsibleId} 
-                onValueChange={(v) => setFactorForm({ ...factorForm, responsibleId: v })}
+              <Select
+                value={factorForm.responsibleId || '__none__'}
+                onValueChange={(v) => setFactorForm({ ...factorForm, responsibleId: v === '__none__' ? '' : v })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Sorumlu seçin" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Seçilmedi</SelectItem>
+                  <SelectItem value="__none__">Seçilmedi</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.name} {user.surname || ''}

@@ -1246,8 +1246,11 @@ export default function RiskDetailPage() {
                                   className="h-6 px-2 text-xs"
                                   onClick={() => handleUpdateAction(action.id, {
                                     progress: step,
-                                    ...(step === 100 ? { status: 'TAMAMLANDI' } : {}),
-                                    ...(step > 0 && step < 100 && action.status === 'PLANLI' ? { status: 'DEVAM_EDIYOR', actualStartDate: new Date().toISOString() } : {}),
+                                    ...(step === 100
+                                      ? { status: 'TAMAMLANDI' }
+                                      : step === 0
+                                      ? { status: 'PLANLI' }
+                                      : { status: 'DEVAM_EDIYOR', ...(action.status === 'PLANLI' ? { actualStartDate: new Date().toISOString() } : {}) }),
                                   })}
                                 >
                                   %{step}

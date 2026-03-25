@@ -209,7 +209,7 @@ export async function PUT(
         effectiveness,
         actualProbabilityReduction: actualProbabilityReduction ? parseInt(actualProbabilityReduction) : existingAction.actualProbabilityReduction,
         actualImpactReduction: actualImpactReduction ? parseInt(actualImpactReduction) : existingAction.actualImpactReduction,
-        closedAt: status === 'TAMAMLANDI' ? new Date() : existingAction.closedAt,
+        closedAt: status === 'TAMAMLANDI' ? new Date() : (status && status !== 'TAMAMLANDI' ? null : existingAction.closedAt),
       },
       include: {
         assignee: { select: { id: true, name: true, surname: true, email: true } },

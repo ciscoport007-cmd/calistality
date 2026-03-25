@@ -48,6 +48,7 @@ import {
   User,
   Calendar,
   Download,
+  Upload,
   FileText,
   Loader2,
   Building,
@@ -95,6 +96,12 @@ interface Department {
   name: string;
 }
 
+interface UserOption {
+  id: string;
+  name: string;
+  surname?: string;
+}
+
 const PPE_TYPE_LABELS: Record<string, string> = {
   BARET: 'Baret',
   KORUYUCU_GOZLUK: 'Koruyucu Gözlük',
@@ -126,6 +133,7 @@ export default function OHSPPEPage() {
   const [ppeItems, setPPEItems] = useState<PPEItem[]>([]);
   const [distributions, setDistributions] = useState<Distribution[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [users, setUsers] = useState<UserOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('stock');
   
@@ -157,18 +165,21 @@ export default function OHSPPEPage() {
     ppeId: '',
     recipientName: '',
     departmentManagerName: '',
+    departmentManagerId: '',
     quantity: '1',
     description: '',
     notes: '',
   });
 
-  // PDF download loading
+  // PDF download/upload loading
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
+  const [uploadingCustody, setUploadingCustody] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPPEItems();
     fetchDistributions();
     fetchDepartments();
+    fetchUsers();
   }, [search, typeFilter, statusFilter]);
 
   const fetchPPEItems = async () => {
@@ -216,6 +227,19 @@ export default function OHSPPEPage() {
       }
     } catch (error) {
       console.error('Departments fetch error:', error);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/users?forReviewers=true');
+      if (response.ok) {
+        const data = await response.json();
+        const list = data.users || data;
+        setUsers(Array.isArray(list) ? list : []);
+      }
+    } catch (error) {
+      console.error('Users fetch error:', error);
     }
   };
 
@@ -280,7 +304,7 @@ export default function OHSPPEPage() {
         setDistributionDialogOpen(false);
         setDistributionForm({
           ppeId: '', recipientName: '', departmentManagerName: '',
-          quantity: '1', description: '', notes: '',
+          departmentManagerId: '', quantity: '1', description: '', notes: '',
         });
         fetchPPEItems();
         // Delay to let PDF generate
@@ -329,6 +353,44 @@ export default function OHSPPEPage() {
       toast.error('İndirme sırasında hata');
     } finally {
       setDownloadingPdf(null);
+    }
+  };
+
+  const handleUploadCustodyForm = async (distId: string, file: File) => {
+    try {
+      setUploadingCustody(distId);
+
+      const presignedRes = await fetch('/api/upload/presigned', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name, contentType: file.type || 'application/octet-stream', isPublic: false }),
+      });
+      if (!presignedRes.ok) throw new Error('Yükleme URL\'si alınamadı');
+
+      const { uploadUrl, cloud_storage_path } = await presignedRes.json();
+
+      const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: file });
+      if (!uploadRes.ok) throw new Error('Dosya yüklenemedi');
+
+      const updateRes = await fetch(`/api/ohs/ppe/distributions/${distId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          custodyFormFileName: file.name,
+          custodyFormFileSize: file.size,
+          custodyFormCloudPath: cloud_storage_path,
+          custodyFormIsPublic: false,
+        }),
+      });
+      if (!updateRes.ok) throw new Error('Kayıt güncellenemedi');
+
+      toast.success('Zimmet formu yüklendi');
+      fetchDistributions();
+    } catch (error) {
+      console.error('Custody upload error:', error);
+      toast.error('Zimmet formu yüklenemedi');
+    } finally {
+      setUploadingCustody(null);
     }
   };
 
@@ -556,22 +618,49 @@ export default function OHSPPEPage() {
                           ) : '-'}
                         </TableCell>
                         <TableCell>
-                          {dist.custodyFormCloudPath ? (
+                          <div className="flex items-center gap-1">
+                            {/* Yükle butonu */}
+                            <input
+                              type="file"
+                              id={`custody-upload-${dist.id}`}
+                              className="hidden"
+                              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleUploadCustodyForm(dist.id, file);
+                                e.target.value = '';
+                              }}
+                            />
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => handleDownloadCustodyPdf(dist)}
-                              disabled={downloadingPdf === dist.id}
+                              title="Zimmet formu yükle"
+                              disabled={uploadingCustody === dist.id}
+                              onClick={() => document.getElementById(`custody-upload-${dist.id}`)?.click()}
                             >
-                              {downloadingPdf === dist.id ? (
+                              {uploadingCustody === dist.id ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               ) : (
-                                <Download className="w-4 h-4" />
+                                <Upload className="w-4 h-4" />
                               )}
                             </Button>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Oluşturuluyor...</span>
-                          )}
+                            {/* Varsa indir butonu */}
+                            {dist.custodyFormCloudPath && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                title="Zimmet formunu indir"
+                                onClick={() => handleDownloadCustodyPdf(dist)}
+                                disabled={downloadingPdf === dist.id}
+                              >
+                                {downloadingPdf === dist.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Download className="w-4 h-4" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -704,11 +793,25 @@ export default function OHSPPEPage() {
             </div>
             <div className="space-y-2">
               <Label>Departman Müdürü</Label>
-              <Input
-                value={distributionForm.departmentManagerName}
-                onChange={(e) => setDistributionForm({ ...distributionForm, departmentManagerName: e.target.value })}
-                placeholder="Departman müdürü adı"
-              />
+              <Select
+                value={distributionForm.departmentManagerId}
+                onValueChange={(v) => {
+                  const selected = users.find((u) => u.id === v);
+                  const fullName = selected ? `${selected.name} ${selected.surname || ''}`.trim() : '';
+                  setDistributionForm({ ...distributionForm, departmentManagerId: v, departmentManagerName: fullName });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Kullanıcı seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.name} {u.surname || ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Miktar *</Label>

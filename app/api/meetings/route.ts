@@ -90,9 +90,10 @@ export async function GET(request: NextRequest) {
           }
         }
       },
-      orderBy: {
-        date: 'asc'
-      }
+      orderBy: [
+        { date: 'asc' },
+        { startTime: 'asc' },
+      ]
     });
 
     // Gizli toplantıları filtrele (sadece oluşturan ve katılımcılar görebilir)

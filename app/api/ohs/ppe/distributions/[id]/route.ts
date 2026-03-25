@@ -4,6 +4,47 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { OHSPPEStatus } from '@prisma/client';
 
+// Zimmet formu güncelleme
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+    const { custodyFormFileName, custodyFormFileSize, custodyFormCloudPath, custodyFormIsPublic } = body;
+
+    if (!custodyFormCloudPath || !custodyFormFileName) {
+      return NextResponse.json({ error: 'Dosya bilgileri eksik' }, { status: 400 });
+    }
+
+    const distribution = await prisma.oHSPPEDistribution.findUnique({ where: { id } });
+    if (!distribution) {
+      return NextResponse.json({ error: 'Kayıt bulunamadı' }, { status: 404 });
+    }
+
+    const updated = await prisma.oHSPPEDistribution.update({
+      where: { id },
+      data: {
+        custodyFormFileName,
+        custodyFormFileSize: custodyFormFileSize ?? null,
+        custodyFormCloudPath,
+        custodyFormIsPublic: custodyFormIsPublic ?? false,
+      },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error('Custody form update error:', error);
+    return NextResponse.json({ error: 'Zimmet formu güncellenemedi' }, { status: 500 });
+  }
+}
+
 // İade işlemi
 export async function PATCH(
   request: Request,

@@ -40,8 +40,8 @@ export async function generatePresignedUploadUrl(
   isPublic: boolean = false
 ): Promise<{ uploadUrl: string; cloud_storage_path: string }> {
   const cloud_storage_path = buildKey(fileName, isPublic);
-  const base = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-  const uploadUrl = `${base}/api/upload/local?path=${encodeURIComponent(cloud_storage_path)}`;
+  // Relative URL — always points to the same origin the browser is connected to
+  const uploadUrl = `/api/upload/local?path=${encodeURIComponent(cloud_storage_path)}`;
   return { uploadUrl, cloud_storage_path };
 }
 
@@ -57,12 +57,11 @@ export async function getFileUrl(
     return rel.startsWith('/') ? rel : `/${rel}`;
   }
 
-  const base = process.env.NEXTAUTH_URL || '';
   const namePart = downloadFileName
     ? `&filename=${encodeURIComponent(downloadFileName)}`
     : '';
   const previewPart = forPreview ? '&preview=1' : '';
-  return `${base}/api/files/${encodeURIComponent(cloudStoragePath)}?dl=1${namePart}${previewPart}`;
+  return `/api/files/${encodeURIComponent(cloudStoragePath)}?dl=1${namePart}${previewPart}`;
 }
 
 export async function deleteFile(cloudStoragePath: string): Promise<void> {

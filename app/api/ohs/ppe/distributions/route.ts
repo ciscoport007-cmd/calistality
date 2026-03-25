@@ -60,6 +60,7 @@ export async function POST(request: Request) {
       ppeId,
       recipientName,
       departmentManagerName,
+      departmentManagerId,
       quantity,
       description,
       notes,
@@ -122,9 +123,24 @@ export async function POST(request: Request) {
       return distribution;
     });
 
+    // Departman müdürüne bildirim gönder
+    if (departmentManagerId) {
+      try {
+        await createNotification({
+          userId: departmentManagerId,
+          type: 'BILGI',
+          title: 'KKD Zimmet Bildirimi',
+          message: `${recipientName} adlı personele ${result.ppe.name} (${result.ppe.code}) KKD zimmetlendi. Onayınız için zimmet formunu inceleyiniz.`,
+          link: '/dashboard/ohs/ppe',
+        });
+      } catch (err) {
+        console.error('Departman müdürü bildirim hatası:', err);
+      }
+    }
+
     // Generate custody PDF in background (non-blocking)
     try {
-      const baseUrl = process.env.NEXTAUTH_URL || '';
+      const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
       fetch(`${baseUrl}/api/ohs/ppe/custody-pdf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

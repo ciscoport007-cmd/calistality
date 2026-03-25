@@ -501,7 +501,10 @@ export default function SupplierDetailPage() {
       }
 
       const { uploadUrl, cloud_storage_path } = await presignedResponse.json();
-      await fetch(uploadUrl, { method: 'PUT', body: docFile });
+      const uploadResponse = await fetch(uploadUrl, { method: 'PUT', body: docFile });
+      if (!uploadResponse.ok) {
+        throw new Error('Dosya yüklenemedi');
+      }
 
       const response = await fetch(`/api/suppliers/${supplierId}/documents`, {
         method: 'POST',
