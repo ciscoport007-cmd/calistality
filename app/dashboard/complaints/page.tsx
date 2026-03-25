@@ -625,6 +625,7 @@ export default function ComplaintsPage() {
                           <Checkbox
                             checked={selectedDepartmentIds.includes(dept.id)}
                             onCheckedChange={() => toggleDepartment(dept.id)}
+                            onClick={(e) => e.stopPropagation()}
                           />
                           <span className="text-sm">{dept.name}</span>
                         </div>
