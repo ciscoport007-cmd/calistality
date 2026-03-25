@@ -6,66 +6,37 @@ export async function POST(request: Request) {
   try {
     const { html_content, pdf_options, css_stylesheet } = await request.json();
 
-    const createResponse = await fetch('https://apps.abacus.ai/api/createConvertHtmlToPdfRequest', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        deployment_token: process.env.ABACUSAI_API_KEY,
-        html_content,
-        pdf_options: pdf_options || { format: 'A4' },
-        base_url: process.env.NEXTAUTH_URL || '',
-        css_stylesheet,
-      }),
+    const puppeteer = require('puppeteer');
+    const browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
 
-    if (!createResponse.ok) {
-      const error = await createResponse.json().catch(() => ({ error: 'Failed to create PDF request' }));
-      return NextResponse.json({ success: false, error: error.error }, { status: 500 });
+    const page = await browser.newPage();
+
+    let fullHtml = html_content;
+    if (css_stylesheet) {
+      fullHtml = `<style>${css_stylesheet}</style>${html_content}`;
     }
 
-    const { request_id } = await createResponse.json();
-    if (!request_id) {
-      return NextResponse.json({ success: false, error: 'No request ID returned' }, { status: 500 });
-    }
+    await page.setContent(fullHtml, { waitUntil: 'networkidle0' });
 
-    const maxAttempts = 300;
-    let attempts = 0;
+    const pdfBuffer = await page.pdf({
+      format: pdf_options?.format || 'A4',
+      printBackground: true,
+      margin: pdf_options?.margin || { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' },
+    });
 
-    while (attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    await browser.close();
 
-      const statusResponse = await fetch('https://apps.abacus.ai/api/getConvertHtmlToPdfStatus', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ request_id, deployment_token: process.env.ABACUSAI_API_KEY }),
-      });
-
-      const statusResult = await statusResponse.json();
-      const status = statusResult?.status || 'FAILED';
-      const result = statusResult?.result || null;
-
-      if (status === 'SUCCESS') {
-        if (result && result.result) {
-          const pdfBuffer = Buffer.from(result.result, 'base64');
-          return new NextResponse(pdfBuffer, {
-            headers: {
-              'Content-Type': 'application/pdf',
-              'Content-Disposition': 'attachment; filename="QDMS-Kullanim-Kilavuzu.pdf"',
-            },
-          });
-        } else {
-          return NextResponse.json({ success: false, error: 'PDF generation completed but no result data' }, { status: 500 });
-        }
-      } else if (status === 'FAILED') {
-        const errorMsg = result?.error || 'PDF generation failed';
-        return NextResponse.json({ success: false, error: errorMsg }, { status: 500 });
-      }
-      attempts++;
-    }
-
-    return NextResponse.json({ success: false, error: 'PDF generation timed out' }, { status: 500 });
+    return new NextResponse(pdfBuffer, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'attachment; filename="document.pdf"',
+      },
+    });
   } catch (error) {
     console.error('Error generating PDF:', error);
-    return NextResponse.json({ success: false, error: 'Failed to generate PDF' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'PDF oluşturulamadı' }, { status: 500 });
   }
 }
