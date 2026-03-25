@@ -1,0 +1,6065 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+// ============================================
+// KULLANICI VE YETKİLENDİRME
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String
+  surname       String?
+  phone         String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+  
+  // İlişkiler
+  roleId        String?
+  role          Role?     @relation(fields: [roleId], references: [id])
+  
+  departmentId  String?
+  department    Department? @relation(fields: [departmentId], references: [id])
+  
+  positionId    String?
+  position      Position? @relation(fields: [positionId], references: [id])
+  
+  groups        UserGroup[]
+  
+  // NextAuth
+  accounts      Account[]
+  sessions      Session[]
+  
+  // Doküman ilişkileri
+  createdDocuments     Document[] @relation("DocumentCreator")
+  preparedDocuments    Document[] @relation("DocumentPreparer")
+  approvedDocuments    Document[] @relation("DocumentApprover")
+  lockedDocuments      Document[] @relation("DocumentLocker")
+  documentAcknowledgments DocumentAcknowledgment[] @relation("DocumentAcknowledger")
+  cancelledDocuments   Document[] @relation("DocumentCanceller")
+  reviewedDocuments    Document[] @relation("DocumentReviewer")
+  documentReviews      DocumentReview[] @relation("DocumentReviewerMulti")
+  
+  // Onay ilişkileri
+  approvalsAsApprover  Approval[] @relation("ApprovalApprover")
+  approvalHistories    ApprovalHistory[]
+  
+  // Okuma logları
+  readLogs      ReadLog[]
+  
+  // Görevler
+  assignedTasks Task[] @relation("TaskAssignee")
+  createdTasks  Task[] @relation("TaskCreator")
+  
+  // Bildirimler
+  notifications Notification[]
+  
+  // Audit logları
+  auditLogs     AuditLog[]
+  
+  // Şikayet ilişkileri
+  createdComplaints      Complaint[]          @relation("ComplaintCreator")
+  assignedComplaints     Complaint[]          @relation("ComplaintAssignee")
+  ledComplaints          Complaint[]          @relation("ComplaintTeamLeader")
+  complaintHistories     ComplaintHistory[]   @relation("ComplaintHistoryUser")
+  assignedComplaintTasks ComplaintTask[]      @relation("ComplaintTaskAssignee")
+  createdComplaintTasks  ComplaintTask[]      @relation("ComplaintTaskCreator")
+  uploadedAttachments    ComplaintAttachment[] @relation("ComplaintAttachmentUploader")
+  
+  // CAPA ilişkileri
+  createdCAPAs           CAPA[]               @relation("CAPACreator")
+  responsibleCAPAs       CAPA[]               @relation("CAPAResponsible")
+  reviewedCAPAs          CAPA[]               @relation("CAPAReviewer")
+  closedCAPAs            CAPA[]               @relation("CAPACloser")
+  capaHistories          CAPAHistory[]        @relation("CAPAHistoryUser")
+  assignedCAPAActions    CAPAAction[]         @relation("CAPAActionAssignee")
+  createdCAPAActions     CAPAAction[]         @relation("CAPAActionCreator")
+  uploadedCAPAAttachments CAPAAttachment[]    @relation("CAPAAttachmentUploader")
+  
+  // Denetim ilişkileri
+  createdAudits          Audit[]              @relation("AuditCreator")
+  leadAuditorAudits      Audit[]              @relation("AuditLeadAuditor")
+  auditTeamMembers       AuditTeamMember[]    @relation("AuditTeamMember")
+  auditHistories         AuditHistory[]       @relation("AuditHistoryUser")
+  assignedAuditFindings  AuditFinding[]       @relation("AuditFindingAssignee")
+  createdAuditFindings   AuditFinding[]       @relation("AuditFindingCreator")
+  uploadedAuditAttachments AuditAttachment[]  @relation("AuditAttachmentUploader")
+  uploadedFindingAttachments FindingAttachment[] @relation("FindingAttachmentUploader")
+  
+  // Risk ilişkileri
+  createdRisks           Risk[]               @relation("RiskCreator")
+  ownedRisks             Risk[]               @relation("RiskOwner")
+  riskHistories          RiskHistory[]        @relation("RiskHistoryUser")
+  assignedRiskActions    RiskAction[]         @relation("RiskActionAssignee")
+  createdRiskActions     RiskAction[]         @relation("RiskActionCreator")
+  createdRiskAssessments RiskAssessment[]     @relation("RiskAssessmentCreator")
+  uploadedRiskAttachments RiskAttachment[]   @relation("RiskAttachmentUploader")
+  
+  // Ekipman ilişkileri
+  ownedEquipment         Equipment[]          @relation("EquipmentOwner")
+  createdEquipment       Equipment[]          @relation("EquipmentCreator")
+  maintenanceResponsible Equipment[]          @relation("EquipmentMaintenanceResponsible")
+  calibrationResponsible Equipment[]          @relation("EquipmentCalibrationResponsible")
+  equipmentHistories     EquipmentHistory[]   @relation("EquipmentHistoryUser")
+  maintenanceTechnician  EquipmentMaintenance[] @relation("MaintenanceTechnician")
+  maintenanceCreator     EquipmentMaintenance[] @relation("MaintenanceCreator")
+  calibrationCalibrator  EquipmentCalibration[] @relation("CalibrationCalibrator")
+  calibrationCreator     EquipmentCalibration[] @relation("CalibrationCreator")
+  
+  // Tedarikçi ilişkileri
+  createdSuppliers       Supplier[]             @relation("SupplierCreator")
+  approvedSuppliers      Supplier[]             @relation("SupplierApprover")
+  supplierHistories      SupplierHistory[]      @relation("SupplierHistoryUser")
+  supplierEvaluations    SupplierEvaluation[]   @relation("SupplierEvaluator")
+  uploadedSupplierDocs   SupplierDocument[]     @relation("SupplierDocumentUploader")
+  supplierExpenses       SupplierExpense[]      @relation("SupplierExpenseCreator")
+  supplierAuditsAsAuditor SupplierAudit[]       @relation("SupplierAuditAuditor")
+  createdSupplierAudits  SupplierAudit[]        @relation("SupplierAuditCreator")
+  
+  // KPI ilişkileri
+  createdKPIs            KPI[]                  @relation("KPICreator")
+  ownedKPIs              KPI[]                  @relation("KPIOwner")
+  kpiMeasurements        KPIMeasurement[]       @relation("KPIMeasurementCreator")
+  
+  // Stratejik Planlama ilişkileri
+  createdStrategyPeriods StrategyPeriod[]       @relation("StrategyPeriodCreator")
+  createdMissions        Mission[]              @relation("MissionCreator")
+  createdVisions         Vision[]               @relation("VisionCreator")
+  ownedObjectives        StrategicObjective[]   @relation("ObjectiveOwner")
+  createdObjectives      StrategicObjective[]   @relation("ObjectiveCreator")
+  ownedGoals             StrategicGoal[]        @relation("GoalOwner")
+  createdGoals           StrategicGoal[]        @relation("GoalCreator")
+  ownedSubGoals          StrategicSubGoal[]     @relation("SubGoalOwner")
+  createdSubGoals        StrategicSubGoal[]     @relation("SubGoalCreator")
+  goalProgressEntries    GoalProgressEntry[]    @relation("GoalProgressEntryCreator")
+  responsibleActions     StrategicAction[]      @relation("ActionResponsible")
+  accountableActions     StrategicAction[]      @relation("ActionAccountable")
+  consultedActions       ActionConsulted[]      @relation("UserConsultedActions")
+  informedActions        ActionInformed[]       @relation("UserInformedActions")
+  createdActions         StrategicAction[]      @relation("ActionCreator")
+  closedActions          StrategicAction[]      @relation("ActionClosedBy")
+  actionHistories        StrategicActionHistory[] @relation("ActionHistoryUser")
+  completedMilestones    ActionMilestone[]      @relation("MilestoneCompletedBy")
+  
+  // SWOT ve PESTEL ilişkileri
+  createdSWOTStudies     SWOTStudy[]            @relation("SWOTStudyCreator")
+  createdPESTELStudies   PESTELStudy[]          @relation("PESTELStudyCreator")
+  responsibleSWOTItems   SWOTItem[]             @relation("SWOTItemResponsible")
+  responsiblePESTELFactors PESTELFactor[]       @relation("PESTELFactorResponsible")
+  
+  // Aksiyon gelişmiş özellikleri
+  uploadedActionAttachments ActionAttachment[]  @relation("ActionAttachmentUploader")
+  actionComments         ActionComment[]        @relation("ActionCommentAuthor")
+  mentionedInComments    ActionCommentMention[] @relation("MentionedInComment")
+  requestedApprovals     ActionApproval[]       @relation("ApprovalRequester")
+  decidedApprovals       ActionApproval[]       @relation("ApprovalApproverAction")
+  actionNotifications    ActionNotification[]   @relation("ActionNotificationRecipient")
+  
+  // Eğitim ilişkileri
+  createdTrainings       Training[]             @relation("TrainingCreator")
+  createdTrainingPlans   TrainingPlan[]         @relation("TrainingPlanCreator")
+  instructedPlans        TrainingPlan[]         @relation("TrainingInstructor")
+  trainingRecords        TrainingRecord[]       @relation("TrainingParticipant")
+  
+  // Doküman İzin ilişkileri
+  documentPermissions         DocumentPermission[] @relation("DocumentPermissionUser")
+  createdDocumentPermissions  DocumentPermission[] @relation("DocumentPermissionCreator")
+  
+  // 3 Boyutlu Performans Yönetimi ilişkileri
+  createdScoreScales          ScoreScale[]         @relation("ScoreScaleCreator")
+  personnelKPIs               PersonnelKPI[]       @relation("PersonnelKPIs")
+  createdPersonnelKPIs        PersonnelKPI[]       @relation("PersonnelKPICreator")
+  personnelKPIMeasurements    PersonnelKPIMeasurement[] @relation("PersonnelKPIMeasurementCreator")
+  verifiedPersonnelKPIMeasurements PersonnelKPIMeasurement[] @relation("PersonnelKPIMeasurementVerifier")
+  
+  // Yetkinlik ilişkileri
+  createdCompetencies         Competency[]         @relation("CompetencyCreator")
+  competencyEvaluations       PersonnelCompetencyEvaluation[] @relation("PersonnelCompetencyEvaluations")
+  givenCompetencyEvaluations  PersonnelCompetencyEvaluation[] @relation("CompetencyEvaluator")
+  
+  // İnisiyatif ilişkileri
+  createdInitiatives          Initiative[]         @relation("InitiativeCreator")
+  personnelInitiatives        PersonnelInitiative[] @relation("PersonnelInitiatives")
+  evaluatedInitiatives        PersonnelInitiative[] @relation("InitiativeEvaluator")
+  
+  // Karne Formül ve Bireysel Karne ilişkileri
+  createdScorecardFormulas    ScorecardFormula[]   @relation("ScorecardFormulaCreator")
+  individualScorecards        IndividualScorecard[] @relation("IndividualScorecards")
+  createdIndividualScorecards IndividualScorecard[] @relation("IndividualScorecardCreator")
+  submittedScorecards         IndividualScorecard[] @relation("ScorecardSubmitter")
+  approvedScorecards          IndividualScorecard[] @relation("ScorecardApprover")
+  
+  // İş Akışı (Workflow) ilişkileri
+  createdWorkflows            DocumentWorkflow[]   @relation("WorkflowCreator")
+  workflowStepsSpecific       WorkflowStep[]       @relation("WorkflowStepSpecificUser")
+  startedWorkflowInstances    WorkflowInstance[]   @relation("WorkflowInstanceStarter")
+  assignedWorkflowSteps       WorkflowInstanceStep[] @relation("WorkflowStepAssignee")
+  actedWorkflowSteps          WorkflowInstanceStep[] @relation("WorkflowStepActor")
+  
+  // Toplantı ilişkileri
+  createdMeetings             Meeting[]            @relation("MeetingCreator")
+  meetingParticipations       MeetingParticipant[] @relation("MeetingParticipantUser")
+  meetingActionsAssigned      MeetingAction[]      @relation("MeetingActionAssignee")
+  meetingActionsCreated       MeetingAction[]      @relation("MeetingActionCreator")
+  meetingActionsFollowed      MeetingActionFollower[] @relation("MeetingActionFollowerUser")
+  uploadedMeetingDocuments    MeetingDocument[]    @relation("MeetingDocumentUploader")
+  meetingDecisionsAssigned    MeetingDecision[]    @relation("MeetingDecisionAssignee")
+  meetingDecisionsCreated     MeetingDecision[]    @relation("MeetingDecisionCreator")
+  createdMeetingTemplates     MeetingTemplate[]    @relation("MeetingTemplateCreator")
+  
+  // Komite ilişkileri
+  chairedCommittees           Committee[]          @relation("CommitteeChairman")
+  secretaryCommittees         Committee[]          @relation("CommitteeSecretary")
+  gmApprovedCommittees        Committee[]          @relation("CommitteeGMApprover")
+  createdCommittees           Committee[]          @relation("CommitteeCreator")
+  committeeMemberships        CommitteeMember[]    @relation("CommitteeMemberUser")
+  assignedCommitteeMembers    CommitteeMember[]    @relation("CommitteeMemberAssigner")
+  createdCommitteeMeetings    CommitteeMeeting[]   @relation("CommitteeMeetingCreator")
+  uploadedCommitteeDocuments  CommitteeDocument[]  @relation("CommitteeDocUploader")
+  committeeDecisionsResponsible CommitteeDecision[] @relation("CommitteeDecisionResponsible")
+  committeeDecisionsCreated     CommitteeDecision[] @relation("CommitteeDecisionCreator")
+  
+  // İSG (İş Sağlığı ve Güvenliği) ilişkileri
+  createdOHSRisks             OHSRisk[]            @relation("OHSRiskCreator")
+  ownedOHSRisks               OHSRisk[]            @relation("OHSRiskOwner")
+  createdOHSRiskActions       OHSRiskAction[]      @relation("OHSRiskActionCreator")
+  assignedOHSRiskActions      OHSRiskAction[]      @relation("OHSRiskActionAssignee")
+  completedOHSRiskActions     OHSRiskAction[]      @relation("OHSRiskActionCompletedBy")
+  createdOHSRiskAssessments   OHSRiskAssessment[]  @relation("OHSRiskAssessmentCreator")
+  createdOHSRiskComments      OHSRiskComment[]     @relation("OHSRiskCommentAuthor")
+  uploadedSubcontractorDocs   SubcontractorDocument[] @relation("SubcontractorDocUploader")
+  createdOHSAccidents         OHSAccident[]        @relation("OHSAccidentCreator")
+  involvedOHSAccidents        OHSAccidentPerson[]  @relation("OHSAccidentPersonUser")
+  createdOHSNearMisses        OHSNearMiss[]        @relation("OHSNearMissCreator")
+  reportedOHSNearMisses       OHSNearMiss[]        @relation("OHSNearMissReporter")
+  
+  // Sağlık Gözetimi ilişkileri
+  healthRecords               OHSHealthRecord[]    @relation("OHSHealthRecordUser")
+  createdHealthRecords        OHSHealthRecord[]    @relation("OHSHealthRecordCreator")
+  vaccinations                OHSVaccination[]     @relation("OHSVaccinationUser")
+  createdVaccinations         OHSVaccination[]     @relation("OHSVaccinationCreator")
+  
+  // KKD ilişkileri
+  createdPPEs                 OHSPPE[]             @relation("OHSPPECreator")
+  ppeDistributions            OHSPPEDistribution[] @relation("OHSPPEDistributionUser")
+  distributedPPEs             OHSPPEDistribution[] @relation("OHSPPEDistributor")
+  
+  // Acil Durum ilişkileri
+  createdEmergencyPlans       OHSEmergencyPlan[]   @relation("OHSEmergencyPlanCreator")
+  createdEmergencyDrills      OHSEmergencyDrill[]  @relation("OHSEmergencyDrillCreator")
+  
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  users       User[]
+  permissions Permission[]
+  workflowSteps WorkflowStep[] @relation("WorkflowStepRole")
+  
+  @@map("roles")
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  users       User[]
+  folders     Folder[]
+  documents   Document[]
+  capas       CAPA[]
+  audits      Audit[]      @relation("AuditDepartment")
+  auditedAudits Audit[]    @relation("AuditedDepartment")
+  risks       Risk[]
+  equipment   Equipment[]
+  kpis        KPI[]
+  kpiWeights  KPIDepartmentWeight[] @relation("KPIDepartmentWeights")
+  
+  // Şikayet ilişkileri
+  relatedComplaints Complaint[] @relation("ComplaintRelatedDepartment")
+  complaintDepartments ComplaintDepartment[] @relation("ComplaintDepartments")
+  
+  // Stratejik planlama ilişkileri
+  objectives  StrategicObjective[] @relation("ObjectiveDepartment")
+  goals       StrategicGoal[]      @relation("GoalDepartment")
+  subGoals    StrategicSubGoal[]   @relation("SubGoalDepartment")
+  actions     StrategicAction[]    @relation("ActionDepartment")
+  
+  // SWOT ve PESTEL ilişkileri
+  swotStudies   SWOTStudy[]
+  pestelStudies PESTELStudy[]
+  
+  // Eğitim ilişkileri
+  trainingPlans TrainingPlan[]
+  
+  // Doküman İzin ilişkileri
+  documentPermissions DocumentPermission[] @relation("DocumentPermissionDepartment")
+  
+  // 3 Boyutlu Performans Yönetimi ilişkileri
+  initiatives         Initiative[]         @relation("InitiativeDepartment")
+  scorecardFormulas   ScorecardFormula[]   @relation("ScorecardFormulaDepartment")
+  
+  // İş Akışı ilişkileri
+  workflows           DocumentWorkflow[]   @relation("WorkflowDepartment")
+  
+  // Pozisyon ilişkileri
+  positions           Position[]
+  
+  // Toplantı ilişkileri
+  meetings            Meeting[]            @relation("MeetingDepartment")
+  
+  // Komite ilişkileri
+  committees          Committee[]
+  
+  // İSG (İş Sağlığı ve Güvenliği) ilişkileri
+  ohsRisks            OHSRisk[]
+  ohsAccidents        OHSAccident[]
+  ohsNearMisses       OHSNearMiss[]
+  ohsAccidentPersons  OHSAccidentPerson[] @relation("OHSAccidentPersonDept")
+  committeeDecisions  CommitteeDecision[] @relation("CommitteeDecisionDept")
+  ohsHealthRecords    OHSHealthRecord[]   @relation("OHSHealthRecordDept")
+  ohsPPEs             OHSPPE[]            @relation("OHSPPEDept")
+  
+  @@map("departments")
+}
+
+model Position {
+  id           String   @id @default(cuid())
+  name         String
+  code         String
+  description  String?
+  level        Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  
+  users        User[]
+  
+  @@unique([code, departmentId])
+  
+  // Eğitim gereksinimleri
+  trainingRequirements TrainingRequirement[]
+  
+  // Klasör onay ve hazırlama yetkileri
+  folderApprovals     FolderApprovalPosition[]  @relation("FolderApprovalPositions")
+  folderPreparers     FolderPreparerPosition[]  @relation("FolderPreparerPositions")
+  
+  // 3 Boyutlu Performans Yönetimi ilişkileri
+  competencyRequirements CompetencyPositionRequirement[] @relation("PositionCompetencyRequirements")
+  scorecardFormulas      ScorecardFormula[]              @relation("ScorecardFormulaPosition")
+  
+  // İş Akışı ilişkileri
+  workflowSteps          WorkflowStep[]                  @relation("WorkflowStepPosition")
+  
+  @@map("positions")
+}
+
+model Group {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  description String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  users       UserGroup[]
+  permissions Permission[]
+  
+  // Şikayet ilişkileri
+  assignedComplaints Complaint[] @relation("ComplaintTeam")
+  
+  // CAPA ilişkileri
+  assignedCAPAs CAPA[] @relation("CAPATeam")
+  
+  // Doküman İzin ilişkileri
+  documentPermissions DocumentPermission[] @relation("DocumentPermissionGroup")
+  
+  @@map("groups")
+}
+
+model UserGroup {
+  id        String   @id @default(cuid())
+  userId    String
+  groupId   String
+  createdAt DateTime @default(now())
+  
+  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group     Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, groupId])
+  @@map("user_groups")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  module      String   // kontrollü_doküman, müşteri_şikayet, döf, denetim, risk, cihaz
+  action      String   // görüntüle, oluştur, düzenle, sil, onayla
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  roleId      String?
+  role        Role?  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  
+  groupId     String?
+  group       Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  @@unique([module, action, roleId, groupId])
+  @@map("permissions")
+}
+
+// NextAuth models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ============================================
+// DOKÜMAN YÖNETİMİ
+// ============================================
+
+model Folder {
+  id           String   @id @default(cuid())
+  name         String
+  code         String   @unique
+  description  String?
+  parentId     String?
+  parent       Folder?  @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children     Folder[] @relation("FolderHierarchy")
+  
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  
+  documentTypeId String?
+  documentType   DocumentType? @relation(fields: [documentTypeId], references: [id])
+  
+  codeTemplate String?  // Örnek: SOP-{DEPT}-{YEAR}-{NUM}
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  documents    Document[]
+  
+  // Pozisyon Bazlı Onay Matrisi
+  approvalMatrix    FolderApprovalPosition[]
+  
+  // Hazırlama/Revize Yetkili Pozisyonlar
+  preparerPositions FolderPreparerPosition[]
+  
+  // İş Akışı ilişkileri
+  workflows         DocumentWorkflow[]
+  
+  @@map("folders")
+}
+
+// Klasör Onay Matrisi - Hangi pozisyon hangi aşamada onay verecek
+model FolderApprovalPosition {
+  id          String   @id @default(cuid())
+  folderId    String
+  folder      Folder   @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  
+  positionId  String
+  position    Position @relation("FolderApprovalPositions", fields: [positionId], references: [id])
+  
+  // Onay aşaması türü
+  approvalStage String  // SISTEM_ON_ONAY, KONTROL_EDEN, SON_ONAY, GOZDEN_GECIRECEK
+  order         Int     @default(1) // Aynı aşamada birden fazla pozisyon olabilir
+  isRequired    Boolean @default(true) // Bu onay zorunlu mu?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([folderId, positionId, approvalStage])
+  @@map("folder_approval_positions")
+}
+
+// Klasör Hazırlama Yetkisi - Hangi pozisyonlar bu klasörde doküman hazırlayabilir/revize edebilir
+model FolderPreparerPosition {
+  id          String   @id @default(cuid())
+  folderId    String
+  folder      Folder   @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  
+  positionId  String
+  position    Position @relation("FolderPreparerPositions", fields: [positionId], references: [id])
+  
+  canCreate   Boolean  @default(true)  // Yeni doküman oluşturabilir
+  canRevise   Boolean  @default(true)  // Mevcut dokümanı revize edebilir
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([folderId, positionId])
+  @@map("folder_preparer_positions")
+}
+
+model DocumentType {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Özel Meta Veri Şeması (Phase 2)
+  // Format: [{ name: string, label: string, type: 'text'|'number'|'date'|'select', required: boolean, options?: string[] }]
+  metadataSchema Json?
+  
+  folders     Folder[]
+  documents   Document[]
+  workflows   DocumentWorkflow[]
+  
+  @@map("document_types")
+}
+
+enum DocumentStatus {
+  TASLAK              // Taslak
+  INCELEME_BEKLIYOR   // İnceleme Bekliyor (Phase 2)
+  ONAY_BEKLIYOR      // Onay Bekliyor
+  ONAYLANDI          // Onaylandı
+  YAYINDA            // Yayında
+  REVIZE_EDILIYOR    // Revize Ediliyor
+  IPTAL_EDILDI       // İptal Edildi
+}
+
+model Document {
+  id                String         @id @default(cuid())
+  code              String         @unique
+  title             String
+  description       String?
+  status            DocumentStatus @default(TASLAK)
+  currentVersion    Int            @default(1)
+  
+  folderId          String?
+  folder            Folder?        @relation(fields: [folderId], references: [id])
+  
+  documentTypeId    String?
+  documentType      DocumentType?  @relation(fields: [documentTypeId], references: [id])
+  
+  departmentId      String?
+  department        Department?    @relation(fields: [departmentId], references: [id])
+  
+  createdById       String
+  createdBy         User           @relation("DocumentCreator", fields: [createdById], references: [id])
+  
+  preparedById      String?
+  preparedBy        User?          @relation("DocumentPreparer", fields: [preparedById], references: [id])
+  
+  approvedById      String?
+  approvedBy        User?          @relation("DocumentApprover", fields: [approvedById], references: [id])
+  
+  approvedAt        DateTime?
+  publishedAt       DateTime?
+  expiryDate        DateTime?
+  
+  // Check-in/Check-out (Doküman Kilitleme)
+  isLockedForEdit   Boolean        @default(false)
+  lockedById        String?
+  lockedBy          User?          @relation("DocumentLocker", fields: [lockedById], references: [id])
+  lockedAt          DateTime?
+  lockReason        String?
+  
+  // Planlı Revizyon
+  reviewFrequencyMonths  Int?      // Ay cinsinden revizyon periyodu
+  nextReviewDate    DateTime?      // Sonraki revizyon tarihi
+  lastReviewDate    DateTime?      // Son revizyon tarihi
+  reviewReminder    Boolean        @default(true) // Hatırlatma gönderilsin mi
+  
+  // Okundu Onayı (Acknowledgment)
+  requiresAcknowledgment  Boolean  @default(false) // Okundu onayı gerekli mi
+  acknowledgmentDeadline  DateTime? // Okundu onayı son tarihi
+  
+  // ===== PHASE 2 ÖZELLİKLERİ =====
+  
+  // Tam Metin Arama - Doküman içeriğinden çıkarılan aranabilir metin
+  searchContent     String?        @db.Text
+  
+  // Özel Meta Veri - DocumentType şemasına göre dinamik alanlar
+  metadata          Json?
+  
+  // İptal Süreci
+  cancelledById     String?
+  cancelledBy       User?          @relation("DocumentCanceller", fields: [cancelledById], references: [id])
+  cancelledAt       DateTime?
+  cancellationReason String?
+  
+  // İnceleme Aşaması (Onay Öncesi)
+  reviewStatus      String?        // BEKLIYOR, ONAYLANDI, REDDEDILDI
+  reviewNote        String?
+  reviewedById      String?
+  reviewedBy        User?          @relation("DocumentReviewer", fields: [reviewedById], references: [id])
+  reviewedAt        DateTime?
+  
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  
+  versions          DocumentVersion[]
+  approvals         Approval[]
+  readLogs          ReadLog[]
+  tasks             Task[]
+  acknowledgments   DocumentAcknowledgment[]
+  reviews           DocumentReview[] // Çoklu inceleme desteği
+  tags              DocumentTag[]    // Etiket ilişkisi (Phase 3)
+  permissions       DocumentPermission[] // Granüler erişim kontrolü
+  workflowInstances WorkflowInstance[] // İş Akışı örnekleri
+  
+  @@map("documents")
+}
+
+// Doküman Erişim İzinleri - Granüler Kontrol
+model DocumentPermission {
+  id            String   @id @default(cuid())
+  documentId    String
+  document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  // Kullanıcı veya Grup bazlı izin
+  userId        String?
+  user          User?    @relation("DocumentPermissionUser", fields: [userId], references: [id])
+  
+  groupId       String?
+  group         Group?   @relation("DocumentPermissionGroup", fields: [groupId], references: [id])
+  
+  departmentId  String?
+  department    Department? @relation("DocumentPermissionDepartment", fields: [departmentId], references: [id])
+  
+  // İzin türleri
+  canView       Boolean  @default(true)   // Görüntüleme
+  canDownload   Boolean  @default(false)  // İndirme
+  canEdit       Boolean  @default(false)  // Düzenleme
+  canDelete     Boolean  @default(false)  // Silme
+  canApprove    Boolean  @default(false)  // Onaylama
+  canShare      Boolean  @default(false)  // Paylaşma
+  
+  // Geçerlilik
+  expiresAt     DateTime? // İzin bitiş tarihi (opsiyonel)
+  
+  createdById   String
+  createdBy     User     @relation("DocumentPermissionCreator", fields: [createdById], references: [id])
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@unique([documentId, userId])
+  @@unique([documentId, groupId])
+  @@unique([documentId, departmentId])
+  @@map("document_permissions")
+}
+
+// Doküman Okundu Onayı
+model DocumentAcknowledgment {
+  id            String   @id @default(cuid())
+  documentId    String
+  document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  userId        String
+  user          User     @relation("DocumentAcknowledger", fields: [userId], references: [id])
+  
+  versionNumber Int      // Hangi versiyonu okudu
+  status        String   @default("BEKLIYOR") // BEKLIYOR, ONAYLANDI, REDDEDILDI
+  acknowledgedAt DateTime?
+  comments      String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@unique([documentId, userId, versionNumber])
+  @@map("document_acknowledgments")
+}
+
+// Doküman İnceleme (Phase 2) - Onay Öncesi İnceleme Aşaması
+model DocumentReview {
+  id            String   @id @default(cuid())
+  documentId    String
+  document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  reviewerId    String
+  reviewer      User     @relation("DocumentReviewerMulti", fields: [reviewerId], references: [id])
+  
+  versionNumber Int      // Hangi versiyonu inceledi
+  status        String   @default("BEKLIYOR") // BEKLIYOR, ONAYLANDI, REDDEDILDI
+  comments      String?
+  reviewedAt    DateTime?
+  order         Int      @default(1) // İnceleme sırası
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@unique([documentId, reviewerId, versionNumber])
+  @@map("document_reviews")
+}
+
+model DocumentVersion {
+  id                 String   @id @default(cuid())
+  documentId         String
+  document           Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  versionNumber      Int
+  title              String
+  description        String?
+  changeDescription  String?  // Revizyon açıklaması
+  
+  fileName           String
+  fileSize           Int
+  fileType           String
+  cloudStoragePath   String   // S3 key
+  isPublic           Boolean  @default(false)
+  
+  createdAt          DateTime @default(now())
+  
+  @@unique([documentId, versionNumber])
+  @@map("document_versions")
+}
+
+// ===== PHASE 3: DOKÜMAN ETİKETLEME (TAG) =====
+
+model Tag {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  color       String        @default("#3B82F6") // Varsayılan mavi renk
+  description String?
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  documents   DocumentTag[]
+  
+  @@map("tags")
+}
+
+model DocumentTag {
+  id          String   @id @default(cuid())
+  documentId  String
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  tagId       String
+  tag         Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  addedAt     DateTime @default(now())
+  
+  @@unique([documentId, tagId])
+  @@map("document_tags")
+}
+
+model Approval {
+  id            String   @id @default(cuid())
+  documentId    String
+  document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  approverId    String
+  approver      User     @relation("ApprovalApprover", fields: [approverId], references: [id])
+  
+  status        String   @default("BEKLIYOR") // BEKLIYOR, ONAYLANDI, REDDEDILDI
+  order         Int      @default(1)
+  comments      String?
+  
+  approvedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  histories     ApprovalHistory[]
+  
+  @@map("approvals")
+}
+
+model ApprovalHistory {
+  id          String   @id @default(cuid())
+  approvalId  String
+  approval    Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  action      String   // ONAYLANDI, REDDEDİLDİ, YORUM_EKLENDI
+  comments    String?
+  createdAt   DateTime @default(now())
+  
+  @@map("approval_histories")
+}
+
+model ReadLog {
+  id          String   @id @default(cuid())
+  documentId  String
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  readAt      DateTime @default(now())
+  duration    Int?     // Saniye cinsinden
+  
+  @@map("read_logs")
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  status      String   @default("AÇIK") // AÇIK, DEVAM_EDIYOR, TAMAMLANDI, İPTAL
+  priority    String   @default("ORTA") // DÜŞÜK, ORTA, YÜKSEK, ACİL
+  dueDate     DateTime?
+  
+  assigneeId  String
+  assignee    User     @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  
+  createdById String
+  createdBy   User     @relation("TaskCreator", fields: [createdById], references: [id])
+  
+  documentId  String?
+  document    Document? @relation(fields: [documentId], references: [id])
+  
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("tasks")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  title     String
+  message   String
+  type      String   @default("BİLGİ") // BİLGİ, UYARI, HATA, BAŞARI
+  isRead    Boolean  @default(false)
+  link      String?
+  
+  createdAt DateTime @default(now())
+  
+  @@map("notifications")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  
+  action      String
+  module      String
+  entityType  String?
+  entityId    String?
+  oldValues   String?  // JSON
+  newValues   String?  // JSON
+  ipAddress   String?
+  userAgent   String?
+  
+  createdAt   DateTime @default(now())
+  
+  @@map("audit_logs")
+}
+
+// ============================================
+// MÜŞTERİ ŞİKAYETLERİ YÖNETİMİ
+// ============================================
+
+model ComplaintCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  complaints  Complaint[]
+  
+  @@map("complaint_categories")
+}
+
+enum ComplaintStatus {
+  YENI               // Yeni şikayet
+  INCELENIYOR        // İnceleniyor
+  COZUM_BEKLENIYOR   // Çözüm Bekleniyor
+  COZULDU            // Çözüldü
+  KAPATILDI          // Kapatıldı
+  IPTAL_EDILDI       // İptal Edildi
+}
+
+enum ComplaintPriority {
+  DUSUK              // Düşük
+  ORTA               // Orta
+  YUKSEK             // Yüksek
+  ACIL               // Acil
+}
+
+model Complaint {
+  id                  String            @id @default(cuid())
+  code                String            @unique
+  
+  // Müşteri Bilgileri
+  customerName        String
+  customerEmail       String?
+  customerPhone       String?
+  customerCompany     String?
+  
+  // Otel Spesifik Alanlar
+  guestName           String?           // Misafir Adı
+  roomNumber          String?           // Oda Numarası
+  agency              String?           // Acenta
+  voucherNumber       String?           // Voucher Numarası
+  
+  relatedDepartmentId String?
+  relatedDepartment   Department?       @relation("ComplaintRelatedDepartment", fields: [relatedDepartmentId], references: [id])
+  
+  // Şikayet Detayları
+  subject             String
+  description         String
+  details             String?
+  
+  categoryId          String?
+  category            ComplaintCategory? @relation(fields: [categoryId], references: [id])
+  
+  status              ComplaintStatus   @default(YENI)
+  priority            ComplaintPriority @default(ORTA)
+  
+  // Olay Bilgileri
+  incidentLocation    String?           // Olay yeri
+  incidentDate        DateTime?
+  incidentTime        String?           // Olay saati (HH:mm)
+  
+  // Ürün/Hizmet Bilgileri
+  productName         String?
+  
+  // Atama ve Takip
+  assignedTeamId      String?
+  assignedTeam        Group?            @relation("ComplaintTeam", fields: [assignedTeamId], references: [id])
+  
+  assignedUserId      String?
+  assignedUser        User?             @relation("ComplaintAssignee", fields: [assignedUserId], references: [id])
+  
+  teamLeaderId        String?
+  teamLeader          User?             @relation("ComplaintTeamLeader", fields: [teamLeaderId], references: [id])
+  
+  // Raporlar
+  initialReport       String?           // İlk inceleme raporu
+  initialReportDate   DateTime?
+  finalReport         String?           // Nihai rapor
+  finalReportDate     DateTime?
+  
+  // Çözüm
+  resolution          String?
+  resolvedAt          DateTime?
+  
+  // Kayıt Bilgileri
+  createdById         String
+  createdBy           User              @relation("ComplaintCreator", fields: [createdById], references: [id])
+  
+  dueDate             DateTime?
+  closedAt            DateTime?
+  
+  isActive            Boolean           @default(true)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  
+  // İlişkiler
+  histories           ComplaintHistory[]
+  tasks               ComplaintTask[]
+  attachments         ComplaintAttachment[]
+  capas               CAPA[]
+  complaintDepartments ComplaintDepartment[]
+  
+  @@map("complaints")
+}
+
+model ComplaintDepartment {
+  id           String     @id @default(cuid())
+  complaintId  String
+  complaint    Complaint  @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  departmentId String
+  department   Department @relation("ComplaintDepartments", fields: [departmentId], references: [id])
+  
+  createdAt    DateTime   @default(now())
+  
+  @@unique([complaintId, departmentId])
+  @@map("complaint_departments")
+}
+
+model ComplaintHistory {
+  id           String   @id @default(cuid())
+  complaintId  String
+  complaint    Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  
+  userId       String
+  user         User     @relation("ComplaintHistoryUser", fields: [userId], references: [id])
+  
+  action       String   // OLUŞTURULDU, ATANDI, DURUM_DEĞİŞTİ, RAPOR_EKLENDİ, YORUM_EKLENDI, KAPATILDI
+  oldValue     String?
+  newValue     String?
+  comments     String?
+  
+  createdAt    DateTime @default(now())
+  
+  @@map("complaint_histories")
+}
+
+model ComplaintTask {
+  id           String   @id @default(cuid())
+  complaintId  String
+  complaint    Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  
+  title        String
+  description  String?
+  status       String   @default("ACIK") // ACIK, DEVAM_EDIYOR, TAMAMLANDI, IPTAL
+  priority     String   @default("ORTA") // DUSUK, ORTA, YUKSEK, ACIL
+  dueDate      DateTime?
+  
+  assigneeId   String
+  assignee     User     @relation("ComplaintTaskAssignee", fields: [assigneeId], references: [id])
+  
+  createdById  String
+  createdBy    User     @relation("ComplaintTaskCreator", fields: [createdById], references: [id])
+  
+  completedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  @@map("complaint_tasks")
+}
+
+model ComplaintAttachment {
+  id               String   @id @default(cuid())
+  complaintId      String
+  complaint        Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  
+  fileName         String
+  fileSize         Int
+  fileType         String
+  cloudStoragePath String
+  isPublic         Boolean  @default(false)
+  description      String?
+  
+  uploadedById     String
+  uploadedBy       User     @relation("ComplaintAttachmentUploader", fields: [uploadedById], references: [id])
+  
+  createdAt        DateTime @default(now())
+  
+  @@map("complaint_attachments")
+}
+
+// ============================================
+// DÜZELTİCİ VE ÖNLEYİCİ FAALİYETLER (CAPA/DÖF)
+// ============================================
+
+enum CAPAType {
+  DUZELTICI           // Düzeltici Faaliyet
+  ONLEYICI            // Önleyici Faaliyet
+  IYILESTIRME         // İyileştirme Faaliyeti
+}
+
+enum CAPASource {
+  SIKAYET             // Müşteri Şikayeti
+  DENETIM             // İç/Dış Denetim
+  RISK                // Risk Değerlendirmesi
+  OLAY                // Olay/Kaza
+  ONERI               // Çalışan Önerisi
+  YASAL               // Yasal Gereklilik
+  PROSES              // Proses İyileştirme
+  DIGER               // Diğer
+}
+
+enum CAPAStatus {
+  TASLAK              // Taslak
+  ACIK                // Açık - İnceleme için açıldı
+  KOK_NEDEN_ANALIZI   // Kök Neden Analizi yapılıyor
+  AKSIYON_PLANLAMA    // Aksiyon Planlaması
+  UYGULAMA            // Uygulama aşamasında
+  DOGRULAMA           // Doğrulama/Etkinlik Değerlendirmesi
+  KAPATILDI           // Kapatıldı
+  IPTAL_EDILDI        // İptal Edildi
+}
+
+enum CAPAPriority {
+  DUSUK               // Düşük
+  ORTA                // Orta
+  YUKSEK              // Yüksek
+  KRITIK              // Kritik
+}
+
+model CAPA {
+  id                  String        @id @default(cuid())
+  code                String        @unique
+  
+  // Temel Bilgiler
+  title               String
+  description         String
+  type                CAPAType
+  source              CAPASource
+  status              CAPAStatus    @default(TASLAK)
+  priority            CAPAPriority  @default(ORTA)
+  
+  // Kaynak Referansları
+  complaintId         String?
+  complaint           Complaint?    @relation(fields: [complaintId], references: [id])
+  
+  sourceReference     String?       // Kaynak referans numarası (denetim no, risk kodu vb.)
+  sourceDetails       String?       // Kaynak detayları
+  
+  // Kök Neden Analizi
+  rootCauseAnalysis   String?       // Kök neden analizi
+  rootCauseMethod     String?       // Kullanılan metot (5 Neden, Balık Kılçığı vb.)
+  rootCauseDate       DateTime?
+  
+  // Aksiyon Planı
+  actionPlan          String?       // Planlanan aksiyonlar
+  expectedCompletion  DateTime?     // Beklenen tamamlanma tarihi
+  
+  // Uygulama
+  implementationNotes String?       // Uygulama notları
+  implementedAt       DateTime?
+  
+  // Etkinlik Değerlendirmesi
+  effectivenessReview String?       // Etkinlik değerlendirmesi
+  isEffective         Boolean?      // Etkili mi?
+  reviewDate          DateTime?
+  reviewedById        String?
+  reviewedBy          User?         @relation("CAPAReviewer", fields: [reviewedById], references: [id])
+  
+  // Atama
+  responsibleUserId   String?
+  responsibleUser     User?         @relation("CAPAResponsible", fields: [responsibleUserId], references: [id])
+  
+  teamId              String?
+  team                Group?        @relation("CAPATeam", fields: [teamId], references: [id])
+  
+  // Departman
+  departmentId        String?
+  department          Department?   @relation(fields: [departmentId], references: [id])
+  
+  // Kayıt Bilgileri
+  createdById         String
+  createdBy           User          @relation("CAPACreator", fields: [createdById], references: [id])
+  
+  dueDate             DateTime?
+  closedAt            DateTime?
+  closedById          String?
+  closedBy            User?         @relation("CAPACloser", fields: [closedById], references: [id])
+  
+  isActive            Boolean       @default(true)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  
+  // İlişkiler
+  actions             CAPAAction[]
+  histories           CAPAHistory[]
+  attachments         CAPAAttachment[]
+  
+  @@map("capas")
+}
+
+model CAPAAction {
+  id              String   @id @default(cuid())
+  capaId          String
+  capa            CAPA     @relation(fields: [capaId], references: [id], onDelete: Cascade)
+  
+  title           String
+  description     String?
+  status          String   @default("ACIK") // ACIK, DEVAM_EDIYOR, TAMAMLANDI, IPTAL
+  priority        String   @default("ORTA") // DUSUK, ORTA, YUKSEK, ACIL
+  
+  assigneeId      String
+  assignee        User     @relation("CAPAActionAssignee", fields: [assigneeId], references: [id])
+  
+  createdById     String
+  createdBy       User     @relation("CAPAActionCreator", fields: [createdById], references: [id])
+  
+  dueDate         DateTime?
+  completedAt     DateTime?
+  completionNotes String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("capa_actions")
+}
+
+model CAPAHistory {
+  id        String   @id @default(cuid())
+  capaId    String
+  capa      CAPA     @relation(fields: [capaId], references: [id], onDelete: Cascade)
+  
+  userId    String
+  user      User     @relation("CAPAHistoryUser", fields: [userId], references: [id])
+  
+  action    String   // OLUSTURULDU, DURUM_DEGISTI, ATANDI, KOK_NEDEN_EKLENDI, AKSIYON_EKLENDI, ETKINLIK_DEGERLENDI, KAPATILDI
+  oldValue  String?
+  newValue  String?
+  comments  String?
+  
+  createdAt DateTime @default(now())
+  
+  @@map("capa_histories")
+}
+
+model CAPAAttachment {
+  id               String   @id @default(cuid())
+  capaId           String
+  capa             CAPA     @relation(fields: [capaId], references: [id], onDelete: Cascade)
+  
+  fileName         String
+  fileSize         Int
+  fileType         String
+  cloudStoragePath String
+  isPublic         Boolean  @default(false)
+  description      String?
+  attachmentType   String   @default("GENEL") // GENEL, KANIT, RAPOR, KOK_NEDEN, AKSIYON
+  
+  uploadedById     String
+  uploadedBy       User     @relation("CAPAAttachmentUploader", fields: [uploadedById], references: [id])
+  
+  createdAt        DateTime @default(now())
+  
+  @@map("capa_attachments")
+}
+
+// ============================================
+// DENETİM YÖNETİMİ
+// ============================================
+
+enum AuditType {
+  IC_DENETIM          // İç Denetim
+  DIS_DENETIM         // Dış Denetim
+  TEDARIKCI_DENETIM   // Tedarikçi Denetimi
+  SUREC_DENETIM       // Süreç Denetimi
+  SISTEM_DENETIM      // Sistem Denetimi
+}
+
+enum AuditStatus {
+  PLANLI              // Planlı - Denetim planlandı
+  HAZIRLANIYOR        // Hazırlanıyor - Checklist ve dökümanlar hazırlanıyor
+  DEVAM_EDIYOR        // Devam Ediyor - Denetim aktif
+  RAPORLANIYOR        // Raporlanıyor - Bulgular raporlanıyor
+  KAPATILDI           // Kapatıldı - Denetim tamamlandı
+  IPTAL_EDILDI        // İptal Edildi
+  ERTELENDI           // Ertelendi
+}
+
+enum FindingSeverity {
+  MAJOR               // Major Bulgu
+  MINOR               // Minor Bulgu
+  GOZLEM              // Gözlem
+  IYILESTIRME         // İyileştirme Fırsatı
+  OLUMLU              // Olumlu Bulgu
+}
+
+enum FindingStatus {
+  ACIK                // Açık
+  AKSIYON_BEKLENIYOR  // Aksiyon Bekleniyor
+  AKSIYON_UYGULANDI   // Aksiyon Uygulandı
+  DOGRULANDI          // Doğrulandı
+  KAPATILDI           // Kapatıldı
+}
+
+model Audit {
+  id                  String        @id @default(cuid())
+  code                String        @unique
+  
+  // Temel Bilgiler
+  title               String
+  description         String?
+  type                AuditType
+  status              AuditStatus   @default(PLANLI)
+  
+  // Denetim Kapsamı
+  scope               String?       // Denetim kapsamı
+  objectives          String?       // Denetim hedefleri
+  criteria            String?       // Denetim kriterleri (ISO standartları vb.)
+  
+  // Denetlenen Birim
+  auditedDepartmentId String?
+  auditedDepartment   Department?   @relation("AuditedDepartment", fields: [auditedDepartmentId], references: [id])
+  
+  // Denetlenen Tedarikçi (Tedarikçi denetimleri için)
+  supplierId          String?
+  supplier            Supplier?     @relation("SupplierAudits", fields: [supplierId], references: [id])
+  
+  auditedArea         String?       // Denetlenen alan/proses
+  
+  // Denetim Puanı (Tedarikçi denetimleri için)
+  auditScore          Float?        // 0-100 arası puan
+  
+  // Denetim Ekibi
+  leadAuditorId       String?
+  leadAuditor         User?         @relation("AuditLeadAuditor", fields: [leadAuditorId], references: [id])
+  
+  departmentId        String?       // Denetimi yapan departman
+  department          Department?   @relation("AuditDepartment", fields: [departmentId], references: [id])
+  
+  // Tarih Bilgileri
+  plannedStartDate    DateTime?
+  plannedEndDate      DateTime?
+  actualStartDate     DateTime?
+  actualEndDate       DateTime?
+  
+  // Açılış/Kapanış Toplantıları
+  openingMeetingDate  DateTime?
+  openingMeetingNotes String?
+  closingMeetingDate  DateTime?
+  closingMeetingNotes String?
+  
+  // Raporlama
+  auditReport         String?       // Denetim raporu
+  reportDate          DateTime?
+  conclusions         String?       // Sonuçlar ve değerlendirme
+  recommendations     String?       // Tavsiyeler
+  
+  // Kayıt Bilgileri
+  createdById         String
+  createdBy           User          @relation("AuditCreator", fields: [createdById], references: [id])
+  
+  isActive            Boolean       @default(true)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  
+  // İlişkiler
+  teamMembers         AuditTeamMember[]
+  checklists          AuditChecklist[]
+  findings            AuditFinding[]
+  histories           AuditHistory[]
+  attachments         AuditAttachment[]
+  
+  @@map("audits")
+}
+
+model AuditTeamMember {
+  id        String   @id @default(cuid())
+  auditId   String
+  audit     Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  
+  userId    String
+  user      User     @relation("AuditTeamMember", fields: [userId], references: [id])
+  
+  role      String   @default("DENETCI") // BAS_DENETCI, DENETCI, GOZLEMCI, UZMAN
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([auditId, userId])
+  @@map("audit_team_members")
+}
+
+model AuditChecklist {
+  id          String   @id @default(cuid())
+  auditId     String
+  audit       Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  
+  category    String?  // Kategori (ISO madde numarası vb.)
+  question    String   // Denetim sorusu/kontrol maddesi
+  expected    String?  // Beklenen durum
+  actual      String?  // Mevcut durum
+  result      String?  // UYGUN, UYGUN_DEGIL, GOZLEM, DEGERLENDIRILMEDI
+  notes       String?  // Notlar
+  evidences   String?  // Kanıtlar
+  
+  sortOrder   Int      @default(0)
+  isCompleted Boolean  @default(false)
+  completedAt DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("audit_checklists")
+}
+
+model AuditFinding {
+  id              String          @id @default(cuid())
+  auditId         String
+  audit           Audit           @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  
+  code            String
+  title           String
+  description     String
+  severity        FindingSeverity
+  status          FindingStatus   @default(ACIK)
+  
+  // Bulgu Detayları
+  evidence        String?         // Kanıtlar
+  requirement     String?         // İhlal edilen gereklilik
+  clause          String?         // İlgili madde/standart
+  area            String?         // Bulgu alanı
+  
+  // Düzeltici Faaliyet
+  correctionRequired    Boolean   @default(true)
+  correctionDeadline    DateTime?
+  correctionAction      String?   // Düzeltici faaliyet planı
+  correctionNotes       String?   // Düzeltici faaliyet notları
+  correctionDate        DateTime?
+  
+  // Doğrulama
+  verificationNotes     String?
+  verificationDate      DateTime?
+  isVerified            Boolean   @default(false)
+  
+  // Atama
+  assigneeId      String?
+  assignee        User?           @relation("AuditFindingAssignee", fields: [assigneeId], references: [id])
+  
+  createdById     String
+  createdBy       User            @relation("AuditFindingCreator", fields: [createdById], references: [id])
+  
+  closedAt        DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  attachments     FindingAttachment[]
+  
+  @@map("audit_findings")
+}
+
+model FindingAttachment {
+  id               String   @id @default(cuid())
+  findingId        String
+  finding          AuditFinding @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  
+  fileName         String
+  fileSize         Int
+  fileType         String
+  cloudStoragePath String
+  isPublic         Boolean  @default(false)
+  description      String?
+  category         String?  // KANIT, FOTOGRAF, RAPOR, DIGER
+  
+  uploadedById     String
+  uploadedBy       User     @relation("FindingAttachmentUploader", fields: [uploadedById], references: [id])
+  
+  createdAt        DateTime @default(now())
+  
+  @@map("finding_attachments")
+}
+
+model AuditHistory {
+  id        String   @id @default(cuid())
+  auditId   String
+  audit     Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  
+  userId    String
+  user      User     @relation("AuditHistoryUser", fields: [userId], references: [id])
+  
+  action    String   // OLUSTURULDU, PLANLANDI, BASLADI, BULGU_EKLENDI, RAPORLANDI, KAPATILDI
+  oldValue  String?
+  newValue  String?
+  comments  String?
+  
+  createdAt DateTime @default(now())
+  
+  @@map("audit_histories")
+}
+
+model AuditAttachment {
+  id               String   @id @default(cuid())
+  auditId          String
+  audit            Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  
+  fileName         String
+  fileSize         Int
+  fileType         String
+  cloudStoragePath String
+  isPublic         Boolean  @default(false)
+  description      String?
+  category         String?  // PLAN, CHECKLIST, RAPOR, KANIT, DIGER
+  
+  uploadedById     String
+  uploadedBy       User     @relation("AuditAttachmentUploader", fields: [uploadedById], references: [id])
+  
+  createdAt        DateTime @default(now())
+  
+  @@map("audit_attachments")
+}
+
+
+// ============================================
+// RİSK DEĞERLENDİRMESİ
+// ============================================
+
+model RiskCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  color       String?  // UI renk kodu
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  risks       Risk[]
+  
+  @@map("risk_categories")
+}
+
+model Risk {
+  id            String   @id @default(cuid())
+  code          String   @unique  // RSK-YYYY-NNNN formatında
+  title         String
+  description   String?
+  
+  // Risk Tipi
+  type          String   // STRATEJIK, OPERASYONEL, FINANSAL, UYUM, BILGI_GUVENLIGI, IS_SAGLIGI, CEVRE
+  
+  // Risk Kaynağı
+  source        String?  // IC, DIS, SUREC, PROJE, TEDARIKCI, YASAL
+  
+  // Durum
+  status        String   @default("TANIMLANDI") // TANIMLANDI, ANALIZ_EDILIYOR, DEGERLENDIRME_BEKLENIYOR, AKSIYONDA, IZLENIYOR, KABUL_EDILDI, KAPATILDI
+  
+  // Önem Derecesi (Değerlendirme sonrası hesaplanan)
+  currentLevel  String?  // DUSUK, ORTA, YUKSEK, COK_YUKSEK, KRITIK
+  
+  // Mevcut Durum Değerlendirmesi
+  inherentProbability  Int?  // 1-5: Doğal olasılık
+  inherentImpact       Int?  // 1-5: Doğal etki
+  inherentRiskScore    Int?  // Olasılık x Etki
+  
+  // Kalıntı Risk (Kontroller sonrası)
+  residualProbability  Int?  // 1-5: Kalıntı olasılık
+  residualImpact       Int?  // 1-5: Kalıntı etki
+  residualRiskScore    Int?  // Olasılık x Etki
+  
+  // Mevcut Kontroller
+  existingControls     String?
+  controlEffectiveness String?  // ETKISIZ, KISMI, ETKILI, COK_ETKILI
+  
+  // Risk Yanıt Stratejisi
+  responseStrategy     String?  // KABUL, AZALT, TRANSFER, KACINMA
+  
+  // İlişkiler
+  categoryId    String?
+  category      RiskCategory?  @relation(fields: [categoryId], references: [id])
+  
+  departmentId  String?
+  department    Department?    @relation(fields: [departmentId], references: [id])
+  
+  ownerId       String?
+  owner         User?          @relation("RiskOwner", fields: [ownerId], references: [id])
+  
+  createdById   String
+  createdBy     User           @relation("RiskCreator", fields: [createdById], references: [id])
+  
+  // İlişkili kayıtlar
+  relatedComplaintId String?
+  relatedCAPAId      String?
+  relatedAuditId     String?
+  
+  // Tarihler
+  identifiedAt  DateTime  @default(now())
+  reviewDate    DateTime?  // Sonraki gözden geçirme tarihi
+  closedAt      DateTime?
+  
+  // Meta
+  tags          String?
+  notes         String?
+  isDeleted     Boolean   @default(false)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Alt kayıtlar
+  assessments   RiskAssessment[]
+  actions       RiskAction[]
+  history       RiskHistory[]
+  
+  // Stratejik planlama ilişkileri
+  goalRisks     GoalRisk[]
+  subGoalRisks  SubGoalRisk[]
+  actionRisks   ActionRisk[]
+  
+  // PESTEL ilişkisi
+  pestelLinks   PESTELRiskLink[]
+  
+  // Kanıt dosyaları
+  attachments   RiskAttachment[]
+  
+  @@map("risks")
+}
+
+model RiskAttachment {
+  id              String   @id @default(cuid())
+  riskId          String
+  risk            Risk     @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  
+  fileName        String
+  fileSize        Int?
+  mimeType        String?
+  cloud_storage_path String
+  isPublic        Boolean  @default(false)
+  
+  uploadedById    String
+  uploadedBy      User     @relation("RiskAttachmentUploader", fields: [uploadedById], references: [id])
+  
+  createdAt       DateTime @default(now())
+  
+  @@map("risk_attachments")
+}
+
+model RiskAssessment {
+  id            String   @id @default(cuid())
+  riskId        String
+  risk          Risk     @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  
+  // Değerlendirme Bilgileri
+  assessmentDate DateTime @default(now())
+  assessmentType String   // ILKSEL, PERIYODIK, OLAY_SONRASI, PROJE_BASLANGICI
+  
+  // Olasılık Değerlendirmesi
+  probability   Int      // 1-5: 1=Çok Düşük, 2=Düşük, 3=Orta, 4=Yüksek, 5=Çok Yüksek
+  probabilityJustification String?
+  
+  // Etki Değerlendirmesi
+  impact        Int      // 1-5: 1=Önemsiz, 2=Küçük, 3=Orta, 4=Büyük, 5=Felaket
+  impactJustification String?
+  
+  // Hesaplanan Risk Skoru
+  riskScore     Int      // probability x impact (1-25)
+  riskLevel     String   // DUSUK (1-4), ORTA (5-9), YUKSEK (10-14), COK_YUKSEK (15-19), KRITIK (20-25)
+  
+  // Etki Alanları
+  financialImpact     Int?  // 1-5
+  operationalImpact   Int?  // 1-5
+  reputationalImpact  Int?  // 1-5
+  legalImpact         Int?  // 1-5
+  safetyImpact        Int?  // 1-5
+  
+  // Kontrol Değerlendirmesi
+  controlsAssessment  String?
+  controlsEffectiveness String? // ETKISIZ, KISMI, ETKILI, COK_ETKILI
+  
+  // Değerlendirme Sonuçları
+  findings      String?
+  recommendations String?
+  
+  // Değerlendiren
+  assessedById  String
+  assessedBy    User     @relation("RiskAssessmentCreator", fields: [assessedById], references: [id])
+  
+  // Onay
+  isApproved    Boolean  @default(false)
+  approvedAt    DateTime?
+  approvedBy    String?
+  approvalNotes String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@map("risk_assessments")
+}
+
+model RiskAction {
+  id            String   @id @default(cuid())
+  riskId        String
+  risk          Risk     @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  
+  code          String   // RSK-AKS-NNNN formatında
+  title         String
+  description   String?
+  
+  // Aksiyon Tipi
+  actionType    String   // ONLEME, AZALTMA, TRANSFER, DUZELTICI, ACIL, IZLEME
+  
+  // Durum
+  status        String   @default("PLANLI") // PLANLI, DEVAM_EDIYOR, TAMAMLANDI, IPTAL, ERTELENDI
+  priority      String   @default("ORTA")   // DUSUK, ORTA, YUKSEK, ACIL
+  
+  // Tarihler
+  plannedStartDate DateTime?
+  plannedEndDate   DateTime?
+  actualStartDate  DateTime?
+  actualEndDate    DateTime?
+  
+  // İlerleme
+  progress      Int      @default(0)  // 0-100 yüzde
+  
+  // Bütçe ve Kaynak
+  budgetPlanned   Float?   // Planlanan bütçe (eski estimatedCost)
+  budgetUsed      Float?   // Kullanılan bütçe (eski actualCost)
+  currency        String   @default("TRY")  // Para birimi
+  budgetType      String?  // CAPEX, OPEX
+  expectedGain    Float?   // Beklenen kazanç/tasarruf
+  resources       String?
+  
+  // Eski alanlar uyumluluk için tutuldu
+  estimatedCost   Float?   // @deprecated - budgetPlanned kullanın
+  actualCost      Float?   // @deprecated - budgetUsed kullanın
+  
+  // Beklenen Etki
+  expectedProbabilityReduction Int?  // Olasılık azaltma beklentisi
+  expectedImpactReduction      Int?  // Etki azaltma beklentisi
+  
+  // Gerçekleşen Etki
+  actualProbabilityReduction   Int?
+  actualImpactReduction        Int?
+  
+  // Atama
+  assigneeId    String?
+  assignee      User?    @relation("RiskActionAssignee", fields: [assigneeId], references: [id])
+  
+  createdById   String
+  createdBy     User     @relation("RiskActionCreator", fields: [createdById], references: [id])
+  
+  // Sonuç
+  completionNotes String?
+  effectiveness   String?  // ETKISIZ, KISMI_ETKILI, ETKILI, COK_ETKILI
+  
+  closedAt      DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@map("risk_actions")
+}
+
+model RiskHistory {
+  id        String   @id @default(cuid())
+  riskId    String
+  risk      Risk     @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  
+  userId    String
+  user      User     @relation("RiskHistoryUser", fields: [userId], references: [id])
+  
+  action    String   // OLUSTURULDU, GUNCELLENDI, DEGERLENDIRME_YAPILDI, AKSIYON_EKLENDI, AKSIYON_TAMAMLANDI, SEVIYE_DEGISTI, KAPATILDI
+  oldValue  String?
+  newValue  String?
+  comments  String?
+  
+  createdAt DateTime @default(now())
+  
+  @@map("risk_histories")
+}
+// ============================================
+// EKİPMAN YÖNETİMİ
+// ============================================
+
+model EquipmentCategory {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  description String?
+  color       String   @default("#6B7280")
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  
+  equipment   Equipment[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("equipment_categories")
+}
+
+model Equipment {
+  id              String   @id @default(cuid())
+  code            String   @unique  // EKP-YYYY-NNNN formatında
+  name            String
+  description     String?
+  
+  // Kategori
+  categoryId      String?
+  category        EquipmentCategory? @relation(fields: [categoryId], references: [id])
+  
+  // Departman
+  departmentId    String?
+  department      Department? @relation(fields: [departmentId], references: [id])
+  
+  // Konum ve Tanımlama
+  location        String?
+  serialNumber    String?
+  model           String?
+  manufacturer    String?
+  
+  // Durum
+  status          String   @default("AKTIF") // AKTIF, BAKIM_BEKLIYOR, BAKIMDA, KALIBRASYON_BEKLIYOR, KALIBRASYONDA, ARIZALI, DEVRE_DISI, HURDA
+  condition       String   @default("IYI")   // MUKEMMEL, IYI, ORTA, KOTU, KULLANIM_DISI
+  
+  // Tarihler
+  purchaseDate    DateTime?
+  installationDate DateTime?
+  warrantyEndDate DateTime?
+  
+  // Bakım Bilgileri
+  maintenanceFrequency    Int?     // Gün cinsinden bakım periyodu
+  lastMaintenanceDate     DateTime?
+  nextMaintenanceDate     DateTime?
+  maintenanceResponsibleId String?
+  maintenanceResponsible   User?   @relation("EquipmentMaintenanceResponsible", fields: [maintenanceResponsibleId], references: [id])
+  
+  // Kalibrasyon Bilgileri
+  requiresCalibration     Boolean  @default(false)
+  calibrationFrequency    Int?     // Gün cinsinden kalibrasyon periyodu
+  lastCalibrationDate     DateTime?
+  nextCalibrationDate     DateTime?
+  calibrationResponsibleId String?
+  calibrationResponsible   User?   @relation("EquipmentCalibrationResponsible", fields: [calibrationResponsibleId], references: [id])
+  
+  // Mali Bilgiler
+  purchaseCost    Float?
+  currentValue    Float?
+  
+  // Teknik Bilgiler
+  specifications  String?
+  operatingInstructions String?
+  safetyInstructions    String?
+  
+  // Dosyalar
+  imageUrl        String?
+  manualUrl       String?
+  
+  // Atama
+  ownerId         String?
+  owner           User?    @relation("EquipmentOwner", fields: [ownerId], references: [id])
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("EquipmentCreator", fields: [createdById], references: [id])
+  
+  // Aktiflik
+  isActive        Boolean  @default(true)
+  deletedAt       DateTime?
+  
+  // İlişkiler
+  maintenances    EquipmentMaintenance[]
+  calibrations    EquipmentCalibration[]
+  histories       EquipmentHistory[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("equipment")
+}
+
+model EquipmentMaintenance {
+  id              String   @id @default(cuid())
+  equipmentId     String
+  equipment       Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  
+  code            String   // EKP-BKM-NNNN formatında
+  
+  // Bakım Tipi
+  maintenanceType String   // PERIYODIK, ARIZALI, ONLEYICI, DUZELTUCU, REVIZYON
+  
+  // Durum
+  status          String   @default("PLANLI") // PLANLI, DEVAM_EDIYOR, TAMAMLANDI, IPTAL, ERTELENDI
+  priority        String   @default("ORTA")   // DUSUK, ORTA, YUKSEK, ACIL
+  
+  // Açıklama
+  title           String
+  description     String?
+  
+  // Tarihler
+  plannedDate     DateTime?
+  startDate       DateTime?
+  completionDate  DateTime?
+  
+  // Çalışma Detayları
+  workPerformed   String?
+  partsUsed       String?
+  laborHours      Float?
+  
+  // Maliyet
+  partsCost       Float?
+  laborCost       Float?
+  totalCost       Float?
+  
+  // Sonuç
+  result          String?  // BASARILI, KISMI_BASARILI, BASARISIZ, DEVAM_EDIYOR
+  findings        String?
+  recommendations String?
+  
+  // Sonraki Bakım
+  nextMaintenanceDate DateTime?
+  
+  // Teknisyen
+  technicianId    String?
+  technician      User?    @relation("MaintenanceTechnician", fields: [technicianId], references: [id])
+  
+  // Dış Firma
+  externalCompany String?
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("MaintenanceCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("equipment_maintenances")
+}
+
+model EquipmentCalibration {
+  id              String   @id @default(cuid())
+  equipmentId     String
+  equipment       Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  
+  code            String   // EKP-KLB-NNNN formatında
+  
+  // Kalibrasyon Tipi
+  calibrationType String   // IC_KALIBRASYON, DIS_KALIBRASYON, DOGRULAMA
+  
+  // Durum
+  status          String   @default("PLANLI") // PLANLI, DEVAM_EDIYOR, TAMAMLANDI, BASARISIZ, IPTAL
+  
+  // Açıklama
+  title           String
+  description     String?
+  
+  // Referans Standart
+  referenceStandard String?
+  referenceEquipment String?
+  
+  // Tarihler
+  plannedDate     DateTime?
+  calibrationDate DateTime?
+  validUntilDate  DateTime?
+  
+  // Sonuçlar
+  beforeReadings  String?  // JSON formatında önceki okumalar
+  afterReadings   String?  // JSON formatında sonraki okumalar
+  tolerance       String?
+  deviation       String?
+  
+  // Belirsizlik
+  uncertainty     String?
+  uncertaintyUnit String?
+  
+  // Sonuç
+  result          String?  // UYGUN, UYGUN_DEGIL, SINIR_DISI, ONARILAMAZ
+  isAccepted      Boolean  @default(false)
+  rejectionReason String?
+  
+  // Sertifika
+  certificateNumber String?
+  certificateUrl    String?
+  
+  // Kalibrasyon Kuruluşu (Dış kalibrasyon için)
+  externalProvider  String?
+  externalCost      Float?
+  
+  // Sonraki Kalibrasyon
+  nextCalibrationDate DateTime?
+  
+  // Kalibrasyon Yapan
+  calibratorId    String?
+  calibrator      User?    @relation("CalibrationCalibrator", fields: [calibratorId], references: [id])
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("CalibrationCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("equipment_calibrations")
+}
+
+model EquipmentHistory {
+  id          String   @id @default(cuid())
+  equipmentId String
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  
+  userId      String
+  user        User     @relation("EquipmentHistoryUser", fields: [userId], references: [id])
+  
+  action      String   // OLUSTURULDU, GUNCELLENDI, BAKIM_PLANLANDI, BAKIM_TAMAMLANDI, KALIBRASYON_YAPILDI, DURUM_DEGISTI, DEVRE_DISI_BIRAKILDI, AKTIF_EDILDI
+  oldValue    String?
+  newValue    String?
+  comments    String?
+  
+  createdAt   DateTime @default(now())
+  
+  @@map("equipment_histories")
+}
+
+
+// ============================================
+// TEDARİKÇİ YÖNETİMİ
+// ============================================
+
+enum SupplierStatus {
+  ADAY           // Aday tedarikçi
+  DEGERLENDIRMEDE // Değerlendirme sürecinde
+  ONAYLANDI      // Onaylandı
+  ASKIYA_ALINDI  // Askıya alındı
+  KARA_LISTE     // Kara listede
+  PASIF          // Pasif
+}
+
+enum SupplierType {
+  URUN           // Ürün tedarikçisi
+  HIZMET         // Hizmet tedarikçisi
+  HAMMADDE       // Hammadde tedarikçisi
+  MALZEME        // Malzeme tedarikçisi
+  EKIPMAN        // Ekipman tedarikçisi
+  BAKIM          // Bakım hizmet tedarikçisi
+  KALIBRASYON    // Kalibrasyon hizmet tedarikçisi
+  DIGER          // Diğer
+}
+
+enum EvaluationPeriod {
+  AYLIK          // Aylık
+  UCAYLIK        // 3 Aylık
+  ALTIAYLIK      // 6 Aylık
+  YILLIK         // Yıllık
+}
+
+model SupplierCategory {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  description String?
+  color       String   @default("#6B7280")
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  
+  suppliers   Supplier[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("supplier_categories")
+}
+
+model Supplier {
+  id              String   @id @default(cuid())
+  
+  // Temel Bilgiler
+  code            String   @unique // TDK-YYYY-NNNN formatında
+  name            String
+  tradeName       String?  // Ticaret unvanı
+  taxNumber       String?
+  taxOffice       String?
+  
+  // Tedarikçi Tipi ve Kategorisi
+  supplierType    SupplierType @default(URUN)
+  categoryId      String?
+  category        SupplierCategory? @relation(fields: [categoryId], references: [id])
+  
+  // Durum
+  status          SupplierStatus @default(ADAY)
+  
+  // İletişim Bilgileri
+  phone           String?
+  fax             String?
+  email           String?
+  website         String?
+  
+  // Adres
+  address         String?
+  city            String?
+  country         String?  @default("Türkiye")
+  postalCode      String?
+  
+  // Banka Bilgileri
+  bankName        String?
+  iban            String?
+  currency        String?  @default("TRY")
+  
+  // Ürün/Hizmet Bilgileri
+  productsServices String? // Sağladığı ürün/hizmetler
+  
+  // Değerlendirme
+  evaluationPeriod EvaluationPeriod @default(YILLIK)
+  lastEvaluationDate DateTime?
+  nextEvaluationDate DateTime?
+  averageScore      Float?   @default(0)
+  currentRating     String?  // A, B, C, D
+  
+  // Onay Bilgileri
+  approvalDate     DateTime?
+  approvedById     String?
+  approvedBy       User?    @relation("SupplierApprover", fields: [approvedById], references: [id])
+  
+  // Sertifikalar (Mevcut)
+  isoQuality       Boolean  @default(false)  // ISO 9001
+  isoEnvironment   Boolean  @default(false)  // ISO 14001
+  isoSafety        Boolean  @default(false)  // ISO 45001
+  isoFood          Boolean  @default(false)  // ISO 22000 Gıda Güvenliği
+  haccp            Boolean  @default(false)  // HACCP
+  tse              Boolean  @default(false)  // TSE Belgesi
+  ce               Boolean  @default(false)  // CE Belgesi
+  halal            Boolean  @default(false)  // Helal Sertifikası
+  kosher           Boolean  @default(false)  // Koşer Sertifikası
+  gmp              Boolean  @default(false)  // GMP (Good Manufacturing Practice)
+  organic          Boolean  @default(false)  // Organik Sertifikası
+  otherCertificates String?
+  
+  // Yeni Sertifikalar
+  certTarimOrman   Boolean  @default(false)  // Tarım ve Orman Bakanlığı İşletme Kayıt Belgesi
+  certFSC          Boolean  @default(false)  // FSC Sertifikası
+  certFairTrade    Boolean  @default(false)  // Fair Trade Sertifikası
+  certIFS          Boolean  @default(false)  // IFS
+  certBRC          Boolean  @default(false)  // BRC
+  
+  // Satın Alma Değerlendirmesi (1-5 puan)
+  purchasingPriceScore       Int?     // Fiyat puanı (1-5)
+  purchasingServiceScore     Int?     // Hizmet Performansı puanı (1-5)
+  purchasingDeliveryScore    Int?     // Sevkiyat puanı (1-5)
+  purchasingCompetencyScore  Int?     // Yeterlilik puanı (1-5)
+  purchasingTotalScore       Float?   // Satın Alma Skoru (max 100)
+  purchasingEvaluationDate   DateTime?
+  purchasingEvaluatedById    String?
+  
+  // Denetim Değerlendirmesi
+  auditScore                 Float?   // Denetim Skoru (max 100)
+  auditEvaluationDate        DateTime?
+  
+  // Genel Puan ve Sınıf
+  overallScore               Float?   // Genel Puan = (SatınAlmaSkoru + DenetimSkoru) / 2
+  supplierGrade              String?  // A, B veya C
+  
+  // Sözleşme Durumu
+  contractStatus             String?  @default("BEKLENIYOR") // BEKLENIYOR, MEVCUT, YOK
+  contractUploadDate         DateTime?
+  
+  // Lokasyon ve Mesafe
+  distanceToHotel    Float?   // Otele mesafe (km)
+  distanceNotes      String?  // Mesafe ile ilgili notlar
+  
+  // Sipariş ve Alışveriş Takibi
+  purchaseFrequency  String?  // HAFTALIK, AYLIK, UCAYLIK, ALTIAYLIK, YILLIK, PROJE_BAZLI
+  lastOrderDate      DateTime?
+  totalOrders        Int      @default(0)
+  totalOrderAmount   Float    @default(0)
+  averageOrderValue  Float?
+  paymentTerms       String?  // Ödeme vadesi (örn: "30 gün", "Peşin", "45 gün")
+  leadTime           Int?     // Teslim süresi (gün cinsinden)
+  minimumOrderQuantity String? // Minimum sipariş miktarı
+  deliveryTerms      String?  // Teslimat şartları (örn: "Fabrika Teslim", "Kapıda Teslim")
+  
+  // Notlar
+  notes           String?
+  
+  // Kritiklik
+  isCritical      Boolean  @default(false)
+  
+  // Taşeron Durumu (İSG Modülü Entegrasyonu)
+  isSubcontractor Boolean  @default(false)
+  subcontractorAddedAt DateTime?
+  
+  // İlişkiler
+  contacts        SupplierContact[]
+  subcontractorDocuments SubcontractorDocument[]
+  evaluations     SupplierEvaluation[]
+  documents       SupplierDocument[]
+  history         SupplierHistory[]
+  expenses        SupplierExpense[]
+  audits          Audit[]             @relation("SupplierAudits")
+  supplierAudits  SupplierAudit[]
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("SupplierCreator", fields: [createdById], references: [id])
+  
+  // Meta
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("suppliers")
+}
+
+// Tedarikçi Denetim Türleri
+enum SupplierAuditType {
+  ON_YETERLILIK     // Ön Yeterlilik Denetimi
+  PERIYODIK         // Periyodik Denetim
+  ANI               // Ani Denetim
+  BELGE_DENETIM     // Belge Denetimi
+}
+
+// Tedarikçi Denetim Checklist Sorusu
+model SupplierAuditQuestion {
+  id          String   @id @default(cuid())
+  orderNo     Int      // Sıra numarası
+  question    String   // Soru metni
+  isActive    Boolean  @default(true)
+  
+  answers     SupplierAuditAnswer[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("supplier_audit_questions")
+}
+
+// Tedarikçi Denetimi
+model SupplierAudit {
+  id              String              @id @default(cuid())
+  code            String              @unique  // TED-DEN-2026-0001
+  
+  supplierId      String
+  supplier        Supplier            @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  auditDate       DateTime
+  auditType       SupplierAuditType
+  
+  auditorId       String
+  auditor         User                @relation("SupplierAuditAuditor", fields: [auditorId], references: [id])
+  
+  notes           String?             // Genel notlar
+  findings        String?             // Genel bulgular
+  recommendations String?             // Öneriler
+  
+  // Puanlama
+  totalScore      Float?              // Toplam puan (Evet: 5 puan)
+  maxScore        Float?              // Maksimum olası puan
+  percentage      Float?              // Yüzdelik puan
+  
+  // Kanıt Dokümanı
+  evidenceFileName String?
+  evidenceFileSize Int?
+  evidenceCloudPath String?
+  evidenceIsPublic Boolean            @default(false)
+  
+  answers         SupplierAuditAnswer[]
+  
+  createdById     String
+  createdBy       User                @relation("SupplierAuditCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  
+  @@map("supplier_audits")
+}
+
+// Tedarikçi Denetim Cevabı
+enum SupplierAuditAnswerValue {
+  EVET           // Evet - 5 puan
+  HAYIR          // Hayır - 0 puan
+  UYGULANAMAZ    // Uygulanamaz - Hesaba katılmaz
+}
+
+model SupplierAuditAnswer {
+  id          String                   @id @default(cuid())
+  
+  auditId     String
+  audit       SupplierAudit            @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  
+  questionId  String
+  question    SupplierAuditQuestion    @relation(fields: [questionId], references: [id])
+  
+  answer      SupplierAuditAnswerValue
+  score       Int?                     // 1-5 arası puan (UYGULANAMAZ ise null)
+  notes       String?                  // Cevaba ait not
+  
+  createdAt   DateTime                 @default(now())
+  
+  @@unique([auditId, questionId])
+  @@map("supplier_audit_answers")
+}
+
+model SupplierContact {
+  id          String   @id @default(cuid())
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  // Kişi Bilgileri
+  name        String
+  title       String?  // Ünvan (Satış Müdürü, vb.)
+  department  String?
+  
+  // İletişim
+  phone       String?
+  mobile      String?
+  email       String?
+  
+  // Birincil İletişim Kişisi
+  isPrimary   Boolean  @default(false)
+  
+  notes       String?
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("supplier_contacts")
+}
+
+model SupplierEvaluation {
+  id              String   @id @default(cuid())
+  supplierId      String
+  supplier        Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  code            String   // TDK-DGR-NNNN formatında
+  
+  // Değerlendirme Dönemi
+  periodStart     DateTime
+  periodEnd       DateTime
+  evaluationDate  DateTime @default(now())
+  
+  // Puanlar (1-100 arası)
+  qualityScore    Float    // Kalite puanı
+  deliveryScore   Float    // Teslimat puanı
+  priceScore      Float    // Fiyat puanı
+  serviceScore    Float    // Hizmet puanı
+  communicationScore Float // İletişim puanı
+  
+  // Ağırlıklar (%)
+  qualityWeight   Float    @default(30)
+  deliveryWeight  Float    @default(25)
+  priceWeight     Float    @default(20)
+  serviceWeight   Float    @default(15)
+  communicationWeight Float @default(10)
+  
+  // Hesaplanan Değerler
+  totalScore      Float    // Ağırlıklı toplam puan
+  rating          String   // A, B, C, D (A: 85-100, B: 70-84, C: 50-69, D: 0-49)
+  
+  // Performans Verileri
+  totalOrders     Int?     // Toplam sipariş sayısı
+  onTimeDeliveries Int?    // Zamanında teslimat sayısı
+  qualityIssues   Int?     // Kalite sorunu sayısı
+  returns         Int?     // İade sayısı
+  
+  // Yorumlar
+  strengths       String?  // Güçlü yönler
+  weaknesses      String?  // Zayıf yönler
+  improvements    String?  // İyileştirme önerileri
+  comments        String?  // Genel yorumlar
+  
+  // Sonuç ve Karar
+  recommendation  String?  // DEVAM, GELISTIR, ASKIYA_AL, SONLANDIR
+  actionRequired  Boolean  @default(false)
+  actionDescription String?
+  
+  // Değerlendiren
+  evaluatedById   String
+  evaluatedBy     User     @relation("SupplierEvaluator", fields: [evaluatedById], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("supplier_evaluations")
+}
+
+model SupplierDocument {
+  id          String   @id @default(cuid())
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  // Doküman Bilgileri
+  name        String
+  documentType String  // SERTIFIKA, SOZLESME, TEKLIF, KALITE_BELGESI, DIGER
+  description String?
+  
+  // Dosya
+  fileName    String
+  fileSize    Int?
+  mimeType    String?
+  cloudStoragePath String
+  isPublic    Boolean  @default(false)
+  
+  // Geçerlilik
+  issueDate   DateTime?
+  expiryDate  DateTime?
+  isExpired   Boolean  @default(false)
+  
+  // Yükleyen
+  uploadedById String
+  uploadedBy   User    @relation("SupplierDocumentUploader", fields: [uploadedById], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("supplier_documents")
+}
+
+model SupplierHistory {
+  id          String   @id @default(cuid())
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  userId      String
+  user        User     @relation("SupplierHistoryUser", fields: [userId], references: [id])
+  
+  action      String   // OLUSTURULDU, GUNCELLENDI, ONAYLANDI, ASKIYA_ALINDI, KARA_LISTEYE_ALINDI, DEGERLENDIRME_YAPILDI, BELGE_YUKLENDI
+  oldValue    String?
+  newValue    String?
+  comments    String?
+  
+  createdAt   DateTime @default(now())
+  
+  @@map("supplier_histories")
+}
+
+model SupplierExpense {
+  id          String   @id @default(cuid())
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  date        DateTime
+  amount      Float
+  currency    String   @default("TRY")
+  description String?
+  invoiceNo   String?
+  
+  createdById String
+  createdBy   User     @relation("SupplierExpenseCreator", fields: [createdById], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("supplier_expenses")
+}
+
+// ============================================
+// ÖLÇÜM YÖNETİMİ (KPI)
+// ============================================
+
+enum KPIType {
+  VERIMLILIK      // Verimlilik
+  KALITE          // Kalite
+  MALIYET         // Maliyet
+  TESLIMAT        // Teslimat
+  MUSTERI         // Müşteri Memnuniyeti
+  CALISANLAR      // Çalışan Performansı
+  SUREC           // Süreç
+  FINANSAL        // Finansal
+  STRATEJIK       // Stratejik
+  OPERASYONEL     // Operasyonel
+}
+
+enum KPIPeriod {
+  GUNLUK
+  HAFTALIK
+  AYLIK
+  UCAYLIK
+  ALTIAYLIK
+  YILLIK
+}
+
+enum KPIStatus {
+  TASLAK
+  AKTIF
+  ASKIDA
+  PASIF
+}
+
+enum KPITrendDirection {
+  YUKARI_IYI      // Yükselen değer iyi (örn: satış)
+  ASAGI_IYI       // Düşen değer iyi (örn: hata oranı)
+  HEDEF           // Belirli bir hedefe yakın olmak iyi
+}
+
+model KPICategory {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  color       String?  @default("#3B82F6")
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  
+  kpis        KPI[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("kpi_categories")
+}
+
+model KPI {
+  id              String   @id @default(cuid())
+  code            String   @unique           // KPI-2026-0001
+  name            String
+  description     String?
+  
+  // Ölçüm türü (KPI veya Hedef)
+  measurementType String   @default("KPI")   // KPI veya HEDEF
+  
+  // Tip ve kategori
+  type            KPIType  @default(OPERASYONEL)
+  categoryId      String?
+  category        KPICategory? @relation(fields: [categoryId], references: [id])
+  
+  // Departman (opsiyonel)
+  departmentId    String?
+  department      Department? @relation(fields: [departmentId], references: [id])
+  
+  // Ölçüm ayarları
+  unit            String                     // Birim (%, adet, TL, gün, vb.)
+  formula         String?                    // Hesaplama formülü açıklaması
+  dataSource      String?                    // Veri kaynağı
+  period          KPIPeriod @default(AYLIK)  // Ölçüm periyodu
+  
+  // Hedef ve eşikler
+  targetValue     Float                      // Hedef değer
+  minValue        Float?                     // Minimum kabul edilebilir
+  maxValue        Float?                     // Maksimum kabul edilebilir
+  warningThreshold Float?                    // Uyarı eşiği
+  criticalThreshold Float?                   // Kritik eşik
+  
+  // Trend yönü
+  trendDirection  KPITrendDirection @default(YUKARI_IYI)
+  
+  // Durum
+  status          KPIStatus @default(TASLAK)
+  
+  // Ağırlık (scorecard için)
+  weight          Float    @default(1.0)
+  
+  // Başlangıç değeri
+  baselineValue   Float?
+  baselineDate    DateTime?
+  
+  // Sorumlu
+  ownerId         String?
+  owner           User?    @relation("KPIOwner", fields: [ownerId], references: [id])
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("KPICreator", fields: [createdById], references: [id])
+  
+  // İlişkiler
+  measurements    KPIMeasurement[]
+  targets         KPITarget[]
+  
+  // Departman bazlı ağırlıklandırma
+  departmentWeights KPIDepartmentWeight[]
+  
+  // Stratejik planlama ilişkileri
+  goalKPIs        GoalKPI[]
+  subGoalKPIs     SubGoalKPI[]
+  actionKPIs      ActionKPI[]
+  
+  // Son ölçüm bilgileri (hızlı erişim için)
+  lastMeasurementValue Float?
+  lastMeasurementDate  DateTime?
+  currentPerformance   Float?               // Yüzde olarak performans (100 = hedefte)
+  
+  // Bireysel KPI atamaları
+  personnelKPIs   PersonnelKPI[]
+  
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("kpis")
+}
+
+model KPIMeasurement {
+  id          String   @id @default(cuid())
+  kpiId       String
+  kpi         KPI      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  
+  // Ölçüm tarihi ve periyodu
+  measurementDate DateTime
+  periodStart     DateTime?
+  periodEnd       DateTime?
+  
+  // Değer
+  value           Float
+  
+  // Performans hesaplaması
+  targetValue     Float?                    // O dönemdeki hedef
+  performance     Float?                    // Yüzde olarak performans
+  variance        Float?                    // Hedeften sapma
+  
+  // Durum rengi
+  status          String?                   // BASARILI, UYARI, KRITIK
+  
+  // Açıklama ve notlar
+  notes           String?
+  dataSource      String?                   // Veri kaynağı referansı
+  
+  // Doğrulama
+  isVerified      Boolean  @default(false)
+  verifiedAt      DateTime?
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("KPIMeasurementCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("kpi_measurements")
+}
+
+model KPITarget {
+  id          String   @id @default(cuid())
+  kpiId       String
+  kpi         KPI      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  
+  // Dönem
+  year        Int
+  period      KPIPeriod
+  periodNumber Int?                        // Ay, çeyrek, vb. numarası
+  
+  // Hedef değerler
+  targetValue Float
+  minValue    Float?
+  maxValue    Float?
+  
+  // Gerçekleşen (özet)
+  actualValue Float?
+  performance Float?
+  
+  notes       String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([kpiId, year, period, periodNumber])
+  @@map("kpi_targets")
+}
+
+// KPI Departman Ağırlıklandırması
+// Bir KPI farklı departmanlara farklı ağırlıklarla dağıtılabilir
+// Örn: "Ciro" KPI'sı -> Satış %30, ARGE %10, Operasyon %20
+model KPIDepartmentWeight {
+  id            String   @id @default(cuid())
+  kpiId         String
+  kpi           KPI      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  
+  departmentId  String
+  department    Department @relation("KPIDepartmentWeights", fields: [departmentId], references: [id])
+  
+  weight        Float    // 0-100 arası ağırlık yüzdesi
+  
+  // Hedef değerlerin departman bazında farklılaşması
+  targetValue   Float?   // Bu departman için özel hedef (opsiyonel)
+  minValue      Float?   // Minimum kabul edilebilir değer
+  maxValue      Float?   // Maksimum beklenen değer
+  
+  // Karne hesaplama faktörü
+  scoreFactor   Float    @default(1.0)  // Performans hesabında çarpan
+  
+  notes         String?  // Ağırlıklandırma gerekçesi
+  
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@unique([kpiId, departmentId])
+  @@map("kpi_department_weights")
+}
+
+// ============================================
+// STRATEJİK PLANLAMA
+// ============================================
+
+enum StrategicPeriodStatus {
+  TASLAK          // Taslak
+  AKTIF           // Aktif dönem
+  KAPALI          // Kapalı dönem
+  ARSIV           // Arşivlenmiş
+}
+
+enum ObjectiveStatus {
+  TASLAK
+  AKTIF
+  TAMAMLANDI
+  IPTAL
+}
+
+enum GoalStatus {
+  TASLAK
+  AKTIF
+  IZLEMEDE
+  TAMAMLANDI
+  IPTAL
+}
+
+enum ActionStatus {
+  PLANLANDI
+  DEVAM_EDIYOR
+  BLOKAJ
+  TAMAMLANDI
+  IPTAL
+}
+
+enum ActionPriority {
+  DUSUK
+  ORTA
+  YUKSEK
+  KRITIK
+}
+
+// Strateji Dönemi (2026 Stratejik Plan vb.)
+model StrategyPeriod {
+  id              String   @id @default(cuid())
+  code            String   @unique  // SP-2026
+  name            String             // 2026 Stratejik Planı
+  description     String?
+  
+  startDate       DateTime
+  endDate         DateTime
+  
+  status          StrategicPeriodStatus @default(TASLAK)
+  
+  // Misyon ve Vizyon
+  missionId       String?  @unique
+  mission         Mission? @relation(fields: [missionId], references: [id])
+  
+  visionId        String?  @unique
+  vision          Vision?  @relation(fields: [visionId], references: [id])
+  
+  // İlişkiler
+  perspectives    BSCPerspective[]
+  objectives      StrategicObjective[]
+  
+  // SWOT ve PESTEL çalışmaları
+  swotStudies     SWOTStudy[]
+  pestelStudies   PESTELStudy[]
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("StrategyPeriodCreator", fields: [createdById], references: [id])
+  
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("strategy_periods")
+}
+
+// Misyon
+model Mission {
+  id              String   @id @default(cuid())
+  content         String   // Misyon metni
+  version         Int      @default(1)
+  effectiveDate   DateTime @default(now())
+  
+  strategyPeriod  StrategyPeriod?
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("MissionCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("missions")
+}
+
+// Vizyon
+model Vision {
+  id              String   @id @default(cuid())
+  content         String   // Vizyon metni
+  version         Int      @default(1)
+  effectiveDate   DateTime @default(now())
+  targetYear      Int?     // Hedef yıl (Vizyon 2030 gibi)
+  
+  strategyPeriod  StrategyPeriod?
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("VisionCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("visions")
+}
+
+// Balanced Scorecard Perspektifleri
+model BSCPerspective {
+  id              String   @id @default(cuid())
+  code            String   // FIN, MUS, SUR, OGR
+  name            String   // Finans, Müşteri, İç Süreç, Öğrenme & Gelişim
+  description     String?
+  color           String   @default("#3B82F6")
+  icon            String?
+  sortOrder       Int      @default(0)
+  
+  periodId        String
+  period          StrategyPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  
+  objectives      StrategicObjective[]
+  
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([periodId, code])
+  @@map("bsc_perspectives")
+}
+
+// Stratejik Amaç
+model StrategicObjective {
+  id              String   @id @default(cuid())
+  code            String   // SA-2026-01
+  name            String
+  description     String?
+  
+  status          ObjectiveStatus @default(TASLAK)
+  
+  // Dönem ve Perspektif
+  periodId        String
+  period          StrategyPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  
+  perspectiveId   String?
+  perspective     BSCPerspective? @relation(fields: [perspectiveId], references: [id])
+  
+  // Departman (opsiyonel)
+  departmentId    String?
+  department      Department? @relation("ObjectiveDepartment", fields: [departmentId], references: [id])
+  departmentIds   String?     // JSON array: birden fazla departman seçimi
+  
+  // Sahip
+  ownerId         String?
+  owner           User?    @relation("ObjectiveOwner", fields: [ownerId], references: [id])
+  
+  // Hedef değerler
+  targetValue     Float?
+  currentValue    Float?
+  weight          Float    @default(1.0)
+  
+  // İlerleme
+  progress        Float    @default(0)  // 0-100
+  riskLevel       String?  // DUSUK, ORTA, YUKSEK
+  
+  // Alt hedefler
+  goals           StrategicGoal[]
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("ObjectiveCreator", fields: [createdById], references: [id])
+  
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([periodId, code])
+  @@map("strategic_objectives")
+}
+
+// Hedef
+model StrategicGoal {
+  id              String   @id @default(cuid())
+  code            String   // H-2026-01-01
+  name            String
+  description     String?
+  
+  status          GoalStatus @default(TASLAK)
+  
+  // Üst Amaç
+  objectiveId     String
+  objective       StrategicObjective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  
+  // Departman
+  departmentId    String?
+  department      Department? @relation("GoalDepartment", fields: [departmentId], references: [id])
+  departmentIds   String?     // JSON array: birden fazla departman seçimi
+  
+  // Sahip
+  ownerId         String?
+  owner           User?    @relation("GoalOwner", fields: [ownerId], references: [id])
+  
+  // Hedef değerler
+  targetValue     Float?
+  currentValue    Float?
+  unit            String?
+  weight          Float    @default(1.0)
+  
+  // Tarihler
+  startDate       DateTime?
+  endDate         DateTime?
+  
+  // İlerleme
+  progress        Float    @default(0)  // 0-100
+  riskLevel       String?  // DUSUK, ORTA, YUKSEK
+  
+  // Alt hedefler ve aksiyonlar
+  subGoals        StrategicSubGoal[]
+  actions         StrategicAction[] @relation("GoalActions")
+  
+  // KPI ilişkisi
+  kpis            GoalKPI[]
+  
+  // Risk ilişkisi
+  risks           GoalRisk[]
+  
+  // SWOT ve PESTEL bağlantıları
+  swotLinks       SWOTGoalLink[]
+  swotStrategies  SWOTStrategy[]
+  pestelLinks     PESTELGoalLink[]
+  
+  // İlerleme girişleri (kimin ne eklediği)
+  progressEntries GoalProgressEntry[] @relation("GoalProgressEntries")
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("GoalCreator", fields: [createdById], references: [id])
+  
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("strategic_goals")
+}
+
+// Alt Hedef
+model StrategicSubGoal {
+  id              String   @id @default(cuid())
+  code            String   // AH-2026-01-01-01
+  name            String
+  description     String?
+  
+  status          GoalStatus @default(TASLAK)
+  
+  // Üst Hedef
+  goalId          String
+  goal            StrategicGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  
+  // Departman
+  departmentId    String?
+  department      Department? @relation("SubGoalDepartment", fields: [departmentId], references: [id])
+  departmentIds   String?     // JSON array: birden fazla departman seçimi
+  
+  // Sahip
+  ownerId         String?
+  owner           User?    @relation("SubGoalOwner", fields: [ownerId], references: [id])
+  
+  // Hedef değerler
+  targetValue     Float?
+  currentValue    Float?
+  unit            String?
+  weight          Float    @default(1.0)
+  
+  // Tarihler
+  startDate       DateTime?
+  endDate         DateTime?
+  
+  // İlerleme
+  progress        Float    @default(0)
+  riskLevel       String?
+  
+  // Aksiyonlar
+  actions         StrategicAction[] @relation("SubGoalActions")
+  
+  // KPI ilişkisi
+  kpis            SubGoalKPI[]
+  
+  // Risk ilişkisi
+  risks           SubGoalRisk[]
+  
+  // İlerleme girişleri (kimin ne eklediği)
+  progressEntries GoalProgressEntry[] @relation("SubGoalProgressEntries")
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("SubGoalCreator", fields: [createdById], references: [id])
+  
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("strategic_sub_goals")
+}
+
+// Aksiyon
+model StrategicAction {
+  id              String   @id @default(cuid())
+  code            String   // AKS-2026-0001
+  name            String
+  description     String?
+  
+  status          ActionStatus @default(PLANLANDI)
+  priority        ActionPriority @default(ORTA)
+  
+  // Bağlı hedef/alt hedef (biri olmalı)
+  goalId          String?
+  goal            StrategicGoal? @relation("GoalActions", fields: [goalId], references: [id])
+  
+  subGoalId       String?
+  subGoal         StrategicSubGoal? @relation("SubGoalActions", fields: [subGoalId], references: [id])
+  
+  // Departman
+  departmentId    String?
+  department      Department? @relation("ActionDepartment", fields: [departmentId], references: [id])
+  departmentIds   String?     // JSON array: birden fazla departman seçimi
+  
+  // Sorumlu (RACI - R)
+  responsibleId   String?
+  responsible     User?    @relation("ActionResponsible", fields: [responsibleId], references: [id])
+  
+  // Onaylayan (RACI - A)
+  accountableId   String?
+  accountable     User?    @relation("ActionAccountable", fields: [accountableId], references: [id])
+  
+  // Danışılan (RACI - C) - Birden fazla kişi olabilir
+  consultedUsers  ActionConsulted[]
+  
+  // Bilgilendirilecek (RACI - I) - Birden fazla kişi olabilir
+  informedUsers   ActionInformed[]
+  
+  // Tarihler
+  startDate       DateTime?
+  endDate         DateTime?
+  dueDate         DateTime?
+  completedDate   DateTime?
+  
+  // İlerleme
+  progress        Float    @default(0)  // 0-100
+  
+  // Bütçe
+  budgetPlanned   Float?
+  budgetActual    Float?
+  currency        String   @default("TRY")
+  budgetType      String?  // CAPEX, OPEX
+  
+  // Beklenen Kazanç (Tasarruf veya Gelir)
+  expectedGain    Float?   // Aksiyondan beklenen kazanç/tasarruf tutarı
+  
+  // Notlar ve kanıtlar
+  notes           String?
+  evidence        String?  // Tamamlanma kanıtı
+  blockReason     String?  // Blokaj nedeni
+  
+  // Kapanış bilgileri
+  closingNotes        String?  // Kapanış notları
+  closingDate         DateTime?  // Kapanış tarihi
+  closingEvidenceRequired Boolean @default(true)  // Kapanışta kanıt zorunlu mu?
+  closedById          String?  // Kapatan kullanıcı
+  closedBy            User?    @relation("ActionClosedBy", fields: [closedById], references: [id])
+  
+  // KPI ilişkisi
+  kpis            ActionKPI[]
+  
+  // Risk ilişkisi  
+  risks           ActionRisk[]
+  
+  // SWOT/PESTEL ilişkileri
+  swotLinks       SWOTActionLink[]
+  pestelLinks     PESTELActionLink[]
+  
+  // Kilometre taşları
+  milestones      ActionMilestone[]
+  
+  // Tarihçe
+  histories       StrategicActionHistory[]
+  
+  // İş akışı durumu
+  workflowStatus  WorkflowStatus @default(TASLAK)
+  
+  // Dosya ve link ekleri
+  attachments     ActionAttachment[]
+  
+  // Yorumlar
+  comments        ActionComment[]
+  
+  // Onay adımları
+  approvals       ActionApproval[]
+  
+  // Bildirimler
+  notifications   ActionNotification[]
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("ActionCreator", fields: [createdById], references: [id])
+  
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("strategic_actions")
+}
+
+// Aksiyon Tarihçesi
+model StrategicActionHistory {
+  id          String   @id @default(cuid())
+  actionId    String
+  action      StrategicAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  
+  userId      String
+  user        User     @relation("ActionHistoryUser", fields: [userId], references: [id])
+  
+  actionType  String   // OLUSTURULDU, DURUM_DEGISTI, ILERLEME_GUNCELLENDI, ATANDI, TAMAMLANDI
+  oldValue    String?
+  newValue    String?
+  comments    String?
+  
+  createdAt   DateTime @default(now())
+  
+  @@map("strategic_action_histories")
+}
+
+// RACI - Danışılan Kişiler (Consulted)
+model ActionConsulted {
+  id          String   @id @default(cuid())
+  actionId    String
+  action      StrategicAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  
+  userId      String
+  user        User     @relation("UserConsultedActions", fields: [userId], references: [id])
+  
+  notes       String?  // Danışma notu/gerekçesi
+  addedAt     DateTime @default(now())
+  
+  @@unique([actionId, userId])
+  @@map("action_consulted")
+}
+
+// RACI - Bilgilendirilecek Kişiler (Informed)
+model ActionInformed {
+  id          String   @id @default(cuid())
+  actionId    String
+  action      StrategicAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  
+  userId      String
+  user        User     @relation("UserInformedActions", fields: [userId], references: [id])
+  
+  notifyOnProgress  Boolean @default(true)   // İlerleme güncellemelerinde bilgilendir
+  notifyOnComplete  Boolean @default(true)   // Tamamlandığında bilgilendir
+  notifyOnBlock     Boolean @default(true)   // Blokajda bilgilendir
+  
+  addedAt     DateTime @default(now())
+  
+  @@unique([actionId, userId])
+  @@map("action_informed")
+}
+
+// Aksiyon Kilometre Taşları
+enum MilestoneStatus {
+  BEKLIYOR
+  DEVAM_EDIYOR
+  TAMAMLANDI
+  IPTAL
+  GECIKTI
+}
+
+model ActionMilestone {
+  id            String   @id @default(cuid())
+  actionId      String
+  action        StrategicAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  
+  name          String
+  description   String?
+  
+  status        MilestoneStatus @default(BEKLIYOR)
+  
+  plannedDate   DateTime
+  actualDate    DateTime?
+  
+  weight        Float    @default(1.0)  // Ağırlık (ilerleme hesabı için)
+  
+  deliverables  String?  // Teslim edilecekler
+  evidence      String?  // Tamamlanma kanıtı
+  
+  completedById String?
+  completedBy   User?    @relation("MilestoneCompletedBy", fields: [completedById], references: [id])
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@map("action_milestones")
+}
+
+// Hedef-KPI İlişki Tablosu
+model GoalKPI {
+  id        String   @id @default(cuid())
+  goalId    String
+  goal      StrategicGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  kpiId     String
+  kpi       KPI      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  weight    Float    @default(1.0)
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([goalId, kpiId])
+  @@map("goal_kpis")
+}
+
+// Alt Hedef-KPI İlişki Tablosu
+model SubGoalKPI {
+  id          String   @id @default(cuid())
+  subGoalId   String
+  subGoal     StrategicSubGoal @relation(fields: [subGoalId], references: [id], onDelete: Cascade)
+  kpiId       String
+  kpi         KPI      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  weight      Float    @default(1.0)
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([subGoalId, kpiId])
+  @@map("sub_goal_kpis")
+}
+
+// Aksiyon-KPI İlişki Tablosu
+model ActionKPI {
+  id          String   @id @default(cuid())
+  actionId    String
+  action      StrategicAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  kpiId       String
+  kpi         KPI      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([actionId, kpiId])
+  @@map("action_kpis")
+}
+
+// Hedef-Risk İlişki Tablosu
+model GoalRisk {
+  id        String   @id @default(cuid())
+  goalId    String
+  goal      StrategicGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  riskId    String
+  risk      Risk     @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([goalId, riskId])
+  @@map("goal_risks")
+}
+
+// Alt Hedef-Risk İlişki Tablosu
+model SubGoalRisk {
+  id          String   @id @default(cuid())
+  subGoalId   String
+  subGoal     StrategicSubGoal @relation(fields: [subGoalId], references: [id], onDelete: Cascade)
+  riskId      String
+  risk        Risk     @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([subGoalId, riskId])
+  @@map("sub_goal_risks")
+}
+
+// Aksiyon-Risk İlişki Tablosu
+model ActionRisk {
+  id          String   @id @default(cuid())
+  actionId    String
+  action      StrategicAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  riskId      String
+  risk        Risk     @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([actionId, riskId])
+  @@map("action_risks")
+}
+
+// ============================================
+// SWOT ANALİZİ
+// ============================================
+
+enum SWOTItemType {
+  STRENGTH     // Güçlü Yön
+  WEAKNESS     // Zayıf Yön
+  OPPORTUNITY  // Fırsat
+  THREAT       // Tehdit
+}
+
+model SWOTStudy {
+  id              String   @id @default(cuid())
+  code            String   @unique // SWOT-2026-001
+  name            String
+  description     String?
+  
+  periodId        String
+  period          StrategyPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  
+  departmentId    String?
+  department      Department? @relation(fields: [departmentId], references: [id])
+  
+  analysisDate    DateTime @default(now())
+  status          String   @default("TASLAK") // TASLAK, AKTIF, TAMAMLANDI, ARSIV
+  
+  createdById     String
+  createdBy       User     @relation("SWOTStudyCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  items           SWOTItem[]
+  strategies      SWOTStrategy[]
+  
+  @@map("swot_studies")
+}
+
+model SWOTItem {
+  id              String       @id @default(cuid())
+  studyId         String
+  study           SWOTStudy    @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  
+  type            SWOTItemType
+  title           String
+  description     String?
+  impact          Int          @default(3) // 1-5 etki düzeyi
+  priority        Int          @default(0) // Sıralama
+  
+  // Sorumlu atama
+  responsibleId   String?
+  responsible     User?        @relation("SWOTItemResponsible", fields: [responsibleId], references: [id])
+  
+  // Süreç ilişkilendirme
+  processName     String?      // Ana süreç adı
+  subProcessName  String?      // Alt süreç adı
+  
+  // Tarih aralığı
+  startDate       DateTime?
+  endDate         DateTime?
+  
+  // Aksiyon notu (iyileştirme/koruma için)
+  actionNote      String?
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  // TOWS stratejileri ile ilişki
+  strengthStrategies  SWOTStrategy[] @relation("StrategyStrength")
+  weaknessStrategies  SWOTStrategy[] @relation("StrategyWeakness")
+  opportunityStrategies SWOTStrategy[] @relation("StrategyOpportunity")
+  threatStrategies    SWOTStrategy[] @relation("StrategyThreat")
+  
+  // Hedef bağlantısı
+  linkedGoals     SWOTGoalLink[]
+  
+  // Aksiyon bağlantısı
+  linkedActions   SWOTActionLink[]
+  
+  @@map("swot_items")
+}
+
+// TOWS Matrix Stratejileri (SO, WO, ST, WT)
+model SWOTStrategy {
+  id              String       @id @default(cuid())
+  studyId         String
+  study           SWOTStudy    @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  
+  type            String       // SO, WO, ST, WT
+  title           String
+  description     String?
+  
+  // İlişkili SWOT öğeleri
+  strengthId      String?
+  strength        SWOTItem?    @relation("StrategyStrength", fields: [strengthId], references: [id])
+  
+  weaknessId      String?
+  weakness        SWOTItem?    @relation("StrategyWeakness", fields: [weaknessId], references: [id])
+  
+  opportunityId   String?
+  opportunity     SWOTItem?    @relation("StrategyOpportunity", fields: [opportunityId], references: [id])
+  
+  threatId        String?
+  threat          SWOTItem?    @relation("StrategyThreat", fields: [threatId], references: [id])
+  
+  // Stratejik hedef bağlantısı
+  goalId          String?
+  goal            StrategicGoal? @relation(fields: [goalId], references: [id])
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@map("swot_strategies")
+}
+
+// SWOT - Hedef Bağlantısı
+model SWOTGoalLink {
+  id              String       @id @default(cuid())
+  itemId          String
+  item            SWOTItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  goalId          String
+  goal            StrategicGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  
+  linkType        String       // DESTEKLER, ENGELLER, ILGILI
+  notes           String?
+  
+  createdAt       DateTime     @default(now())
+  
+  @@unique([itemId, goalId])
+  @@map("swot_goal_links")
+}
+
+// SWOT - Aksiyon Bağlantısı
+model SWOTActionLink {
+  id              String          @id @default(cuid())
+  itemId          String
+  item            SWOTItem        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  actionId        String
+  action          StrategicAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  
+  linkType        String          // KAYNAK (bu SWOT'tan doğdu), ILGILI (ilişkili)
+  notes           String?
+  
+  createdAt       DateTime        @default(now())
+  
+  @@unique([itemId, actionId])
+  @@map("swot_action_links")
+}
+
+// ============================================
+// PESTEL ANALİZİ
+// ============================================
+
+enum PESTELCategory {
+  POLITICAL     // Politik
+  ECONOMIC      // Ekonomik
+  SOCIAL        // Sosyal
+  TECHNOLOGICAL // Teknolojik
+  ENVIRONMENTAL // Çevresel
+  LEGAL         // Yasal
+}
+
+model PESTELStudy {
+  id              String   @id @default(cuid())
+  code            String   @unique // PESTEL-2026-001
+  name            String
+  description     String?
+  
+  periodId        String
+  period          StrategyPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  
+  departmentId    String?
+  department      Department? @relation(fields: [departmentId], references: [id])
+  
+  analysisDate    DateTime @default(now())
+  status          String   @default("TASLAK") // TASLAK, AKTIF, TAMAMLANDI, ARSIV
+  
+  createdById     String
+  createdBy       User     @relation("PESTELStudyCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  factors         PESTELFactor[]
+  
+  @@map("pestel_studies")
+}
+
+model PESTELFactor {
+  id              String         @id @default(cuid())
+  studyId         String
+  study           PESTELStudy    @relation(fields: [studyId], references: [id], onDelete: Cascade)
+  
+  category        PESTELCategory
+  title           String
+  description     String?
+  
+  // Etki analizi
+  impactType      String         @default("FIRSAT") // FIRSAT, TEHDIT, NOTR
+  impactLevel     Int            @default(3)        // 1-5 etki düzeyi
+  probability     Int            @default(3)        // 1-5 olasılık
+  timeframe       String?                           // KISA_VADE, ORTA_VADE, UZUN_VADE
+  
+  // Aksiyon gerekliliği
+  actionRequired  Boolean        @default(false)
+  actionNotes     String?
+  
+  // Sorumlu atama
+  responsibleId   String?
+  responsible     User?          @relation("PESTELFactorResponsible", fields: [responsibleId], references: [id])
+  
+  priority        Int            @default(0)        // Sıralama
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  // Hedef, Risk ve Aksiyon bağlantıları
+  linkedGoals     PESTELGoalLink[]
+  linkedRisks     PESTELRiskLink[]
+  linkedActions   PESTELActionLink[]
+  
+  @@map("pestel_factors")
+}
+
+// PESTEL - Hedef Bağlantısı
+model PESTELGoalLink {
+  id              String         @id @default(cuid())
+  factorId        String
+  factor          PESTELFactor   @relation(fields: [factorId], references: [id], onDelete: Cascade)
+  goalId          String
+  goal            StrategicGoal  @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  
+  linkType        String         // DESTEKLER, ENGELLER, ILGILI
+  notes           String?
+  
+  createdAt       DateTime       @default(now())
+  
+  @@unique([factorId, goalId])
+  @@map("pestel_goal_links")
+}
+
+// PESTEL - Risk Bağlantısı
+model PESTELRiskLink {
+  id              String         @id @default(cuid())
+  factorId        String
+  factor          PESTELFactor   @relation(fields: [factorId], references: [id], onDelete: Cascade)
+  riskId          String
+  risk            Risk           @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  
+  notes           String?
+  
+  createdAt       DateTime       @default(now())
+  
+  @@unique([factorId, riskId])
+  @@map("pestel_risk_links")
+}
+
+// PESTEL - Aksiyon Bağlantısı
+model PESTELActionLink {
+  id              String          @id @default(cuid())
+  factorId        String
+  factor          PESTELFactor    @relation(fields: [factorId], references: [id], onDelete: Cascade)
+  actionId        String
+  action          StrategicAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  
+  linkType        String          // KAYNAK (bu PESTEL'den doğdu), ILGILI (ilişkili)
+  notes           String?
+  
+  createdAt       DateTime        @default(now())
+  
+  @@unique([factorId, actionId])
+  @@map("pestel_action_links")
+}
+
+// ============================================
+// EĞİTİM YÖNETİMİ
+// ============================================
+
+enum TrainingType {
+  ORYANTASYON       // Oryantasyon Eğitimi
+  TEKNIK            // Teknik Eğitim
+  KALITE            // Kalite Eğitimi
+  GUVENLIK          // İş Güvenliği
+  YAZILIM           // Yazılım Eğitimi
+  YONETIM           // Yönetim Becerileri
+  MESLEKI           // Mesleki Gelişim
+  SERTIFIKA         // Sertifika Programı
+  DIGER             // Diğer
+}
+
+enum TrainingMethod {
+  SINIF_ICI         // Sınıf İçi Eğitim
+  ONLINE            // Online Eğitim
+  WEBINAR           // Webinar
+  SAHADA            // Sahada Uygulama
+  BIREYSEL          // Bireysel Çalışma
+  KARMA             // Karma Eğitim
+}
+
+enum TrainingStatus {
+  TASLAK            // Taslak
+  PLANLANDI         // Planlandı
+  DEVAM_EDIYOR      // Devam Ediyor
+  TAMAMLANDI        // Tamamlandı
+  IPTAL             // İptal Edildi
+  ERTELENDI         // Ertelendi
+}
+
+enum TrainingRecordStatus {
+  KAYITLI           // Kayıtlı
+  KATILDI           // Katıldı
+  BASARILI          // Başarılı
+  BASARISIZ         // Başarısız
+  DEVAMSIZ          // Devamsız
+  IPTAL             // İptal
+}
+
+// Eğitim Tanımı
+model Training {
+  id              String          @id @default(cuid())
+  code            String          @unique
+  name            String
+  description     String?
+  
+  type            TrainingType    @default(TEKNIK)
+  method          TrainingMethod  @default(SINIF_ICI)
+  
+  // Süre (dakika)
+  durationMinutes Int             @default(60)
+  
+  // İçerik
+  objectives      String?         // Eğitim Hedefleri
+  content         String?         // Eğitim İçeriği
+  materials       String?         // Eğitim Materyalleri
+  
+  // Yetkinlik gereksinimleri
+  prerequisites   String?         // Ön Koşullar
+  targetAudience  String?         // Hedef Kitle
+  
+  // Sertifika bilgileri
+  hasCertificate  Boolean         @default(false)
+  certificateValidityMonths Int?  // Sertifika geçerlilik süresi (ay)
+  
+  // Değerlendirme
+  hasExam         Boolean         @default(false)
+  passingScore    Int?            // Geçme puanı
+  
+  // Periyodik tekrar
+  isRecurring     Boolean         @default(false)
+  recurringMonths Int?            // Tekrar periyodu (ay)
+  
+  isActive        Boolean         @default(true)
+  
+  createdById     String
+  createdBy       User            @relation("TrainingCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  // İlişkiler
+  plans           TrainingPlan[]
+  requirements    TrainingRequirement[]
+  
+  @@map("trainings")
+}
+
+// Eğitim Planı (Belirli bir eğitim oturumu)
+model TrainingPlan {
+  id              String          @id @default(cuid())
+  code            String          @unique
+  
+  trainingId      String
+  training        Training        @relation(fields: [trainingId], references: [id])
+  
+  title           String          // Oturum başlığı
+  description     String?
+  
+  status          TrainingStatus  @default(PLANLANDI)
+  
+  // Zamanlama
+  plannedDate     DateTime
+  actualDate      DateTime?
+  startTime       String?         // HH:mm
+  endTime         String?         // HH:mm
+  
+  // Konum
+  location        String?
+  isOnline        Boolean         @default(false)
+  onlineLink      String?
+  
+  // Eğitmen
+  instructorId    String?
+  instructor      User?           @relation("TrainingInstructor", fields: [instructorId], references: [id])
+  externalInstructor String?      // Dış eğitmen adı
+  
+  // Departman (opsiyonel)
+  departmentId    String?
+  department      Department?     @relation(fields: [departmentId], references: [id])
+  
+  // Kapasite
+  maxParticipants Int?
+  minParticipants Int?
+  
+  // Maliyet
+  cost            Decimal?        @db.Decimal(15, 2)
+  currency        String          @default("TRY")
+  
+  // Değerlendirme
+  evaluationScore Decimal?        @db.Decimal(5, 2)  // Ortalama değerlendirme
+  
+  notes           String?
+  
+  createdById     String
+  createdBy       User            @relation("TrainingPlanCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  // İlişkiler
+  records         TrainingRecord[]
+  
+  @@map("training_plans")
+}
+
+// Eğitim Kaydı (Katılımcı kaydı)
+model TrainingRecord {
+  id              String                @id @default(cuid())
+  
+  planId          String
+  plan            TrainingPlan          @relation(fields: [planId], references: [id], onDelete: Cascade)
+  
+  participantId   String
+  participant     User                  @relation("TrainingParticipant", fields: [participantId], references: [id])
+  
+  status          TrainingRecordStatus  @default(KAYITLI)
+  
+  // Katılım
+  attended        Boolean               @default(false)
+  attendanceNotes String?
+  
+  // Sınav/Değerlendirme
+  examScore       Decimal?              @db.Decimal(5, 2)
+  examDate        DateTime?
+  isPassed        Boolean?
+  
+  // Sertifika
+  certificateIssued   Boolean           @default(false)
+  certificateNumber   String?
+  certificateDate     DateTime?
+  certificateExpiry   DateTime?
+  
+  // Katılımcı değerlendirmesi
+  satisfactionScore   Int?              // 1-5
+  feedback            String?
+  
+  notes           String?
+  
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  
+  @@unique([planId, participantId])
+  @@map("training_records")
+}
+
+// Eğitim Gereksinimi (Pozisyona göre)
+model TrainingRequirement {
+  id              String          @id @default(cuid())
+  
+  trainingId      String
+  training        Training        @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  
+  positionId      String
+  position        Position        @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  
+  // Gereksinim türü
+  isMandatory     Boolean         @default(true)
+  priority        Int             @default(1)       // 1: Yüksek, 2: Orta, 3: Düşük
+  
+  // Zamanlama
+  dueWithinDays   Int?            // İşe başladıktan sonra kaç gün içinde
+  
+  notes           String?
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  @@unique([trainingId, positionId])
+  @@map("training_requirements")
+}
+
+// ============================================
+// AKSİYON GELİŞMİŞ ÖZELLİKLER
+// ============================================
+
+// Aksiyon Ekleri (Dosya/Link)
+enum AttachmentType {
+  FILE
+  LINK
+}
+
+model ActionAttachment {
+  id              String         @id @default(cuid())
+  actionId        String
+  action          StrategicAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  
+  type            AttachmentType
+  name            String
+  description     String?
+  
+  // Dosya için
+  fileName        String?
+  fileSize        Int?
+  mimeType        String?
+  cloudStoragePath String?
+  isPublic        Boolean        @default(false)
+  
+  // Link için
+  url             String?
+  
+  // Kapanış kanıtı mı?
+  isClosingEvidence Boolean      @default(false)
+  
+  uploadedById    String
+  uploadedBy      User           @relation("ActionAttachmentUploader", fields: [uploadedById], references: [id])
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  @@map("action_attachments")
+}
+
+// Aksiyon Yorumları
+model ActionComment {
+  id              String         @id @default(cuid())
+  actionId        String
+  action          StrategicAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  
+  content         String
+  
+  // Mention (etiketlenen kullanıcılar)
+  mentionedUsers  ActionCommentMention[]
+  
+  authorId        String
+  author          User           @relation("ActionCommentAuthor", fields: [authorId], references: [id])
+  
+  // Yanıt olarak
+  parentId        String?
+  parent          ActionComment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies         ActionComment[] @relation("CommentReplies")
+  
+  isEdited        Boolean        @default(false)
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  @@map("action_comments")
+}
+
+// Yorum Mention İlişkisi
+model ActionCommentMention {
+  id              String         @id @default(cuid())
+  commentId       String
+  comment         ActionComment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User           @relation("MentionedInComment", fields: [userId], references: [id])
+  
+  createdAt       DateTime       @default(now())
+  
+  @@unique([commentId, userId])
+  @@map("action_comment_mentions")
+}
+
+// Aksiyon İş Akışı Durumu
+enum WorkflowStatus {
+  TASLAK         // Başlangıç
+  YAYINLANDI     // Onaylandı ve yayınlandı
+  UYGULAMA       // Uygulama aşamasında
+  KAPANIS        // Kapanış aşamasında
+  DEGERLENDIRME  // Değerlendirme aşamasında
+  TAMAMLANDI     // Tamamlandı
+  IPTAL          // İptal edildi
+}
+
+// Aksiyon Onay Adımı
+model ActionApproval {
+  id              String         @id @default(cuid())
+  actionId        String
+  action          StrategicAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  
+  fromStatus      WorkflowStatus
+  toStatus        WorkflowStatus
+  
+  requestedById   String
+  requestedBy     User           @relation("ApprovalRequester", fields: [requestedById], references: [id])
+  
+  approverId      String?
+  approver        User?          @relation("ApprovalApproverAction", fields: [approverId], references: [id])
+  
+  status          String         @default("BEKLIYOR") // BEKLIYOR, ONAYLANDI, REDDEDILDI
+  
+  requestedAt     DateTime       @default(now())
+  decidedAt       DateTime?
+  
+  requestNotes    String?
+  decisionNotes   String?
+  
+  @@map("action_approvals")
+}
+
+// Uygulama İçi Bildirimler
+enum NotificationType {
+  AKSIYON_ATANDI           // Aksiyon atandı
+  AKSIYON_DURUM_DEGISTI    // Aksiyon durumu değişti
+  AKSIYON_YORUM            // Yorum eklendi
+  AKSIYON_MENTION          // Yorumda etiketlendi
+  AKSIYON_TARIH_YAKLASTI   // Bitiş tarihi yaklaşıyor
+  AKSIYON_GECIKTI          // Aksiyon gecikti
+  ONAY_BEKLIYOR            // Onay bekliyor
+  ONAY_SONUCU              // Onay sonucu
+}
+
+model ActionNotification {
+  id              String           @id @default(cuid())
+  
+  userId          String
+  user            User             @relation("ActionNotificationRecipient", fields: [userId], references: [id])
+  
+  type            NotificationType
+  title           String
+  message         String
+  
+  // İlgili kayıtlar
+  actionId        String?
+  action          StrategicAction? @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  
+  commentId       String?
+  
+  isRead          Boolean          @default(false)
+  readAt          DateTime?
+  
+  createdAt       DateTime         @default(now())
+  
+  @@index([userId, isRead])
+  @@map("action_notifications")
+}
+
+// ============================================
+// BUTTERFLY 3 BOYUTLU PERFORMANS YÖNETİMİ
+// ============================================
+
+// 1. PUAN SKALASI SİSTEMİ
+// ============================================
+
+// Puan Skalası - Örn: "5'li Skala", "10'lu Skala"
+model ScoreScale {
+  id              String           @id @default(cuid())
+  code            String           @unique
+  name            String           // Örn: "5'li Performans Skalası"
+  description     String?
+  
+  minScore        Float            @default(0)   // Minimum puan
+  maxScore        Float            @default(100) // Maksimum puan
+  
+  isDefault       Boolean          @default(false) // Varsayılan skala mı?
+  isActive        Boolean          @default(true)
+  
+  // Skala seviyeleri
+  levels          ScoreScaleLevel[]
+  
+  // Bu skalayı kullanan yapılandırmalar
+  scorecardFormulas ScorecardFormula[]
+  competencyEvaluations PersonnelCompetencyEvaluation[]
+  
+  createdById     String
+  createdBy       User             @relation("ScoreScaleCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@map("score_scales")
+}
+
+// Puan Skalası Seviyeleri - Örn: Çok İyi=100, İyi=80, Orta=70...
+model ScoreScaleLevel {
+  id              String           @id @default(cuid())
+  scaleId         String
+  scale           ScoreScale       @relation(fields: [scaleId], references: [id], onDelete: Cascade)
+  
+  name            String           // Örn: "Çok İyi", "İyi", "Orta", "Kötü", "Çok Kötü"
+  score           Float            // Bu seviyenin puan değeri (100, 80, 70, 50, 40)
+  
+  minPerformance  Float            // Bu seviye için minimum performans yüzdesi
+  maxPerformance  Float            // Bu seviye için maksimum performans yüzdesi
+  
+  color           String           @default("#3B82F6") // Renk kodu
+  description     String?          // Açıklama
+  sortOrder       Int              @default(0)
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@unique([scaleId, name])
+  @@map("score_scale_levels")
+}
+
+// 2. BİREYSEL KPI ATAMA
+// ============================================
+
+// Personel KPI Ataması - KPI'ları bireylere atama
+model PersonnelKPI {
+  id              String           @id @default(cuid())
+  
+  // KPI bilgisi
+  kpiId           String
+  kpi             KPI              @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  
+  // Personel bilgisi
+  userId          String
+  user            User             @relation("PersonnelKPIs", fields: [userId], references: [id])
+  
+  // Dönem
+  year            Int
+  periodType      KPIPeriod        @default(YILLIK) // AYLIK, CEYREKLIK, YILLIK
+  
+  // Ağırlık - Bu KPI'nın personelin toplam KPI puanındaki ağırlığı
+  weight          Float            @default(1.0) // 0-100 arası
+  
+  // Hedef değerler (personel bazında özelleştirilebilir)
+  targetValue     Float?           // Personel için özel hedef (null ise KPI'nın hedefi kullanılır)
+  
+  // Gerçekleşen ve performans
+  actualValue     Float?           // Gerçekleşen değer
+  performance     Float?           // Performans yüzdesi
+  score           Float?           // Puan skalasına göre puan
+  
+  status          PersonnelKPIStatus @default(AKTIF)
+  
+  // Ölçümler
+  measurements    PersonnelKPIMeasurement[]
+  
+  notes           String?
+  
+  createdById     String
+  createdBy       User             @relation("PersonnelKPICreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@unique([kpiId, userId, year, periodType])
+  @@map("personnel_kpis")
+}
+
+enum PersonnelKPIStatus {
+  AKTIF
+  ASKIDA
+  TAMAMLANDI
+  IPTAL
+}
+
+// Personel KPI Ölçümü
+model PersonnelKPIMeasurement {
+  id                String           @id @default(cuid())
+  personnelKpiId    String
+  personnelKpi      PersonnelKPI     @relation(fields: [personnelKpiId], references: [id], onDelete: Cascade)
+  
+  measurementDate   DateTime
+  periodNumber      Int?             // Ay/Çeyrek numarası
+  
+  value             Float
+  targetValue       Float?           // O dönem için hedef
+  performance       Float?           // Performans yüzdesi
+  score             Float?           // Puan
+  
+  notes             String?
+  dataSource        String?          // Veri kaynağı (manuel/ERP)
+  
+  // Doğrulama
+  isVerified        Boolean          @default(false)
+  verifiedById      String?
+  verifiedBy        User?            @relation("PersonnelKPIMeasurementVerifier", fields: [verifiedById], references: [id])
+  verifiedAt        DateTime?
+  
+  createdById       String
+  createdBy         User             @relation("PersonnelKPIMeasurementCreator", fields: [createdById], references: [id])
+  
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  @@map("personnel_kpi_measurements")
+}
+
+// 3. YETKİNLİK MODÜLÜ
+// ============================================
+
+// Yetkinlik Kategorisi
+model CompetencyCategory {
+  id              String           @id @default(cuid())
+  code            String           @unique
+  name            String           // Örn: "Teknik Yetkinlikler", "Liderlik", "İletişim"
+  description     String?
+  color           String?          @default("#3B82F6")
+  sortOrder       Int              @default(0)
+  isActive        Boolean          @default(true)
+  
+  competencies    Competency[]
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@map("competency_categories")
+}
+
+// Yetkinlik Tanımı
+model Competency {
+  id              String           @id @default(cuid())
+  code            String           @unique
+  name            String           // Örn: "Problem Çözme", "Takım Çalışması"
+  description     String?
+  
+  categoryId      String
+  category        CompetencyCategory @relation(fields: [categoryId], references: [id])
+  
+  // Seviye tanımları (JSON formatında)
+  // Örn: [{"level": 1, "name": "Başlangıç", "description": "..."}, ...]
+  levelDefinitions Json?
+  
+  maxLevel        Int              @default(5) // Maksimum seviye
+  
+  // Pozisyon bazında beklenen seviye
+  positionRequirements CompetencyPositionRequirement[]
+  
+  // Personel değerlendirmeleri
+  evaluations     PersonnelCompetencyEvaluation[]
+  
+  sortOrder       Int              @default(0)
+  isActive        Boolean          @default(true)
+  
+  createdById     String
+  createdBy       User             @relation("CompetencyCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@map("competencies")
+}
+
+// Pozisyon İçin Yetkinlik Gereksinimi
+model CompetencyPositionRequirement {
+  id              String           @id @default(cuid())
+  
+  competencyId    String
+  competency      Competency       @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  
+  positionId      String
+  position        Position         @relation("PositionCompetencyRequirements", fields: [positionId], references: [id])
+  
+  requiredLevel   Int              // Beklenen yetkinlik seviyesi (1-5)
+  weight          Float            @default(1.0) // Ağırlık (0-100)
+  
+  isMandatory     Boolean          @default(true) // Zorunlu mu?
+  notes           String?
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@unique([competencyId, positionId])
+  @@map("competency_position_requirements")
+}
+
+// Personel Yetkinlik Değerlendirmesi
+model PersonnelCompetencyEvaluation {
+  id              String           @id @default(cuid())
+  
+  userId          String
+  user            User             @relation("PersonnelCompetencyEvaluations", fields: [userId], references: [id])
+  
+  competencyId    String
+  competency      Competency       @relation(fields: [competencyId], references: [id])
+  
+  // Değerlendirme dönemi
+  year            Int
+  period          Int?             // Çeyrek (1-4) veya yarıyıl (1-2)
+  
+  // Değerlendirme
+  currentLevel    Int              // Mevcut seviye (1-5)
+  targetLevel     Int?             // Hedef seviye
+  
+  // Puan hesaplama
+  scaleId         String?
+  scale           ScoreScale?      @relation(fields: [scaleId], references: [id])
+  
+  performance     Float?           // currentLevel / targetLevel yüzdesi
+  score           Float?           // Puan skalasına göre puan
+  weight          Float            @default(1.0) // Bu yetkinliğin toplam yetkinlik puanındaki ağırlığı
+  
+  // Değerlendiren
+  evaluatorId     String
+  evaluator       User             @relation("CompetencyEvaluator", fields: [evaluatorId], references: [id])
+  
+  evaluationDate  DateTime
+  
+  strengths       String?          // Güçlü yönler
+  improvements    String?          // Gelişim alanları
+  notes           String?
+  
+  status          EvaluationStatus @default(TASLAK)
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@unique([userId, competencyId, year, period])
+  @@map("personnel_competency_evaluations")
+}
+
+enum EvaluationStatus {
+  TASLAK
+  BEKLEMEDE
+  ONAYLANDI
+  REDDEDILDI
+}
+
+// 4. İNİSİYATİF / GÖREV MODÜLÜ
+// ============================================
+
+// İnisiyatif Kategorisi
+model InitiativeCategory {
+  id              String           @id @default(cuid())
+  code            String           @unique
+  name            String           // Örn: "Proje", "Özel Görev", "İyileştirme"
+  description     String?
+  color           String?          @default("#3B82F6")
+  
+  // Varsayılan ağırlık
+  defaultWeight   Float            @default(1.0)
+  
+  // Maksimum puan
+  maxScore        Float            @default(100)
+  
+  initiatives     Initiative[]
+  
+  sortOrder       Int              @default(0)
+  isActive        Boolean          @default(true)
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@map("initiative_categories")
+}
+
+// İnisiyatif / Görev Tanımı
+model Initiative {
+  id              String           @id @default(cuid())
+  code            String           @unique
+  name            String
+  description     String?
+  
+  categoryId      String
+  category        InitiativeCategory @relation(fields: [categoryId], references: [id])
+  
+  // Tarihler
+  startDate       DateTime
+  endDate         DateTime
+  
+  // Puan değerlendirme kriterleri (JSON)
+  // Örn: [{"criteria": "Zamanında teslim", "weight": 30}, {"criteria": "Kalite", "weight": 50}, ...]
+  scoringCriteria Json?
+  
+  maxScore        Float            @default(100)
+  
+  // Departman
+  departmentId    String?
+  department      Department?      @relation("InitiativeDepartment", fields: [departmentId], references: [id])
+  
+  // Personel atamaları
+  assignments     PersonnelInitiative[]
+  
+  status          InitiativeStatus @default(AKTIF)
+  
+  createdById     String
+  createdBy       User             @relation("InitiativeCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@map("initiatives")
+}
+
+enum InitiativeStatus {
+  TASLAK
+  AKTIF
+  TAMAMLANDI
+  IPTAL
+}
+
+// Personel İnisiyatif Ataması
+model PersonnelInitiative {
+  id              String           @id @default(cuid())
+  
+  initiativeId    String
+  initiative      Initiative       @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User             @relation("PersonnelInitiatives", fields: [userId], references: [id])
+  
+  // Rol (lider, üye, destekçi)
+  role            String           @default("UYE") // LIDER, UYE, DESTEKCI
+  
+  // Ağırlık
+  weight          Float            @default(1.0)
+  
+  // Değerlendirme
+  score           Float?           // Alınan puan
+  performance     Float?           // Yüzde performans
+  
+  // Kriter bazlı puanlar (JSON)
+  criteriaScores  Json?            // {"criteria1": 90, "criteria2": 85, ...}
+  
+  evaluatorId     String?
+  evaluator       User?            @relation("InitiativeEvaluator", fields: [evaluatorId], references: [id])
+  
+  evaluationDate  DateTime?
+  evaluationNotes String?
+  
+  status          PersonnelInitiativeStatus @default(AKTIF)
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@unique([initiativeId, userId])
+  @@map("personnel_initiatives")
+}
+
+enum PersonnelInitiativeStatus {
+  AKTIF
+  TAMAMLANDI
+  CIKARILDI
+}
+
+// 5. KARNE FORMÜL YAPILANDIRMASI
+// ============================================
+
+// Karne Formülü - 3 Boyutlu Performans Birleştirme
+model ScorecardFormula {
+  id              String           @id @default(cuid())
+  code            String           @unique
+  name            String           // Örn: "Standart Performans Formülü"
+  description     String?
+  
+  // KPI Ağırlığı
+  kpiWeight       Float            @default(50) // %50
+  
+  // Yetkinlik Ağırlığı
+  competencyWeight Float           @default(30) // %30
+  
+  // İnisiyatif Ağırlığı
+  initiativeWeight Float           @default(20) // %20
+  
+  // Kurum/Departman karne ağırlıkları
+  corporateWeight  Float           @default(20) // Kurum karnesi ağırlığı %20
+  departmentWeight Float           @default(80) // Departman karnesi ağırlığı %80
+  
+  // Puan skalası
+  scaleId         String?
+  scale           ScoreScale?      @relation(fields: [scaleId], references: [id])
+  
+  // Hangi dönem/departman için geçerli
+  year            Int?
+  departmentId    String?
+  department      Department?      @relation("ScorecardFormulaDepartment", fields: [departmentId], references: [id])
+  
+  positionId      String?
+  position        Position?        @relation("ScorecardFormulaPosition", fields: [positionId], references: [id])
+  
+  isDefault       Boolean          @default(false)
+  isActive        Boolean          @default(true)
+  
+  // Bu formülü kullanan bireysel karneler
+  scorecards      IndividualScorecard[]
+  
+  createdById     String
+  createdBy       User             @relation("ScorecardFormulaCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@map("scorecard_formulas")
+}
+
+// 6. BİREYSEL KARNE
+// ============================================
+
+// Bireysel Performans Karnesi
+model IndividualScorecard {
+  id              String           @id @default(cuid())
+  code            String           @unique
+  
+  // Personel
+  userId          String
+  user            User             @relation("IndividualScorecards", fields: [userId], references: [id])
+  
+  // Dönem
+  year            Int
+  period          Int?             // Çeyrek (1-4), yarıyıl (1-2), veya null (yıllık)
+  periodType      String           @default("YILLIK") // AYLIK, CEYREKLIK, YARIYILLIK, YILLIK
+  
+  // Kullanılan formül
+  formulaId       String?
+  formula         ScorecardFormula? @relation(fields: [formulaId], references: [id])
+  
+  // === BOYUT PUANLARI ===
+  
+  // 1. KPI Puanı
+  kpiScore        Float?           // Tüm KPI'ların ağırlıklı ortalaması
+  kpiDetails      Json?            // KPI detayları
+  
+  // 2. Yetkinlik Puanı
+  competencyScore Float?           // Tüm yetkinliklerin ağırlıklı ortalaması
+  competencyDetails Json?          // Yetkinlik detayları
+  
+  // 3. İnisiyatif Puanı
+  initiativeScore Float?           // Tüm inisiyatiflerin ağırlıklı ortalaması
+  initiativeDetails Json?          // İnisiyatif detayları
+  
+  // === KARNE PUANLARI ===
+  
+  // Kurum Karne Puanı (hesaplanmış)
+  corporateScore  Float?
+  
+  // Departman Karne Puanı (hesaplanmış)
+  departmentScore Float?
+  
+  // === TOPLAM PUAN ===
+  
+  // 3 Boyutlu Birleşik Puan
+  // (KPI * kpiWeight + Yetkinlik * competencyWeight + İnisiyatif * initiativeWeight) / 100
+  dimensionScore  Float?
+  
+  // Nihai Toplam Puan
+  // (Kurum * corporateWeight + Departman * departmentWeight) / 100 + dimensionScore ağırlıklı
+  totalScore      Float?
+  
+  // Puan Skalası Seviyesi
+  scoreLevel      String?          // "Çok İyi", "İyi", "Orta", ...
+  
+  // Durum
+  status          ScorecardStatus  @default(TASLAK)
+  
+  // Onay süreci
+  submittedAt     DateTime?
+  submittedById   String?
+  submittedBy     User?            @relation("ScorecardSubmitter", fields: [submittedById], references: [id])
+  
+  approvedAt      DateTime?
+  approvedById    String?
+  approvedBy      User?            @relation("ScorecardApprover", fields: [approvedById], references: [id])
+  
+  rejectionReason String?
+  
+  notes           String?
+  
+  createdById     String
+  createdBy       User             @relation("IndividualScorecardCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  @@unique([userId, year, period, periodType])
+  @@map("individual_scorecards")
+}
+
+enum ScorecardStatus {
+  TASLAK
+  HESAPLANDI
+  BEKLEMEDE
+  ONAYLANDI
+  REDDEDILDI
+}
+
+// ============================================
+// DOKÜMAN İŞ AKIŞI (WORKFLOW) SİSTEMİ
+// ============================================
+
+// İş Akışı Şablonu - Hangi doküman türü için hangi onay akışı
+model DocumentWorkflow {
+  id            String   @id @default(cuid())
+  name          String   // "Standart Doküman Onay Akışı"
+  code          String   @unique
+  description   String?
+  isActive      Boolean  @default(true)
+  isDefault     Boolean  @default(false) // Varsayılan iş akışı mı
+  
+  // İş akışı hangi doküman türlerine uygulanacak (opsiyonel)
+  documentTypeId String?
+  documentType   DocumentType? @relation(fields: [documentTypeId], references: [id])
+  
+  // İş akışı hangi klasörlere uygulanacak (opsiyonel)
+  folderId      String?
+  folder        Folder?  @relation(fields: [folderId], references: [id])
+  
+  // İş akışı hangi departmanlara uygulanacak (opsiyonel - null ise tüm departmanlar)
+  departmentId  String?
+  department    Department? @relation("WorkflowDepartment", fields: [departmentId], references: [id])
+  
+  createdById   String
+  createdBy     User     @relation("WorkflowCreator", fields: [createdById], references: [id])
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  steps         WorkflowStep[]
+  instances     WorkflowInstance[]
+  
+  @@map("document_workflows")
+}
+
+// İş Akışı Adımları - Sıralı onay aşamaları
+model WorkflowStep {
+  id            String   @id @default(cuid())
+  workflowId    String
+  workflow      DocumentWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  
+  name          String   // "Birim Müdürü Onayı", "Kalite Müdürü Onayı"
+  description   String?
+  stepOrder     Int      // 1, 2, 3... sıralama
+  
+  // Onaylayıcı tipi
+  approverType  WorkflowApproverType @default(POSITION)
+  
+  // Pozisyon bazlı onay (örn: Kalite Müdürü pozisyonu)
+  positionId    String?
+  position      Position? @relation("WorkflowStepPosition", fields: [positionId], references: [id])
+  
+  // Rol bazlı onay (örn: Admin rolü)
+  roleId        String?
+  role          Role?    @relation("WorkflowStepRole", fields: [roleId], references: [id])
+  
+  // Belirli kullanıcı (opsiyonel - spesifik kişi atanacaksa)
+  specificUserId String?
+  specificUser   User?   @relation("WorkflowStepSpecificUser", fields: [specificUserId], references: [id])
+  
+  // Departman müdürü mü? (dokümanın departmanının müdürü)
+  isDepartmentHead Boolean @default(false)
+  
+  // Bu adım yayınlama yetkisi verir mi?
+  canPublish    Boolean  @default(false)
+  
+  // Bu adım zorunlu mu yoksa atlanabilir mi?
+  isRequired    Boolean  @default(true)
+  
+  // Onay süresi (gün cinsinden) - bu sürede onaylanmazsa hatırlatma
+  deadlineDays  Int?
+  
+  // Paralel onay - birden fazla kişi aynı anda onaylayabilir mi
+  isParallel    Boolean  @default(false)
+  
+  // Paralel onayda minimum onay sayısı
+  minApprovals  Int      @default(1)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  instanceSteps WorkflowInstanceStep[]
+  
+  @@unique([workflowId, stepOrder])
+  @@map("workflow_steps")
+}
+
+enum WorkflowApproverType {
+  POSITION        // Pozisyon bazlı (Kalite Müdürü, Genel Müdür vb.)
+  ROLE            // Rol bazlı (Admin, Manager vb.)
+  SPECIFIC_USER   // Belirli kullanıcı
+  DEPARTMENT_HEAD // Departman müdürü
+  DOCUMENT_OWNER  // Doküman sahibi/hazırlayanı
+}
+
+// İş Akışı Örneği - Belirli bir doküman için çalışan iş akışı
+model WorkflowInstance {
+  id            String   @id @default(cuid())
+  workflowId    String
+  workflow      DocumentWorkflow @relation(fields: [workflowId], references: [id])
+  
+  documentId    String
+  document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  status        WorkflowInstanceStatus @default(AKTIF)
+  
+  currentStepOrder Int   @default(1) // Şu anki adım
+  
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+  
+  // İş akışını başlatan kullanıcı
+  startedById   String
+  startedBy     User     @relation("WorkflowInstanceStarter", fields: [startedById], references: [id])
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  steps         WorkflowInstanceStep[]
+  
+  @@unique([documentId]) // Bir doküman için aynı anda tek aktif iş akışı
+  @@map("workflow_instances")
+}
+
+enum WorkflowInstanceStatus {
+  AKTIF           // Devam ediyor
+  TAMAMLANDI      // Tüm adımlar onaylandı
+  REDDEDILDI      // Herhangi bir adımda reddedildi
+  IPTAL           // Manuel iptal edildi
+}
+
+// İş Akışı Adım Örneği - Her adımın durumu
+model WorkflowInstanceStep {
+  id              String   @id @default(cuid())
+  instanceId      String
+  instance        WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  
+  stepId          String
+  step            WorkflowStep @relation(fields: [stepId], references: [id])
+  
+  status          WorkflowStepStatus @default(BEKLIYOR)
+  
+  // Bu adımı onaylaması gereken kullanıcı(lar)
+  assignedUserId  String?
+  assignedUser    User?    @relation("WorkflowStepAssignee", fields: [assignedUserId], references: [id])
+  
+  // Onay/Red işlemini yapan kullanıcı
+  actionById      String?
+  actionBy        User?    @relation("WorkflowStepActor", fields: [actionById], references: [id])
+  
+  actionAt        DateTime?
+  comments        String?  // Onay/red yorumu
+  
+  // Deadline hesaplaması
+  deadline        DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("workflow_instance_steps")
+}
+
+enum WorkflowStepStatus {
+  BEKLIYOR        // Henüz sırası gelmedi
+  AKTIF           // Şu an onay bekliyor
+  ONAYLANDI       // Onaylandı
+  REDDEDILDI      // Reddedildi
+  ATLANDI         // Atlandı (zorunlu değilse)
+}
+
+// Uygulama Ayarları
+model AppSettings {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("app_settings")
+}
+
+// ============================================
+// TOPLANTI YÖNETİMİ
+// ============================================
+
+// Toplantı Salonu
+model MeetingRoom {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  location    String?
+  capacity    Int?
+  description String?
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  meetings    Meeting[]
+  committees  Committee[] @relation("CommitteeMeetingRoom")
+  
+  @@map("meeting_rooms")
+}
+
+// Katılımcı Şablonu - Sık kullanılan katılımcı grupları
+model MeetingTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  
+  createdById String
+  createdBy   User     @relation("MeetingTemplateCreator", fields: [createdById], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  participants MeetingTemplateParticipant[]
+  
+  @@map("meeting_templates")
+}
+
+model MeetingTemplateParticipant {
+  id          String   @id @default(cuid())
+  templateId  String
+  template    MeetingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  
+  userId      String
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([templateId, userId])
+  @@map("meeting_template_participants")
+}
+
+// Ana Toplantı Modeli
+model Meeting {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  title       String
+  description String?
+  
+  // Toplantı türü
+  type        MeetingType @default(STANDART)
+  
+  // Tarih ve saat
+  date        DateTime
+  startTime   DateTime
+  endTime     DateTime
+  
+  // Konum bilgileri
+  roomId      String?
+  room        MeetingRoom? @relation(fields: [roomId], references: [id])
+  
+  onlineLink  String?  // Online toplantı linki
+  isOnline    Boolean  @default(false)
+  
+  // Gizlilik ve durum
+  isPrivate   Boolean  @default(false)
+  status      MeetingStatus @default(PLANLANMIS)
+  
+  // Periyodik toplantı ayarları
+  isRecurring Boolean  @default(false)
+  recurrenceType RecurrenceType?
+  recurrenceInterval Int?      // Her X günde/haftada/ayda
+  recurrenceEndDate DateTime?
+  recurrenceCount Int?         // Kaç kez tekrarlanacak
+  parentMeetingId String?      // Periyodik toplantının ana kaydı
+  parentMeeting   Meeting?     @relation("RecurringMeetings", fields: [parentMeetingId], references: [id])
+  childMeetings   Meeting[]    @relation("RecurringMeetings")
+  
+  // Toplantı notları ve gündem
+  agenda      String?
+  notes       String?  // Toplantı tutanağı/notları
+  
+  // Departman (opsiyonel)
+  departmentId String?
+  department   Department? @relation("MeetingDepartment", fields: [departmentId], references: [id])
+  
+  // Komite bağlantısı (opsiyonel)
+  committeeId  String?
+  committee    Committee? @relation("CommitteeMeetings", fields: [committeeId], references: [id], onDelete: SetNull)
+  
+  // Oluşturan
+  createdById String
+  createdBy   User     @relation("MeetingCreator", fields: [createdById], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // İlişkiler
+  participants  MeetingParticipant[]
+  externalParticipants MeetingExternalParticipant[]
+  actions       MeetingAction[]
+  documents     MeetingDocument[]
+  poolItems     MeetingPoolItem[]
+  decisions     MeetingDecision[]
+  
+  @@map("meetings")
+}
+
+enum MeetingType {
+  STANDART       // Normal toplantı
+  PERIYODIK      // Periyodik toplantı
+  AKSIYON_BAZLI  // Aksiyon tabanlı (toplantı havuzundan)
+  ACIL           // Acil toplantı
+  KOMITE         // Komite toplantısı
+}
+
+enum MeetingStatus {
+  PLANLANMIS     // Planlandı
+  DEVAM_EDIYOR   // Devam ediyor
+  TAMAMLANDI     // Tamamlandı
+  IPTAL          // İptal edildi
+  ERTELENDI      // Ertelendi
+}
+
+enum RecurrenceType {
+  GUNLUK
+  HAFTALIK
+  AYLIK
+  YILLIK
+}
+
+// Toplantı Katılımcıları (Kurum İçi)
+model MeetingParticipant {
+  id          String   @id @default(cuid())
+  meetingId   String
+  meeting     Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  
+  userId      String
+  user        User     @relation("MeetingParticipantUser", fields: [userId], references: [id])
+  
+  // Katılım durumu
+  status      ParticipantStatus @default(DAVET_EDILDI)
+  
+  // Katılım notları
+  responseNote String?
+  
+  // Gerçek katılım
+  attended    Boolean?
+  attendedAt  DateTime?
+  
+  invitedAt   DateTime @default(now())
+  respondedAt DateTime?
+  
+  @@unique([meetingId, userId])
+  @@map("meeting_participants")
+}
+
+enum ParticipantStatus {
+  DAVET_EDILDI   // Davet gönderildi
+  ONAYLADI       // Onayladı/Katılacak
+  REDDETTI       // Katılamayacak
+  BELKI          // Belki
+}
+
+// Kurum Dışı Davetliler
+model MeetingExternalParticipant {
+  id          String   @id @default(cuid())
+  meetingId   String
+  meeting     Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  
+  name        String
+  email       String?
+  phone       String?
+  company     String?  // Firma adı
+  title       String?  // Unvan
+  
+  // Katılım durumu
+  status      ParticipantStatus @default(DAVET_EDILDI)
+  responseNote String?
+  
+  // Davet bilgileri
+  invitationSent Boolean @default(false)
+  invitationSentAt DateTime?
+  
+  attended    Boolean?
+  
+  createdAt   DateTime @default(now())
+  
+  @@map("meeting_external_participants")
+}
+
+// Toplantı Aksiyonları (Görevler)
+model MeetingAction {
+  id          String   @id @default(cuid())
+  meetingId   String
+  meeting     Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  
+  // Aksiyon bilgileri
+  type        String?  // Aksiyon tipi
+  title       String   // Gündem/Başlık
+  description String?  // İçerik
+  
+  // Atama
+  assigneeId  String
+  assignee    User     @relation("MeetingActionAssignee", fields: [assigneeId], references: [id])
+  
+  // Tarihler
+  dueDate     DateTime // Hedeflenen bitiş tarihi
+  completedAt DateTime?
+  
+  // Durum
+  status      MeetingActionStatus @default(BEKLEMEDE)
+  progress    Int      @default(0) // 0-100
+  
+  // Notlar
+  notes       String?
+  completionNote String?
+  
+  // Toplantı havuzuna eklenmiş mi
+  inPool      Boolean  @default(false)
+  
+  // Oluşturan
+  createdById String
+  createdBy   User     @relation("MeetingActionCreator", fields: [createdById], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Takipçiler
+  followers   MeetingActionFollower[]
+  
+  // Toplantı havuzu ilişkisi
+  poolItems   MeetingPoolItem[]
+  
+  @@map("meeting_actions")
+}
+
+enum MeetingActionStatus {
+  BEKLEMEDE
+  DEVAM_EDIYOR
+  TAMAMLANDI
+  IPTAL
+  ERTELENDI
+}
+
+// Aksiyon Takipçileri
+model MeetingActionFollower {
+  id          String   @id @default(cuid())
+  actionId    String
+  action      MeetingAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  
+  userId      String
+  user        User     @relation("MeetingActionFollowerUser", fields: [userId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([actionId, userId])
+  @@map("meeting_action_followers")
+}
+
+// Toplantı Kararları
+model MeetingDecision {
+  id          String   @id @default(cuid())
+  meetingId   String
+  meeting     Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  
+  decision    String   // Karar metni
+  
+  assigneeId  String?
+  assignee    User?    @relation("MeetingDecisionAssignee", fields: [assigneeId], references: [id])
+  
+  dueDate     DateTime?
+  status      String   @default("BEKLEMEDE") // BEKLEMEDE, DEVAM_EDIYOR, TAMAMLANDI, IPTAL
+  
+  createdById String
+  createdBy   User     @relation("MeetingDecisionCreator", fields: [createdById], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("meeting_decisions")
+}
+
+// Toplantı Dökümanları
+model MeetingDocument {
+  id          String   @id @default(cuid())
+  meetingId   String
+  meeting     Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  
+  name        String
+  description String?
+  fileName    String
+  fileSize    Int?
+  mimeType    String?
+  cloud_storage_path String
+  isPublic    Boolean  @default(false)
+  
+  uploadedById String
+  uploadedBy   User    @relation("MeetingDocumentUploader", fields: [uploadedById], references: [id])
+  
+  createdAt   DateTime @default(now())
+  
+  @@map("meeting_documents")
+}
+
+// Toplantı Havuzu - Çözülemeyen konuların toplandığı yer
+model MeetingPoolItem {
+  id          String   @id @default(cuid())
+  
+  // Aksiyon tabanlı
+  actionId    String?
+  action      MeetingAction? @relation(fields: [actionId], references: [id], onDelete: SetNull)
+  
+  // Veya serbest konu
+  title       String?
+  description String?
+  
+  // Durum
+  status      PoolItemStatus @default(BEKLEMEDE)
+  priority    String?  // DUSUK, ORTA, YUKSEK
+  
+  // Bu konu için oluşturulan toplantı
+  meetingId   String?
+  meeting     Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("meeting_pool_items")
+}
+
+enum PoolItemStatus {
+  BEKLEMEDE      // Toplantı bekleniyor
+  TOPLANTIDA     // Toplantıya eklendi
+  COZULDU        // Çözüldü
+  IPTAL          // İptal edildi
+}
+
+// ======================================
+// KOMITE YÖNETIMI MODÜLÜ
+// ======================================
+
+// Komite
+model Committee {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+  description     String?
+  
+  // Komite tipi
+  type            CommitteeType @default(DAIMI)
+  
+  // Organizasyon yapısı
+  parentId        String?
+  parent          Committee?  @relation("CommitteeHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children        Committee[] @relation("CommitteeHierarchy")
+  
+  // Departman bağlantısı
+  departmentId    String?
+  department      Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  
+  // Komite başkanı
+  chairmanId      String?
+  chairman        User?       @relation("CommitteeChairman", fields: [chairmanId], references: [id])
+  
+  // Sekreter
+  secretaryId     String?
+  secretary       User?       @relation("CommitteeSecretary", fields: [secretaryId], references: [id])
+  
+  // Görev, yetki, sorumluluk
+  mission         String?     // Misyon
+  responsibilities String?    // Sorumluluklar (JSON array)
+  authorities     String?     // Yetkiler (JSON array)
+  
+  // Genel Müdür onayı
+  gmApproval      Boolean     @default(false)
+  gmApprovalDate  DateTime?
+  gmApprovedById  String?
+  gmApprovedBy    User?       @relation("CommitteeGMApprover", fields: [gmApprovedById], references: [id])
+  
+  // Toplantı periyodu
+  meetingFrequency String?    // HAFTALIK, AYLIK, IKI_AYDA_BIR, CEYREKLIK, YILLIK
+  meetingTime     String?     // 10:00
+  firstMeetingDate DateTime?  // İlk toplantı günü
+  
+  // Toplantı Salonu
+  meetingRoomId   String?
+  meetingRoom     MeetingRoom? @relation("CommitteeMeetingRoom", fields: [meetingRoomId], references: [id])
+  
+  // Sorumluluklar PDF dosyası
+  responsibilitiesFile String?  // S3 cloud_storage_path
+  responsibilitiesFileName String?
+  
+  // Durum
+  status          CommitteeStatus @default(TASLAK)
+  
+  // Tarihler
+  establishedDate DateTime?
+  endDate         DateTime?
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User        @relation("CommitteeCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // İlişkiler
+  members         CommitteeMember[]
+  meetings        CommitteeMeeting[]
+  documents       CommitteeDocument[]
+  decisions       CommitteeDecision[]
+  memberHierarchies CommitteeMemberHierarchy[] @relation("CommitteeMemberHierarchies")
+  mainMeetings    Meeting[] @relation("CommitteeMeetings")
+  
+  @@map("committees")
+}
+
+enum CommitteeType {
+  DAIMI           // Sürekli komite
+  GECICI          // Geçici komite
+  PROJE           // Proje komitesi
+  YONETIM         // Yönetim komitesi
+  DENETIM         // Denetim komitesi
+  KALITE          // Kalite komitesi
+}
+
+enum CommitteeStatus {
+  TASLAK
+  AKTIF
+  ASKIDA
+  KAPALI
+}
+
+// Komite Üyeleri
+model CommitteeMember {
+  id              String   @id @default(cuid())
+  
+  committeeId     String
+  committee       Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User     @relation("CommitteeMemberUser", fields: [userId], references: [id])
+  
+  // Rol
+  role            CommitteeMemberRole @default(UYE)
+  
+  // Görev tanımı
+  jobDescription  String?
+  responsibilities String?  // JSON array
+  
+  // Üyelik tarihleri
+  startDate       DateTime @default(now())
+  endDate         DateTime?
+  
+  // Durum
+  isActive        Boolean  @default(true)
+  
+  // Atayan
+  assignedById    String?
+  assignedBy      User?    @relation("CommitteeMemberAssigner", fields: [assignedById], references: [id])
+  
+  // Hiyerarşi ilişkileri
+  hierarchyAsChild   CommitteeMemberHierarchy[] @relation("MemberAsChild")
+  hierarchyAsParent  CommitteeMemberHierarchy[] @relation("MemberAsParent")
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([committeeId, userId])
+  @@map("committee_members")
+}
+
+enum CommitteeMemberRole {
+  BASKAN          // Komite Başkanı
+  BASKAN_YARDIMCISI // Başkan Yardımcısı
+  SEKRETER        // Sekreter
+  UYE             // Üye
+  GOZLEMCI        // Gözlemci
+}
+
+// Komite Toplantıları
+model CommitteeMeeting {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  
+  committeeId     String
+  committee       Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  
+  // Toplantı bilgileri
+  title           String
+  agenda          String?
+  date            DateTime
+  startTime       String
+  endTime         String?
+  location        String?
+  
+  // Sonuçlar
+  minutes         String?   // Tutanak
+  decisionsText   String?   // Kararlar (JSON array - eski alan)
+  
+  // Durum
+  status          String    @default("PLANLANMIS") // PLANLANMIS, TAMAMLANDI, IPTAL
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User      @relation("CommitteeMeetingCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // İlişkiler
+  committeeDecisions CommitteeDecision[]
+  
+  @@map("committee_meetings")
+}
+
+// Komite Kararları
+model CommitteeDecision {
+  id              String   @id @default(cuid())
+  
+  committeeId     String
+  committee       Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  
+  // Toplantı bağlantısı (opsiyonel)
+  meetingId       String?
+  meeting         CommitteeMeeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  
+  // Karar bilgileri
+  decisionNumber  String   @unique  // KRR-YYYY-NNNN formatında
+  title           String             // Karar başlığı
+  description     String?            // Karar detayı
+  
+  // Toplantı tarihi
+  meetingDate     DateTime?          // Kararın alındığı toplantı tarihi
+  
+  // Termin tarihi
+  dueDate         DateTime?          // Kararın tamamlanma termin tarihi
+  
+  // Sorumlu departman
+  responsibleDepartmentId String?
+  responsibleDepartment   Department? @relation("CommitteeDecisionDept", fields: [responsibleDepartmentId], references: [id], onDelete: SetNull)
+  
+  // Sorumlu kişi
+  responsibleUserId String?
+  responsibleUser   User?  @relation("CommitteeDecisionResponsible", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  
+  // Durum
+  status          String   @default("BEKLEMEDE") // BEKLEMEDE, DEVAM_EDIYOR, TAMAMLANDI, IPTAL
+  completedAt     DateTime?
+  completionNotes String?
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("CommitteeDecisionCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("committee_decisions")
+}
+
+// Komite Dökümanları
+model CommitteeDocument {
+  id              String   @id @default(cuid())
+  
+  committeeId     String
+  committee       Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  
+  name            String
+  description     String?
+  type            String?   // GOREV_TANIMI, YETKI_MATRISI, PROSEDUR, ORGANIZASYON_SEMASI
+  fileName        String
+  fileSize        Int?
+  mimeType        String?
+  cloud_storage_path String
+  isPublic        Boolean  @default(false)
+  
+  uploadedById    String
+  uploadedBy      User     @relation("CommitteeDocUploader", fields: [uploadedById], references: [id])
+  
+  createdAt       DateTime @default(now())
+  
+  @@map("committee_documents")
+}
+
+// Goal Progress Entry - Hedef ilerleme kaydı (kimin ne eklediğini takip)
+model GoalProgressEntry {
+  id              String   @id @default(cuid())
+  
+  // Hangi hedefe ait
+  goalId          String?
+  goal            StrategicGoal? @relation("GoalProgressEntries", fields: [goalId], references: [id], onDelete: Cascade)
+  
+  subGoalId       String?
+  subGoal         StrategicSubGoal? @relation("SubGoalProgressEntries", fields: [subGoalId], references: [id], onDelete: Cascade)
+  
+  // Değer bilgisi
+  value           Float                       // Eklenen değer
+  previousValue   Float?                      // Önceki değer
+  note            String?                     // Açıklama
+  
+  // Kim ekledi
+  createdById     String
+  createdBy       User     @relation("GoalProgressEntryCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime @default(now())
+  
+  @@map("goal_progress_entries")
+}
+
+// Committee Member Hierarchy - Komite üye hiyerarşisi
+model CommitteeMemberHierarchy {
+  id              String   @id @default(cuid())
+  
+  committeeId     String
+  committee       Committee @relation("CommitteeMemberHierarchies", fields: [committeeId], references: [id], onDelete: Cascade)
+  
+  memberId        String
+  member          CommitteeMember @relation("MemberAsChild", fields: [memberId], references: [id], onDelete: Cascade)
+  
+  parentMemberId  String?
+  parentMember    CommitteeMember? @relation("MemberAsParent", fields: [parentMemberId], references: [id], onDelete: SetNull)
+  
+  sortOrder       Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([committeeId, memberId])
+  @@map("committee_member_hierarchies")
+}
+
+// ============================================
+// İŞ SAĞLIĞI VE GÜVENLİĞİ (İSG) MODÜLÜ
+// ============================================
+
+// Taşeron Belge Türleri
+enum SubcontractorDocType {
+  SOZLESME               // Sözleşme
+  ISG_SERTIFIKA          // İSG Sertifikaları
+  DIGER                  // Diğer Belgeler
+}
+
+// Taşeron Belgeleri
+model SubcontractorDocument {
+  id              String   @id @default(cuid())
+  
+  supplierId      String
+  supplier        Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  // Belge Bilgileri
+  documentType    SubcontractorDocType
+  title           String
+  description     String?
+  
+  // Dosya Bilgileri
+  fileName        String
+  fileSize        Int
+  fileType        String
+  cloudStoragePath String
+  isPublic        Boolean  @default(false)
+  
+  // Son Kullanma ve Uyarı
+  expiryDate      DateTime?
+  reminderSent    Boolean  @default(false)
+  
+  // Yükleyen
+  uploadedById    String
+  uploadedBy      User     @relation("SubcontractorDocUploader", fields: [uploadedById], references: [id])
+  
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("subcontractor_documents")
+}
+
+// İSG Risk Kaynakları
+enum OHSRiskSource {
+  TASERON                // Taşeron
+  EKIPMAN                // Ekipman
+  CEVRE                  // Çevre
+  INSAN                  // İnsan Faktörü
+  PROSES                 // Proses/İş Süreci
+  KIMYASAL               // Kimyasal
+  FIZIKSEL               // Fiziksel
+  BIYOLOJIK              // Biyolojik
+  ERGONOMIK              // Ergonomik
+  DIGER                  // Diğer
+}
+
+// İSG Risk Durumu
+enum OHSRiskStatus {
+  ACIK                   // Açık
+  AKSIYON_BEKLIYOR       // Aksiyon Bekliyor
+  DEGERLENDIRMEDE        // Değerlendirmede
+  KAPATILDI              // Kapatıldı
+}
+
+// İSG Risk Değerlendirme
+model OHSRisk {
+  id              String   @id @default(cuid())
+  code            String   @unique  // ISG-YYYY-NNNN formatında
+  
+  // Temel Bilgiler
+  name            String             // Risk Adı
+  description     String?            // Açıklama
+  source          OHSRiskSource      // Risk Kaynağı
+  sourceDetail    String?            // Kaynak detayı (serbest metin)
+  category        String   @default("IS_GUVENLIGI") // Sabit: İş Güvenliği
+  
+  // Departman ve Sorumlu
+  departmentId    String
+  department      Department @relation(fields: [departmentId], references: [id])
+  
+  ownerId         String
+  owner           User     @relation("OHSRiskOwner", fields: [ownerId], references: [id])
+  
+  // Risk Değerlendirmesi
+  likelihood      Int                // Olasılık (1-5)
+  impact          Int                // Etki (1-5)
+  riskScore       Int                // Risk Puanı (Olasılık × Etki)
+  riskLevel       String?            // DUSUK, ORTA, YUKSEK, COK_YUKSEK, KRITIK
+  
+  // Durum
+  status          OHSRiskStatus @default(ACIK)
+  
+  // Kanıt Doküman (Zorunlu)
+  evidenceFileName     String?
+  evidenceFileSize     Int?
+  evidenceFileType     String?
+  evidenceCloudPath    String?
+  evidenceIsPublic     Boolean  @default(false)
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("OHSRiskCreator", fields: [createdById], references: [id])
+  
+  // Meta
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // İlişkiler
+  actions         OHSRiskAction[]
+  assessments     OHSRiskAssessment[]
+  comments        OHSRiskComment[]
+  
+  @@map("ohs_risks")
+}
+
+// İSG Risk Aksiyon Türü
+enum OHSActionType {
+  ONLEME                 // Önleme
+  DUZELTME               // Düzeltme
+  IYILESTIRME            // İyileştirme
+  KONTROL                // Kontrol
+  EGITIM                 // Eğitim
+  DIGER                  // Diğer
+}
+
+// İSG Risk Aksiyon Önceliği
+enum OHSActionPriority {
+  DUSUK                  // Düşük
+  ORTA                   // Orta
+  YUKSEK                 // Yüksek
+}
+
+// İSG Risk Aksiyon Durumu
+enum OHSActionStatus {
+  OLUSTURULDU            // Oluşturuldu
+  DEVAM_EDIYOR           // Devam Ediyor
+  TAMAMLANDI             // Tamamlandı
+  IPTAL                  // İptal Edildi
+}
+
+// İSG Risk Aksiyonları
+model OHSRiskAction {
+  id              String   @id @default(cuid())
+  
+  riskId          String
+  risk            OHSRisk  @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  
+  // Aksiyon Bilgileri
+  title           String
+  description     String?
+  actionType      OHSActionType
+  priority        OHSActionPriority @default(ORTA)
+  
+  // Tarihler
+  startDate       DateTime?
+  dueDate         DateTime?
+  completedAt     DateTime?
+  
+  // Sorumlu
+  assigneeId      String
+  assignee        User     @relation("OHSRiskActionAssignee", fields: [assigneeId], references: [id])
+  
+  // Bütçe
+  plannedBudget   Float?   @default(0)
+  actualCost      Float?
+  
+  // Durum
+  status          OHSActionStatus @default(OLUSTURULDU)
+  
+  // Tamamlama Kanıtı
+  completionEvidenceFileName  String?
+  completionEvidenceFileSize  Int?
+  completionEvidenceFileType  String?
+  completionEvidenceCloudPath String?
+  completionEvidenceIsPublic  Boolean  @default(false)
+  
+  // Tamamlayan
+  completedById   String?
+  completedBy     User?    @relation("OHSRiskActionCompletedBy", fields: [completedById], references: [id])
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("OHSRiskActionCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("ohs_risk_actions")
+}
+
+// İSG Risk Değerlendirme Tipi
+enum OHSAssessmentType {
+  RUTIN                  // Rutin
+  OLAY_SONRASI           // Olay Sonrası
+  PERIYODIK              // Periyodik
+}
+
+// Kontrol Etkinliği
+enum ControlEffectiveness {
+  ETKILI                 // Etkili
+  KISMEN_ETKILI          // Kısmen Etkili
+  ETKISIZ                // Etkisiz
+}
+
+// İSG Risk Değerlendirme Kayıtları
+model OHSRiskAssessment {
+  id              String   @id @default(cuid())
+  
+  riskId          String
+  risk            OHSRisk  @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  
+  // Değerlendirme Bilgileri
+  assessmentType  OHSAssessmentType
+  likelihood      Int                // Olasılık (1-5)
+  impact          Int                // Etki (1-5)
+  riskScore       Int                // Otomatik: Olasılık × Etki
+  
+  // Kontrol Etkinliği
+  controlEffectiveness ControlEffectiveness?
+  
+  // Bulgular ve Öneriler
+  findings        String?
+  recommendations String?
+  
+  // Trend (önceki değerlendirmeye göre)
+  trend           String?            // AZALDI, ARTTI, AYNI_KALDI
+  previousScore   Int?
+  
+  // Değerlendiren
+  createdById     String
+  createdBy       User     @relation("OHSRiskAssessmentCreator", fields: [createdById], references: [id])
+  
+  createdAt       DateTime @default(now())
+  
+  @@map("ohs_risk_assessments")
+}
+
+// İSG Risk Yorumları
+model OHSRiskComment {
+  id              String   @id @default(cuid())
+  
+  riskId          String
+  risk            OHSRisk  @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  
+  // Yorum Bilgileri
+  content         String
+  
+  // Yazar
+  authorId        String
+  author          User     @relation("OHSRiskCommentAuthor", fields: [authorId], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("ohs_risk_comments")
+}
+
+// ============================================
+// İŞ KAZALARI VE RAMAK KALA
+// ============================================
+
+// İş Kazası Durumu
+enum OHSAccidentStatus {
+  ACIK                   // Açık - İnceleniyor
+  ANALIZ                 // Kök Neden Analizi
+  ONLEM_ALIYOR           // Önlem Alınıyor
+  KAPATILDI              // Kapatıldı
+  TAMAMLANDI             // Tamamlandı - Eğitim dokümanı yüklendi
+}
+
+// İş Kazaları
+model OHSAccident {
+  id              String   @id @default(cuid())
+  code            String   @unique  // KAZ-YYYY-NNNN formatında
+  
+  // Temel Bilgiler
+  title           String             // Kaza Adı
+  accidentDate    DateTime           // Kaza Tarihi
+  location        String             // Kaza Yeri
+  
+  // Departman
+  departmentId    String
+  department      Department @relation(fields: [departmentId], references: [id])
+  
+  // Açıklama ve Analiz
+  description     String             // Kaza Açıklaması
+  rootCauseAnalysis String?          // Kök Neden Analizi
+  
+  // Alınan Önlemler
+  actionsTaken    String?            // Alınan Önlemler
+  preventiveMeasures String?         // Tekrar olmaması için aksiyonlar
+  
+  // Kanıt Doküman (Zorunlu)
+  evidenceFileName     String
+  evidenceFileSize     Int
+  evidenceFileType     String
+  evidenceCloudPath    String
+  evidenceIsPublic     Boolean  @default(false)
+  
+  // Durum
+  status          OHSAccidentStatus @default(ACIK)
+  
+  // Eğitim Takibi
+  trainingStatus      String?    // EGITIM_ALDI, EGITIM_ALMADI
+  trainingDate        DateTime?
+  trainingCertFileName    String?
+  trainingCertFileSize    Int?
+  trainingCertCloudPath   String?
+  trainingCertIsPublic    Boolean @default(false)
+  trainingCompletedAt     DateTime?
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("OHSAccidentCreator", fields: [createdById], references: [id])
+  
+  // Meta
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // İlişkiler
+  involvedPersons OHSAccidentPerson[]
+  
+  @@map("ohs_accidents")
+}
+
+// Kazaya Karışan Personel
+model OHSAccidentPerson {
+  id              String   @id @default(cuid())
+  
+  accidentId      String
+  accident        OHSAccident @relation(fields: [accidentId], references: [id], onDelete: Cascade)
+  
+  // Personel
+  userId          String?
+  user            User?    @relation("OHSAccidentPersonUser", fields: [userId], references: [id])
+  
+  // Harici kişi (sistemde olmayan)
+  externalName    String?
+  externalRole    String?  // Taşeron çalışanı, ziyaretçi vb.
+  
+  // Kişi detay bilgileri
+  duty            String?  // Görev (dropdown seçimi)
+  position        String?  // Pozisyon (dropdown seçimi)
+  personDepartmentId String? // Departman ID
+  personDepartment   Department? @relation("OHSAccidentPersonDept", fields: [personDepartmentId], references: [id])
+  
+  // Kimlik bilgileri
+  tcKimlikNo      String?  // TC Kimlik No
+  birthDate       DateTime? // Doğum tarihi
+  
+  // Vardiya bilgisi
+  shift           String?  // GUNDUZ, GECE, AKSAM, ROTASYONLU
+  
+  // Kaza sonrası eğitim durumu
+  retrainingReceived Boolean @default(false) // Tekrar eğitim aldı mı
+  retrainingDate    DateTime? // Eğitim tarihi
+  retrainingNotes   String?   // Eğitim notları
+  
+  // Rapor ve işgöremezlik
+  sickLeaveDays     Int?     // Raporlu gün sayısı
+  disabilityStatus  String?  // YOK, GECICI, KALICI
+  disabilityRate    Int?     // İşgöremezlik oranı (%)
+  disabilityNotes   String?  // İşgöremezlik açıklaması
+  
+  // Notlar
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@map("ohs_accident_persons")
+}
+
+// Ramak Kala
+model OHSNearMiss {
+  id              String   @id @default(cuid())
+  code            String   @unique  // RMK-YYYY-NNNN formatında
+  
+  // Temel Bilgiler
+  title           String             // Olay Adı
+  eventDate       DateTime           // Olay Tarihi
+  
+  // Departman
+  departmentId    String
+  department      Department @relation(fields: [departmentId], references: [id])
+  
+  // Açıklama
+  description     String             // Ne olabilirdi?
+  
+  // Bildiren Kişi
+  reporterId      String?
+  reporter        User?    @relation("OHSNearMissReporter", fields: [reporterId], references: [id])
+  reporterName    String?            // Manuel giriş: Bildiren kişi adı
+  
+  // Ne Olabilirdi
+  potentialConsequence String?       // Olası sonuç
+  
+  // Önerilen Önlem ve Sorumlu
+  suggestedMeasure String?           // Önerilen önlem
+  responsibleNote  String?           // Sorumlu notu
+  responsibleName  String?           // Sorumlu kişi adı
+  
+  // Kanıt Doküman (Opsiyonel)
+  evidenceFileName     String?
+  evidenceFileSize     Int?
+  evidenceFileType     String?
+  evidenceCloudPath    String?
+  evidenceIsPublic     Boolean  @default(false)
+  
+  // Durum
+  status          String   @default("ACIK")  // ACIK, TAMAMLANDI
+  completedAt     DateTime?
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("OHSNearMissCreator", fields: [createdById], references: [id])
+  
+  // Meta
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("ohs_near_misses")
+}
+
+// ============================================
+// İSG MODÜLÜ - FAZ 3 (Sağlık, KKD, Acil Durum)
+// ============================================
+
+// Sağlık Muayenesi Türü
+enum OHSHealthExamType {
+  ISEGIRIS           // İşe Giriş Muayenesi
+  PERIYODIK          // Periyodik Muayene
+  ISEDEGISIKLIGI     // İşe Dönüş / İş Değişikliği
+  OZEL               // Özel Amaçlı Muayene
+}
+
+// Sağlık Sonucu
+enum OHSHealthResult {
+  UYGUN              // Çalışmaya Uygun
+  KISITLI_UYGUN      // Kısıtlı Uygun (Bazı işler için)
+  UYGUN_DEGIL        // Çalışmaya Uygun Değil
+  KONTROL_GEREKLI    // Kontrol Muayenesi Gerekli
+}
+
+// Personel Sağlık Kaydı
+model OHSHealthRecord {
+  id              String   @id @default(cuid())
+  code            String   @unique  // SGL-YYYY-NNNN formatında
+  
+  // Personel
+  userId          String?
+  user            User?    @relation("OHSHealthRecordUser", fields: [userId], references: [id])
+  personName      String?            // Manuel ad soyad girişi
+  personDuty      String?            // Görev
+  personDepartmentId String?
+  personDepartment   Department? @relation("OHSHealthRecordDept", fields: [personDepartmentId], references: [id])
+  
+  // Muayene Bilgileri
+  examType        OHSHealthExamType
+  examDate        DateTime
+  nextExamDate    DateTime?         // Sonraki muayene tarihi
+  
+  // Hekim/Kurum
+  physicianName   String            // Hekim adı
+  institution     String?           // Muayene kurumu
+  
+  // Sonuç
+  result          OHSHealthResult
+  restrictions    String?           // Kısıtlamalar (varsa)
+  notes           String?           // Notlar
+  
+  // Rapor Dokümanı
+  reportFileName      String?
+  reportFileSize      Int?
+  reportFileType      String?
+  reportCloudPath     String?
+  reportIsPublic      Boolean  @default(false)
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("OHSHealthRecordCreator", fields: [createdById], references: [id])
+  
+  // Meta
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("ohs_health_records")
+}
+
+// Aşı Türü
+enum OHSVaccineType {
+  TETANOS           // Tetanos
+  HEPATIT_A         // Hepatit A
+  HEPATIT_B         // Hepatit B
+  GRIP              // Grip (Influenza)
+  KOVID             // COVID-19
+  KUDUZ             // Kuduz
+  DIGER             // Diğer
+}
+
+// Aşı Kaydı
+model OHSVaccination {
+  id              String   @id @default(cuid())
+  
+  // Personel
+  userId          String
+  user            User     @relation("OHSVaccinationUser", fields: [userId], references: [id])
+  
+  // Aşı Bilgileri
+  vaccineType     OHSVaccineType
+  vaccineName     String?           // Özel aşı adı
+  vaccineDate     DateTime          // Aşı tarihi
+  nextDoseDate    DateTime?         // Sonraki doz tarihi
+  doseNumber      Int      @default(1)  // Kaçıncı doz
+  
+  // Uygulayan
+  administeredBy  String?           // Uygulayan hekim/kurum
+  batchNumber     String?           // Lot numarası
+  
+  // Notlar
+  notes           String?
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("OHSVaccinationCreator", fields: [createdById], references: [id])
+  
+  // Meta
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("ohs_vaccinations")
+}
+
+// KKD Türü
+enum OHSPPEType {
+  BARET             // Baret
+  KORUYUCU_GOZLUK   // Koruyucu Gözlük
+  KULAK_TIKACI      // Kulak Tıkacı/Kulaklık
+  TOZ_MASKESI       // Toz Maskesi
+  GAZ_MASKESI       // Gaz Maskesi
+  ELDIVEN           // İş Eldiveni
+  IS_AYAKKABISI     // İş Ayakkabısı
+  REFLEKTIF_YELEK   // Reflektif Yelek
+  EMNIYET_KEMERI    // Emniyet Kemeri
+  KORUYUCU_KIYAFET  // Koruyucu Kıyafet
+  YUZ_SIPERLIGI     // Yüz Siperliği
+  DIGER             // Diğer
+}
+
+// KKD Stok Durumu
+enum OHSPPEStatus {
+  STOKTA            // Stokta
+  AZALIYOR          // Stok Azalıyor
+  TUKENDI           // Stok Tükendi
+}
+
+// KKD (Kişisel Koruyucu Donanım) Stok
+model OHSPPE {
+  id              String   @id @default(cuid())
+  code            String   @unique  // KKD-YYYY-NNNN
+  
+  // KKD Bilgileri
+  type            OHSPPEType
+  name            String            // KKD adı
+  brand           String?           // Marka
+  model           String?           // Model
+  
+  // Stok Bilgileri
+  stockQuantity   Int      @default(0)
+  minStockLevel   Int      @default(10)  // Minimum stok seviyesi
+  unit            String   @default("Adet")  // Birim (Adet, Çift, vb.)
+  
+  // Durum
+  status          OHSPPEStatus @default(STOKTA)
+  
+  // Depo/Konum
+  location        String?           // Depo konumu
+  
+  // Teslim Edilen Departman
+  departmentId    String?
+  department      Department? @relation("OHSPPEDept", fields: [departmentId], references: [id])
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("OHSPPECreator", fields: [createdById], references: [id])
+  
+  // Meta
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // İlişkiler
+  distributions   OHSPPEDistribution[]
+  
+  @@map("ohs_ppe")
+}
+
+// KKD Dağıtım Kaydı
+model OHSPPEDistribution {
+  id              String   @id @default(cuid())
+  
+  // KKD
+  ppeId           String
+  ppe             OHSPPE   @relation(fields: [ppeId], references: [id], onDelete: Cascade)
+  
+  // Personel (teslim alan)
+  userId          String?
+  user            User?    @relation("OHSPPEDistributionUser", fields: [userId], references: [id])
+  recipientName   String?            // Manuel giriş: Teslim alan kişi adı
+  
+  // Dağıtım Bilgileri
+  quantity        Int
+  distributionDate DateTime @default(now())
+  
+  // Zimmet Formu (PDF)
+  custodyFormFileName   String?
+  custodyFormFileSize   Int?
+  custodyFormCloudPath  String?
+  custodyFormIsPublic   Boolean @default(false)
+  
+  // Açıklama
+  description     String?
+  
+  // İade (Opsiyonel)
+  returnDate      DateTime?
+  returnQuantity  Int?
+  returnReason    String?
+  
+  // Notlar
+  notes           String?
+  
+  // Departman Müdürü (Teslim Eden)
+  departmentManagerName String?       // Manuel giriş: Departman müdürü adı
+  
+  // Dağıtan (Teslim Eden)
+  distributedById String
+  distributedBy   User     @relation("OHSPPEDistributor", fields: [distributedById], references: [id])
+  
+  // Meta
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("ohs_ppe_distributions")
+}
+
+// Acil Durum Türü
+enum OHSEmergencyType {
+  YANGIN            // Yangın
+  DEPREM            // Deprem
+  TAHLIYE           // Tahliye
+  KIMYASAL_SIZINTI  // Kimyasal Sızıntı
+  ELEKTRIK_KESINTISI // Elektrik Kesintisi
+  SU_BASKINI        // Su Baskını
+  DOGAL_AFET        // Doğal Afet
+  SAGLIK_ACIL       // Sağlık Acil Durumu
+  GUVENLIK          // Güvenlik Acil Durumu
+  DIGER             // Diğer
+}
+
+// Acil Durum Planı Durumu
+enum OHSEmergencyPlanStatus {
+  TASLAK            // Taslak
+  AKTIF             // Aktif
+  GUNCELLENIYOR     // Güncelleniyor
+  ARSIV             // Arşiv
+}
+
+// Acil Durum Planı
+model OHSEmergencyPlan {
+  id              String   @id @default(cuid())
+  code            String   @unique  // ADP-YYYY-NNNN
+  
+  // Plan Bilgileri
+  type            OHSEmergencyType
+  title           String            // Plan adı
+  description     String            // Plan açıklaması
+  
+  // Prosedürler
+  procedures      String            // Acil durum prosedürleri
+  evacuationRoutes String?          // Tahliye güzergahları
+  assemblyPoints  String?           // Toplanma noktaları
+  
+  // Sorumlular
+  responsiblePersons String?        // Sorumlu kişiler/ekipler
+  emergencyContacts  String?        // Acil durum iletişim numaraları
+  
+  // Doküman
+  documentFileName    String?
+  documentFileSize    Int?
+  documentFileType    String?
+  documentCloudPath   String?
+  documentIsPublic    Boolean  @default(false)
+  
+  // Durum ve Versiyon
+  status          OHSEmergencyPlanStatus @default(TASLAK)
+  version         String   @default("1.0")
+  validFrom       DateTime?
+  validUntil      DateTime?
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("OHSEmergencyPlanCreator", fields: [createdById], references: [id])
+  
+  // Meta
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // İlişkiler
+  drills          OHSEmergencyDrill[]
+  
+  @@map("ohs_emergency_plans")
+}
+
+// Tatbikat Sonucu
+enum OHSDrillResult {
+  BASARILI          // Başarılı
+  KISMEN_BASARILI   // Kısmen Başarılı
+  BASARISIZ         // Başarısız
+}
+
+// Acil Durum Tatbikatı
+model OHSEmergencyDrill {
+  id              String   @id @default(cuid())
+  code            String   @unique  // TAT-YYYY-NNNN
+  
+  // Tatbikat Bilgileri
+  planId          String
+  plan            OHSEmergencyPlan @relation(fields: [planId], references: [id])
+  
+  title           String            // Tatbikat adı
+  drillDate       DateTime          // Tatbikat tarihi
+  duration        Int?              // Süre (dakika)
+  
+  // Katılımcılar
+  participantCount Int?             // Katılımcı sayısı
+  departments     String?           // Katılan departmanlar
+  
+  // Sonuç
+  result          OHSDrillResult?
+  findings        String?           // Bulgular
+  improvements    String?           // İyileştirme önerileri
+  
+  // Rapor
+  reportFileName      String?
+  reportFileSize      Int?
+  reportFileType      String?
+  reportCloudPath     String?
+  reportIsPublic      Boolean  @default(false)
+  
+  // Oluşturan
+  createdById     String
+  createdBy       User     @relation("OHSEmergencyDrillCreator", fields: [createdById], references: [id])
+  
+  // Meta
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("ohs_emergency_drills")
+}
