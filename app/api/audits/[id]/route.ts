@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 import { AuditStatus } from '@prisma/client';
-import { getFileUrl } from '@/lib/s3';
+import { getFileUrl } from '@/lib/storage';
 
 // Denetim detayı
 export async function GET(

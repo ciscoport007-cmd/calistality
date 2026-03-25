@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { generatePresignedUploadUrl } from '@/lib/s3';
+import { uploadFile } from '@/lib/storage';
 
 export async function POST(request: Request) {
   try {
@@ -233,23 +233,8 @@ export async function POST(request: Request) {
 
     const fileName = `KKD_Zimmet_${distribution.ppe.code}_${dateStr.replace(/\./g, '-')}.pdf`;
 
-    // Upload to S3
-    const { uploadUrl, cloud_storage_path } = await generatePresignedUploadUrl(
-      fileName,
-      'application/pdf',
-      false
-    );
-
-    const uploadRes = await fetch(uploadUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/pdf' },
-      body: pdfBuffer,
-    });
-
-    if (!uploadRes.ok) {
-      console.error('PDF S3 upload failed');
-      return NextResponse.json({ error: 'PDF yüklenemedi' }, { status: 500 });
-    }
+    // Upload to local storage
+    const cloud_storage_path = await uploadFile(pdfBuffer, fileName, false);
 
     // Update distribution record
     await prisma.oHSPPEDistribution.update({

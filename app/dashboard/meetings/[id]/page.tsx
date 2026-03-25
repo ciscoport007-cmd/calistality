@@ -66,7 +66,7 @@ import {
   UserPlus,
   StickyNote,
 } from 'lucide-react';
-import { generatePresignedUploadUrl } from '@/lib/s3';
+import { generatePresignedUploadUrl } from '@/lib/storage';
 
 interface Meeting {
   id: string;

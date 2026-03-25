@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { generatePresignedUploadUrl } from '@/lib/s3';
+import { generatePresignedUploadUrl } from '@/lib/storage';
 
 // Sözleşme yükleme için presigned URL al
 export async function GET(

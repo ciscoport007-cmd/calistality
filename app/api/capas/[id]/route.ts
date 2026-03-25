@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { createNotification, NotificationTemplates } from '@/lib/notifications';
 import { isAdmin } from '@/lib/audit';
-import { getFileUrl } from '@/lib/s3';
+import { getFileUrl } from '@/lib/storage';
 
 type RouteContext = { params: Promise<{ id: string }> };
 

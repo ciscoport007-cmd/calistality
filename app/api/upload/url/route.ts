@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { getFileUrl } from '@/lib/s3';
+import { getFileUrl } from '@/lib/storage';
 
 export async function POST(request: NextRequest) {
   try {

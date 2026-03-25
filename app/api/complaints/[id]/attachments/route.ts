@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { generatePresignedUploadUrl, getFileUrl } from '@/lib/s3';
+import { generatePresignedUploadUrl, getFileUrl } from '@/lib/storage';
 
 // Şikayete ait dosyaları listele
 export async function GET(

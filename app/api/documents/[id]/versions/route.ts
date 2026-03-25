@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { PrismaClient } from '@prisma/client';
-import { uploadFile, getFileUrl } from '@/lib/s3';
+import { uploadFile, getFileUrl } from '@/lib/storage';
 
 const prisma = new PrismaClient();
 

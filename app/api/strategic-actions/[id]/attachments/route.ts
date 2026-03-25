@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/db'
 import { authOptions } from '@/lib/auth-options'
-import { generatePresignedUploadUrl, getFileUrl, deleteFile } from '@/lib/s3'
+import { generatePresignedUploadUrl, getFileUrl, deleteFile } from '@/lib/storage'
 
 export async function GET(
   request: NextRequest,

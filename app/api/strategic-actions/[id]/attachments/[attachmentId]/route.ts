@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/db'
 import { authOptions } from '@/lib/auth-options'
-import { deleteFile } from '@/lib/s3'
+import { deleteFile } from '@/lib/storage'
 
 export async function DELETE(
   request: NextRequest,

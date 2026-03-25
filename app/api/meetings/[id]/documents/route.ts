@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
-import { getFileUrl } from '@/lib/s3';
+import { getFileUrl } from '@/lib/storage';
 
 // GET - Toplantı dökümanları
 export async function GET(

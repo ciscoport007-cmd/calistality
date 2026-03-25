@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
-import { generatePresignedUploadUrl, deleteFile } from '@/lib/s3';
+import { generatePresignedUploadUrl, deleteFile } from '@/lib/storage';
 
 // GET - Kapanış kanıtlarını getir
 export async function GET(
