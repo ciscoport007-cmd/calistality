@@ -442,6 +442,19 @@ export async function PUT(
         },
       });
 
+      // Erken tamamlanma durumunda (canPublish ile son adım değilse) kalan adımları atla
+      if (!isLastStep) {
+        const remainingSteps = instance.steps.filter(
+          (s) => s.step.stepOrder > instance.currentStepOrder && s.status === 'BEKLIYOR'
+        );
+        for (const remaining of remainingSteps) {
+          await prisma.workflowInstanceStep.update({
+            where: { id: remaining.id },
+            data: { status: 'ATLANDI' },
+          });
+        }
+      }
+
       // Yayınlama yapılsın mı?
       if (publish && currentInstanceStep.step.canPublish) {
         await prisma.document.update({
