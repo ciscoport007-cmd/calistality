@@ -764,7 +764,7 @@ export default function MeetingDetailPage() {
                 Dökümanlar ({meeting.documents.length})
               </TabsTrigger>
               <TabsTrigger value="decisions">
-                Kararlar ({decisions.length})
+                Kararlar ({decisions.filter(d => d.status === 'DEVAM_EDIYOR').length})
               </TabsTrigger>
               <TabsTrigger value="notes">
                 Notlar
@@ -1163,53 +1163,78 @@ export default function MeetingDetailPage() {
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  {decisions.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">
-                      Henüz karar bulunmuyor
-                    </p>
-                  ) : (
-                    <div className="space-y-4">
-                      {decisions.map((d) => (
-                        <div key={d.id} className="border rounded-lg p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <p className="font-medium">{d.decision}</p>
-                              <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                                {d.assignee && (
-                                  <span>Sorumlu: {d.assignee.name} {d.assignee.surname}</span>
-                                )}
-                                {d.dueDate && (
-                                  <span>Bitiş: {format(parseISO(d.dueDate), 'd MMM yyyy', { locale: tr })}</span>
-                                )}
-                                <span>Ekleyen: {d.createdBy.name} {d.createdBy.surname}</span>
-                              </div>
+                  <Tabs defaultValue="devam_ediyor">
+                    <TabsList className="mb-4">
+                      <TabsTrigger value="devam_ediyor">
+                        Devam Ediyor ({decisions.filter(d => d.status === 'DEVAM_EDIYOR').length})
+                      </TabsTrigger>
+                      <TabsTrigger value="beklemede">
+                        Beklemede ({decisions.filter(d => d.status === 'BEKLEMEDE').length})
+                      </TabsTrigger>
+                      <TabsTrigger value="tamamlananlar">
+                        Tamamlananlar ({decisions.filter(d => d.status === 'TAMAMLANDI' || d.status === 'IPTAL').length})
+                      </TabsTrigger>
+                    </TabsList>
+
+                    {(['devam_ediyor', 'beklemede', 'tamamlananlar'] as const).map((tab) => {
+                      const filtered = decisions.filter(d => {
+                        if (tab === 'devam_ediyor') return d.status === 'DEVAM_EDIYOR';
+                        if (tab === 'beklemede') return d.status === 'BEKLEMEDE';
+                        return d.status === 'TAMAMLANDI' || d.status === 'IPTAL';
+                      });
+                      return (
+                        <TabsContent key={tab} value={tab}>
+                          {filtered.length === 0 ? (
+                            <p className="text-center text-muted-foreground py-8">
+                              Bu kategoride karar bulunmuyor
+                            </p>
+                          ) : (
+                            <div className="space-y-4">
+                              {filtered.map((d) => (
+                                <div key={d.id} className="border rounded-lg p-4">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <p className="font-medium">{d.decision}</p>
+                                      <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                                        {d.assignee && (
+                                          <span>Sorumlu: {d.assignee.name} {d.assignee.surname}</span>
+                                        )}
+                                        {d.dueDate && (
+                                          <span>Bitiş: {format(parseISO(d.dueDate), 'd MMM yyyy', { locale: tr })}</span>
+                                        )}
+                                        <span>Ekleyen: {d.createdBy.name} {d.createdBy.surname}</span>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Select
+                                        value={d.status}
+                                        onValueChange={(v) => updateDecisionStatus(d.id, v)}
+                                      >
+                                        <SelectTrigger className="w-[140px]">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="BEKLEMEDE">Beklemede</SelectItem>
+                                          <SelectItem value="DEVAM_EDIYOR">Devam Ediyor</SelectItem>
+                                          <SelectItem value="TAMAMLANDI">Tamamlandı</SelectItem>
+                                          <SelectItem value="IPTAL">İptal</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                      {isCreator && (
+                                        <Button variant="ghost" size="sm" onClick={() => deleteDecision(d.id)}>
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Select
-                                value={d.status}
-                                onValueChange={(v) => updateDecisionStatus(d.id, v)}
-                              >
-                                <SelectTrigger className="w-[140px]">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="BEKLEMEDE">Beklemede</SelectItem>
-                                  <SelectItem value="DEVAM_EDIYOR">Devam Ediyor</SelectItem>
-                                  <SelectItem value="TAMAMLANDI">Tamamlandı</SelectItem>
-                                  <SelectItem value="IPTAL">İptal</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              {isCreator && (
-                                <Button variant="ghost" size="sm" onClick={() => deleteDecision(d.id)}>
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                          )}
+                        </TabsContent>
+                      );
+                    })}
+                  </Tabs>
                 </CardContent>
               </Card>
             </TabsContent>
