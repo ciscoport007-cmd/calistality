@@ -289,26 +289,43 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file?.arrayBuffer?.());
     const cloudStoragePath = await uploadFile(buffer, file?.name ?? 'document', false);
 
-    // Doküman kodu oluştur (benzersiz numara için son kodu bul)
-    const year = new Date()?.getFullYear?.();
+    // Doküman kodu oluştur: CLR.{DEPT}.{TIP}.{SIRA}
+    // Departman ve doküman tipi kodlarını al
+    let deptCode = 'XX';
+    let typeCode = 'XX';
+
+    if (departmentId) {
+      const dept = await prisma.department.findUnique({
+        where: { id: departmentId },
+        select: { code: true },
+      });
+      if (dept?.code) deptCode = dept.code.toUpperCase();
+    }
+
+    if (documentTypeId) {
+      const docType = await prisma.documentType.findUnique({
+        where: { id: documentTypeId },
+        select: { code: true },
+      });
+      if (docType?.code) typeCode = docType.code.toUpperCase();
+    }
+
+    const prefix = `CLR.${deptCode}.${typeCode}.`;
+
+    // Bu prefix ile mevcut son numarayı bul
     const lastDoc = await prisma.document.findFirst({
-      where: {
-        code: {
-          startsWith: `DOC-${year}-`,
-        },
-      },
+      where: { code: { startsWith: prefix } },
       orderBy: { code: 'desc' },
       select: { code: true },
     });
-    
+
     let nextNumber = 1;
     if (lastDoc?.code) {
-      const lastNumber = parseInt(lastDoc.code.split('-')[2], 10);
-      if (!isNaN(lastNumber)) {
-        nextNumber = lastNumber + 1;
-      }
+      const parts = lastDoc.code.split('.');
+      const lastNum = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(lastNum)) nextNumber = lastNum + 1;
     }
-    const code = `DOC-${year}-${String(nextNumber).padStart(4, '0')}`;
+    const code = `${prefix}${String(nextNumber).padStart(2, '0')}`;
 
     // Doküman oluştur
     const document = await prisma.document.create({
