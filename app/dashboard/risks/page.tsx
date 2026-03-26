@@ -243,7 +243,7 @@ export default function RisksPage() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('/api/users');
+      const res = await fetch('/api/users?forReviewers=true');
       const data = await res.json();
       const users = data.users || data;
       setUsers(Array.isArray(users) ? users : []);
