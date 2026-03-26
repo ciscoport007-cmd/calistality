@@ -52,6 +52,7 @@ import {
   Calendar,
   User,
   AlertTriangle,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/export-utils';
@@ -306,6 +307,40 @@ export default function OHSHealthPage() {
     }
   };
 
+  const handleDeleteRecord = async (record: HealthRecord, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Bu sağlık kaydını silmek istediğinize emin misiniz?')) return;
+    try {
+      const response = await fetch(`/api/ohs/health/records/${record.id}`, { method: 'DELETE' });
+      if (response.ok) {
+        toast.success('Kayıt silindi');
+        fetchHealthRecords();
+      } else {
+        const err = await response.json();
+        toast.error(err.error || 'Kayıt silinemedi');
+      }
+    } catch {
+      toast.error('Hata oluştu');
+    }
+  };
+
+  const handleDeleteVaccination = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Bu aşı kaydını silmek istediğinize emin misiniz?')) return;
+    try {
+      const response = await fetch(`/api/ohs/health/vaccinations/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        toast.success('Aşı kaydı silindi');
+        fetchVaccinations();
+      } else {
+        const err = await response.json();
+        toast.error(err.error || 'Kayıt silinemedi');
+      }
+    } catch {
+      toast.error('Hata oluştu');
+    }
+  };
+
   const fetchDepartments = async () => {
     try {
       const response = await fetch('/api/departments');
@@ -532,18 +567,19 @@ export default function OHSHealthPage() {
                     <TableHead>Sonraki Muayene</TableHead>
                     <TableHead>Hekim</TableHead>
                     <TableHead>Sonuç</TableHead>
+                    <TableHead className="w-16"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         Yükleniyor...
                       </TableCell>
                     </TableRow>
                   ) : healthRecords.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         Kayıt bulunamadı
                       </TableCell>
                     </TableRow>
@@ -577,6 +613,18 @@ export default function OHSHealthPage() {
                             {RESULT_LABELS[record.result]}
                           </Badge>
                         </TableCell>
+                        <TableCell>
+                          {canEditRecord(record) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={(e) => handleDeleteRecord(record, e)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -606,35 +654,57 @@ export default function OHSHealthPage() {
                     <TableHead>Doz No</TableHead>
                     <TableHead>Sonraki Doz</TableHead>
                     <TableHead>Uygulayan</TableHead>
+                    <TableHead className="w-16"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {vaccinations.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                         Kayıt bulunamadı
                       </TableCell>
                     </TableRow>
                   ) : (
-                    vaccinations.map((vac) => (
-                      <TableRow key={vac.id}>
-                        <TableCell>
-                          {vac.user?.name} {vac.user?.surname}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {VACCINE_TYPE_LABELS[vac.vaccineType] || vac.vaccineType}
-                          </Badge>
-                          {vac.vaccineName && <span className="ml-2 text-sm text-muted-foreground">{vac.vaccineName}</span>}
-                        </TableCell>
-                        <TableCell>{formatDate(vac.vaccineDate)}</TableCell>
-                        <TableCell>{vac.doseNumber}. Doz</TableCell>
-                        <TableCell>
-                          {vac.nextDoseDate ? formatDate(vac.nextDoseDate) : '-'}
-                        </TableCell>
-                        <TableCell>{vac.administeredBy || '-'}</TableCell>
-                      </TableRow>
-                    ))
+                    vaccinations.map((vac) => {
+                      const canDeleteVac = (() => {
+                        if (!session?.user) return false;
+                        const role = (session.user as any).role || '';
+                        const adminRoles = ['Admin', 'Yönetici', 'admin', 'Strateji Ofisi'];
+                        if (adminRoles.some(r => role.toLowerCase() === r.toLowerCase())) return true;
+                        return session.user.id === vac.createdBy?.id;
+                      })();
+                      return (
+                        <TableRow key={vac.id}>
+                          <TableCell>
+                            {vac.user?.name} {vac.user?.surname}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {VACCINE_TYPE_LABELS[vac.vaccineType] || vac.vaccineType}
+                            </Badge>
+                            {vac.vaccineName && <span className="ml-2 text-sm text-muted-foreground">{vac.vaccineName}</span>}
+                          </TableCell>
+                          <TableCell>{formatDate(vac.vaccineDate)}</TableCell>
+                          <TableCell>{vac.doseNumber}. Doz</TableCell>
+                          <TableCell>
+                            {vac.nextDoseDate ? formatDate(vac.nextDoseDate) : '-'}
+                          </TableCell>
+                          <TableCell>{vac.administeredBy || '-'}</TableCell>
+                          <TableCell>
+                            {canDeleteVac && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                onClick={(e) => handleDeleteVaccination(vac.id, e)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
