@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import {
   Card,
   CardContent,
@@ -132,17 +133,28 @@ const VACCINE_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function OHSHealthPage() {
+  const { data: session } = useSession();
   const [healthRecords, setHealthRecords] = useState<HealthRecord[]>([]);
   const [vaccinations, setVaccinations] = useState<Vaccination[]>([]);
   const [users, setUsers] = useState<UserType[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('records');
-  
+
   // Dialog states
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
   const [vaccinationDialogOpen, setVaccinationDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+
+  // Edit dialog states
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<HealthRecord | null>(null);
+  const [updating, setUpdating] = useState(false);
+  const [editForm, setEditForm] = useState({
+    personName: '', personDuty: '', personDepartmentId: '',
+    examType: '', examDate: '', nextExamDate: '',
+    physicianName: '', institution: '', result: '', restrictions: '', notes: '',
+  });
   
   // Filters
   const [search, setSearch] = useState('');
@@ -222,13 +234,75 @@ export default function OHSHealthPage() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/users');
+      const response = await fetch('/api/users?forReviewers=true');
       if (response.ok) {
         const data = await response.json();
-        setUsers(Array.isArray(data) ? data : []);
+        const list = data.users || data;
+        setUsers(Array.isArray(list) ? list : []);
       }
     } catch (error) {
       console.error('Users fetch error:', error);
+    }
+  };
+
+  const canEditRecord = (record: HealthRecord) => {
+    if (!session?.user) return false;
+    const role = (session.user as any).role || '';
+    const adminRoles = ['Admin', 'Yönetici', 'admin', 'Strateji Ofisi'];
+    if (adminRoles.some(r => role.toLowerCase() === r.toLowerCase())) return true;
+    return session.user.id === record.createdBy.id;
+  };
+
+  const handleRowClick = (record: HealthRecord) => {
+    if (!canEditRecord(record)) return;
+    setSelectedRecord(record);
+    setEditForm({
+      personName: record.personName || (record.user ? `${record.user.name} ${record.user.surname || ''}`.trim() : ''),
+      personDuty: record.personDuty || '',
+      personDepartmentId: record.personDepartment?.id || '',
+      examType: record.examType,
+      examDate: record.examDate ? record.examDate.split('T')[0] : '',
+      nextExamDate: record.nextExamDate ? record.nextExamDate.split('T')[0] : '',
+      physicianName: record.physicianName,
+      institution: record.institution || '',
+      result: record.result,
+      restrictions: record.restrictions || '',
+      notes: record.notes || '',
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateRecord = async () => {
+    if (!selectedRecord) return;
+    if (!editForm.personName || !editForm.examType || !editForm.examDate || !editForm.physicianName || !editForm.result) {
+      toast.error('Lütfen zorunlu alanları doldurun');
+      return;
+    }
+    try {
+      setUpdating(true);
+      const response = await fetch(`/api/ohs/health/records/${selectedRecord.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...editForm,
+          personDepartmentId: editForm.personDepartmentId || null,
+          nextExamDate: editForm.nextExamDate || null,
+        }),
+      });
+      if (response.ok) {
+        toast.success('Kayıt güncellendi');
+        setEditDialogOpen(false);
+        setSelectedRecord(null);
+        fetchHealthRecords();
+      } else {
+        const err = await response.json();
+        toast.error(err.error || 'Kayıt güncellenemedi');
+      }
+    } catch (error) {
+      console.error('Update error:', error);
+      toast.error('Hata oluştu');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -475,7 +549,11 @@ export default function OHSHealthPage() {
                     </TableRow>
                   ) : (
                     healthRecords.map((record) => (
-                      <TableRow key={record.id}>
+                      <TableRow
+                        key={record.id}
+                        className={canEditRecord(record) ? 'cursor-pointer hover:bg-muted/50' : ''}
+                        onClick={() => handleRowClick(record)}
+                      >
                         <TableCell className="font-mono text-sm">{record.code}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -694,6 +772,109 @@ export default function OHSHealthPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Sağlık Kaydı Düzenleme Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Sağlık Kaydını Düzenle</DialogTitle>
+            <DialogDescription>{selectedRecord?.code} kodlu kaydı düzenliyorsunuz</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>İsim Soyisim *</Label>
+                <Input
+                  value={editForm.personName}
+                  onChange={(e) => setEditForm({ ...editForm, personName: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Görev</Label>
+                <Input
+                  value={editForm.personDuty}
+                  onChange={(e) => setEditForm({ ...editForm, personDuty: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Departman</Label>
+                <Select
+                  value={editForm.personDepartmentId || '__none__'}
+                  onValueChange={(v) => setEditForm({ ...editForm, personDepartmentId: v === '__none__' ? '' : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Departman seçin" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Seçilmedi</SelectItem>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.id}>{dept.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Muayene Türü *</Label>
+                <Select value={editForm.examType} onValueChange={(v) => setEditForm({ ...editForm, examType: v })}>
+                  <SelectTrigger><SelectValue placeholder="Seçin" /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(EXAM_TYPE_LABELS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Sonuç *</Label>
+                <Select value={editForm.result} onValueChange={(v) => setEditForm({ ...editForm, result: v })}>
+                  <SelectTrigger><SelectValue placeholder="Seçin" /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(RESULT_LABELS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Muayene Tarihi *</Label>
+                <Input type="date" value={editForm.examDate} onChange={(e) => setEditForm({ ...editForm, examDate: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Sonraki Muayene Tarihi</Label>
+                <Input type="date" value={editForm.nextExamDate} onChange={(e) => setEditForm({ ...editForm, nextExamDate: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Hekim Adı *</Label>
+                <Input value={editForm.physicianName} onChange={(e) => setEditForm({ ...editForm, physicianName: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Kurum</Label>
+                <Input value={editForm.institution} onChange={(e) => setEditForm({ ...editForm, institution: e.target.value })} />
+              </div>
+            </div>
+            {editForm.result === 'KISITLI_UYGUN' && (
+              <div className="space-y-2">
+                <Label>Kısıtlamalar</Label>
+                <Textarea value={editForm.restrictions} onChange={(e) => setEditForm({ ...editForm, restrictions: e.target.value })} rows={2} />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Notlar</Label>
+              <Textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} rows={2} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>İptal</Button>
+            <Button onClick={handleUpdateRecord} disabled={updating}>
+              {updating ? 'Kaydediliyor...' : 'Güncelle'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Aşı Kaydı Dialog */}
       <Dialog open={vaccinationDialogOpen} onOpenChange={setVaccinationDialogOpen}>
         <DialogContent className="max-w-lg">
@@ -704,11 +885,15 @@ export default function OHSHealthPage() {
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <Label>Personel *</Label>
-              <Select value={vaccinationForm.userId} onValueChange={(v) => setVaccinationForm({ ...vaccinationForm, userId: v })}>
+              <Select
+                value={vaccinationForm.userId || '__none__'}
+                onValueChange={(v) => setVaccinationForm({ ...vaccinationForm, userId: v === '__none__' ? '' : v })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Personel seçin" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__none__">Personel seçin</SelectItem>
                   {users.map((u) => (
                     <SelectItem key={u.id} value={u.id}>{u.name} {u.surname}</SelectItem>
                   ))}

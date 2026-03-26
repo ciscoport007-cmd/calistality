@@ -52,6 +52,18 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
+    // Yetki kontrolü: admin veya kaydı oluşturan kişi
+    const existing = await prisma.oHSHealthRecord.findUnique({ where: { id }, select: { createdById: true } });
+    if (!existing) {
+      return NextResponse.json({ error: 'Kayıt bulunamadı' }, { status: 404 });
+    }
+    const adminRoles = ['admin', 'yönetici', 'strateji ofisi'];
+    const userRole = (session.user as any).role || '';
+    const isAdmin = adminRoles.some(r => userRole.toLowerCase() === r.toLowerCase());
+    if (!isAdmin && existing.createdById !== session.user.id) {
+      return NextResponse.json({ error: 'Bu kaydı düzenleme yetkiniz yok' }, { status: 403 });
+    }
+
     const record = await prisma.oHSHealthRecord.update({
       where: { id },
       data: body,
