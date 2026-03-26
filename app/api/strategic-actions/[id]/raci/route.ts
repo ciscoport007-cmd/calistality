@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Aksiyonun RACI bilgilerini getir
 export async function GET(
   request: NextRequest,

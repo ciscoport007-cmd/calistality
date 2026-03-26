@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 import { getFileUrl } from '@/lib/storage';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Toplantı dökümanları
 export async function GET(
   request: NextRequest,

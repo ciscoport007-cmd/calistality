@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { generatePresignedUploadUrl } from '@/lib/storage';
 
+export const dynamic = 'force-dynamic';
+
 // Sözleşme yükleme için presigned URL al
 export async function GET(
   request: Request,

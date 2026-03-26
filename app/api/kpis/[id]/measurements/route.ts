@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 
+export const dynamic = 'force-dynamic';
+
 // Tüm ölçümleri baz alarak KPI performansını yeniden hesaplar
 // - Yüzdelik (unit='%'): değerlerin ortalaması
 // - Sayısal: (tüm ölçümlerin toplamı / hedef) * 100

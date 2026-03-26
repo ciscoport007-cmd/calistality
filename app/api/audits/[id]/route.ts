@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db';
 import { AuditStatus } from '@prisma/client';
 import { getFileUrl } from '@/lib/storage';
 
+export const dynamic = 'force-dynamic';
+
 // Denetim detayı
 export async function GET(
   request: NextRequest,

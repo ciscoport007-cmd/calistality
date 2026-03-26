@@ -5,6 +5,8 @@ import { authOptions } from '@/lib/auth-options';
 import { canCreate } from '@/lib/audit';
 import { createNotification, NotificationTemplates } from '@/lib/notifications';
 
+export const dynamic = 'force-dynamic';
+
 // CAPA Listesi
 export async function GET(request: NextRequest) {
   try {

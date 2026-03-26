@@ -5,6 +5,8 @@ import { authOptions } from '@/lib/auth-options';
 import { createAuditLog, canCreate } from '@/lib/audit';
 import { notifyByDepartment } from '@/lib/notifications';
 
+export const dynamic = 'force-dynamic';
+
 // Şikayet kodu oluştur
 async function generateComplaintCode(): Promise<string> {
   const year = new Date().getFullYear();

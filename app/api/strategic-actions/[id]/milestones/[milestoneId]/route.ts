@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 import { notifyActionStakeholders, NotificationTemplates } from '@/lib/notifications';
 
+export const dynamic = 'force-dynamic';
+
 // PATCH - Kilometre taşını güncelle
 export async function PATCH(
   request: NextRequest,

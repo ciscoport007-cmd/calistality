@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 import { generatePresignedUploadUrl, deleteFile } from '@/lib/storage';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Kapanış kanıtlarını getir
 export async function GET(
   request: NextRequest,

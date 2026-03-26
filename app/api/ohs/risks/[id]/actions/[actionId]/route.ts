@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { createNotification } from '@/lib/notifications';
 
+export const dynamic = 'force-dynamic';
+
 // Aksiyon güncelle
 export async function PATCH(
   request: Request,

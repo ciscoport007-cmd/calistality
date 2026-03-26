@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 
+export const dynamic = 'force-dynamic';
+
 const DEFAULT_CATEGORIES = [
   // --- Temel Operasyonel ---
   { code: 'FIN',       name: 'Finansal Performans',           description: 'Gelir, karlılık, maliyet ve bütçe sapma göstergeleri',                     color: '#10B981', sortOrder: 1  },

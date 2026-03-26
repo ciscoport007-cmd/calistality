@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 
+export const dynamic = 'force-dynamic';
+
 // Satın Alma Değerlendirmesi API'si
 // Her kriter 1-5 puan, toplam max 20 puan
 // Satın Alma Skoru = (Toplam / 20) × 100

@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { generatePresignedUploadUrl, getFileUrl } from '@/lib/storage';
 
+export const dynamic = 'force-dynamic';
+
 // Şikayete ait dosyaları listele
 export async function GET(
   request: NextRequest,

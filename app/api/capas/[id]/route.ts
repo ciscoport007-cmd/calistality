@@ -6,6 +6,8 @@ import { createNotification, NotificationTemplates } from '@/lib/notifications';
 import { isAdmin } from '@/lib/audit';
 import { getFileUrl } from '@/lib/storage';
 
+export const dynamic = 'force-dynamic';
+
 type RouteContext = { params: Promise<{ id: string }> };
 
 // CAPA Detayı

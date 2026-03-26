@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { createNotification } from '@/lib/notifications';
 
+export const dynamic = 'force-dynamic';
+
 // Sağlık kayıtları listesi
 export async function GET(request: Request) {
   try {

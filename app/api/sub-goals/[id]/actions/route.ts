@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 import { createNotification, NotificationTemplates } from '@/lib/notifications';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Alt hedefe bağlı aksiyonları listele
 export async function GET(
   request: NextRequest,

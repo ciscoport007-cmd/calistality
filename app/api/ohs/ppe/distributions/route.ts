@@ -5,6 +5,8 @@ import { authOptions } from '@/lib/auth-options';
 import { createNotification } from '@/lib/notifications';
 import { OHSPPEStatus } from '@prisma/client';
 
+export const dynamic = 'force-dynamic';
+
 // Da\u011f\u0131t\u0131m kay\u0131tlar\u0131
 export async function GET(request: Request) {
   try {

@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { isAdmin } from '@/lib/audit';
 
+export const dynamic = 'force-dynamic';
+
 async function recalculateKPIPerformance(kpiId: string, unit: string, targetValue: number) {
   const allMeasurements = await prisma.kPIMeasurement.findMany({
     where: { kpiId },

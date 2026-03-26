@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 
+export const dynamic = 'force-dynamic';
+
 // Taşeron firmaları listele (tedarikçilerden isSubcontractor=true olanlar)
 export async function GET(request: Request) {
   try {

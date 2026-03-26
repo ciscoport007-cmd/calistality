@@ -5,6 +5,8 @@ import { authOptions } from '@/lib/auth-options';
 import { createNotification, notifyActionStakeholders, NotificationTemplates } from '@/lib/notifications';
 import { updateProgressAfterActionChange } from '@/lib/progress-calculator';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Aksiyon detayı
 export async function GET(
   request: NextRequest,

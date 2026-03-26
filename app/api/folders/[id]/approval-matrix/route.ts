@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 
+export const dynamic = 'force-dynamic';
+
 const APPROVAL_STAGES = [
   { value: 'SISTEM_ON_ONAY', label: 'Sistem Ön Onayı', order: 1 },
   { value: 'KONTROL_EDEN', label: 'Kontrol Eden', order: 2 },

@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 
+export const dynamic = 'force-dynamic';
+
 // Denetim Değerlendirmesi API'si
 // 20 soru, her soru 5 puan, toplam max 100 puan
 

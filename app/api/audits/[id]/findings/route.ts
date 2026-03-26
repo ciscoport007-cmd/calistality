@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 import { FindingSeverity, FindingStatus } from '@prisma/client';
 
+export const dynamic = 'force-dynamic';
+
 // Bulgu listesi
 export async function GET(
   request: NextRequest,

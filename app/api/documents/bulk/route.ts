@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 import { createAuditLog, isAdmin } from '@/lib/audit';
 
+export const dynamic = 'force-dynamic';
+
 // POST - Toplu işlemler
 export async function POST(request: NextRequest) {
   try {

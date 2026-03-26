@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 
+export const dynamic = 'force-dynamic';
+
 // Tüm tedarikçilerin işlem hacmi yüzdeliklerini getir
 export async function GET() {
   try {

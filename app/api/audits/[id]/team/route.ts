@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 import { createNotification, NotificationTemplates } from '@/lib/notifications';
 
+export const dynamic = 'force-dynamic';
+
 // Ekip üyeleri listesi
 export async function GET(
   request: NextRequest,

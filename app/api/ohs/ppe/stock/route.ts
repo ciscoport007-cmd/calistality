@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { OHSPPEStatus } from '@prisma/client';
 
+export const dynamic = 'force-dynamic';
+
 // KKD stok listesi
 export async function GET(request: Request) {
   try {

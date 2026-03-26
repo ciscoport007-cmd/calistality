@@ -5,6 +5,8 @@ import { authOptions } from '@/lib/auth-options';
 import { getFileUrl } from '@/lib/storage';
 import { createNotification } from '@/lib/notifications';
 
+export const dynamic = 'force-dynamic';
+
 // Tedarikçiye ait belgeleri listele
 export async function GET(
   request: Request,

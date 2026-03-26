@@ -5,6 +5,8 @@ import { PrismaClient } from '@prisma/client';
 import { uploadFile } from '@/lib/storage';
 import { createAuditLog } from '@/lib/audit';
 
+export const dynamic = 'force-dynamic';
+
 const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {

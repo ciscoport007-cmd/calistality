@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 import { isAdmin } from '@/lib/audit';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Audit log listesi
 export async function GET(request: NextRequest) {
   try {

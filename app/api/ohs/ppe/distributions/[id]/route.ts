@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { OHSPPEStatus } from '@prisma/client';
 
+export const dynamic = 'force-dynamic';
+
 // Zimmet formu güncelleme
 export async function PUT(
   request: Request,

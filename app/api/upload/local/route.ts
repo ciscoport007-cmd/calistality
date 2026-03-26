@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+
 // Accepts PUT requests from client-side presigned upload flow.
 // The path query param is the cloud_storage_path returned by generatePresignedUploadUrl.
 export async function PUT(request: NextRequest) {

@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 import { createNotification } from '@/lib/notifications';
 
+export const dynamic = 'force-dynamic';
+
 async function generateMaintenanceCode(): Promise<string> {
   const prefix = 'EKP-BKM-';
 

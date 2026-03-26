@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { SupplierAuditAnswerValue } from '@prisma/client';
 
+export const dynamic = 'force-dynamic';
+
 // Tedarikçiye ait denetimleri listele
 export async function GET(
   request: Request,

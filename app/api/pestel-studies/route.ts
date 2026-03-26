@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 import { isAdmin, getDepartmentFilterWithNull } from '@/lib/audit';
 
+export const dynamic = 'force-dynamic';
+
 // PESTEL çalışmalarını listele
 export async function GET(request: NextRequest) {
   try {

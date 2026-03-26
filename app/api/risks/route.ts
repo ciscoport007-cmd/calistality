@@ -4,6 +4,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { isAdmin, getDepartmentFilterWithNull, canCreate } from '@/lib/audit';
 
+export const dynamic = 'force-dynamic';
+
 // Risk listesi ve oluşturma
 export async function GET(request: NextRequest) {
   try {
