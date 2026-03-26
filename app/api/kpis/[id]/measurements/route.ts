@@ -3,6 +3,34 @@ import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 
+// Tüm ölçümleri baz alarak KPI performansını yeniden hesaplar
+// - Yüzdelik (unit='%'): değerlerin ortalaması
+// - Sayısal: (tüm ölçümlerin toplamı / hedef) * 100
+async function recalculateKPIPerformance(kpiId: string, unit: string, targetValue: number) {
+  const allMeasurements = await prisma.kPIMeasurement.findMany({
+    where: { kpiId },
+    select: { value: true, measurementDate: true },
+    orderBy: { measurementDate: 'desc' },
+  });
+
+  if (allMeasurements.length === 0) return null;
+
+  let currentPerformance: number;
+  if (unit === '%') {
+    const sum = allMeasurements.reduce((acc, m) => acc + m.value, 0);
+    currentPerformance = sum / allMeasurements.length;
+  } else {
+    const total = allMeasurements.reduce((acc, m) => acc + m.value, 0);
+    currentPerformance = targetValue > 0 ? (total / targetValue) * 100 : 0;
+  }
+
+  return {
+    currentPerformance: Math.round(currentPerformance * 100) / 100,
+    lastMeasurementValue: allMeasurements[0].value,
+    lastMeasurementDate: allMeasurements[0].measurementDate,
+  };
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -121,15 +149,18 @@ export async function POST(
       },
     });
 
-    // KPI'ın son ölçüm bilgilerini güncelle
-    await prisma.kPI.update({
-      where: { id },
-      data: {
-        lastMeasurementValue: numericValue,
-        lastMeasurementDate: new Date(measurementDate),
-        currentPerformance: Math.round(performance * 100) / 100,
-      },
-    });
+    // KPI'ın performansını tüm ölçümler üzerinden yeniden hesapla
+    const kpiStats = await recalculateKPIPerformance(id, kpi.unit, targetValue);
+    if (kpiStats) {
+      await prisma.kPI.update({
+        where: { id },
+        data: {
+          lastMeasurementValue: kpiStats.lastMeasurementValue,
+          lastMeasurementDate: kpiStats.lastMeasurementDate,
+          currentPerformance: kpiStats.currentPerformance,
+        },
+      });
+    }
 
     return NextResponse.json(measurement, { status: 201 });
   } catch (error) {

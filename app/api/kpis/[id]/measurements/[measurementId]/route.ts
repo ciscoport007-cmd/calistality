@@ -4,6 +4,31 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { isAdmin } from '@/lib/audit';
 
+async function recalculateKPIPerformance(kpiId: string, unit: string, targetValue: number) {
+  const allMeasurements = await prisma.kPIMeasurement.findMany({
+    where: { kpiId },
+    select: { value: true, measurementDate: true },
+    orderBy: { measurementDate: 'desc' },
+  });
+
+  if (allMeasurements.length === 0) return null;
+
+  let currentPerformance: number;
+  if (unit === '%') {
+    const sum = allMeasurements.reduce((acc, m) => acc + m.value, 0);
+    currentPerformance = sum / allMeasurements.length;
+  } else {
+    const total = allMeasurements.reduce((acc, m) => acc + m.value, 0);
+    currentPerformance = targetValue > 0 ? (total / targetValue) * 100 : 0;
+  }
+
+  return {
+    currentPerformance: Math.round(currentPerformance * 100) / 100,
+    lastMeasurementValue: allMeasurements[0].value,
+    lastMeasurementDate: allMeasurements[0].measurementDate,
+  };
+}
+
 // GET - Tek bir ölçümü getir
 export async function GET(
   request: NextRequest,
@@ -135,19 +160,15 @@ export async function PUT(
       },
     });
 
-    // KPI'ın son ölçüm bilgilerini güncelle (en son ölçümü bul)
-    const latestMeasurement = await prisma.kPIMeasurement.findFirst({
-      where: { kpiId },
-      orderBy: { measurementDate: 'desc' },
-    });
-
-    if (latestMeasurement) {
+    // KPI performansını tüm ölçümler üzerinden yeniden hesapla
+    const kpiStats = await recalculateKPIPerformance(kpiId, kpi.unit, kpi.targetValue);
+    if (kpiStats) {
       await prisma.kPI.update({
         where: { id: kpiId },
         data: {
-          lastMeasurementValue: latestMeasurement.value,
-          lastMeasurementDate: latestMeasurement.measurementDate,
-          currentPerformance: latestMeasurement.performance,
+          lastMeasurementValue: kpiStats.lastMeasurementValue,
+          lastMeasurementDate: kpiStats.lastMeasurementDate,
+          currentPerformance: kpiStats.currentPerformance,
         },
       });
     }
@@ -193,30 +214,15 @@ export async function DELETE(
       where: { id: measurementId },
     });
 
-    // KPI'ın son ölçüm bilgilerini güncelle
-    const latestMeasurement = await prisma.kPIMeasurement.findFirst({
-      where: { kpiId },
-      orderBy: { measurementDate: 'desc' },
-    });
-
-    if (latestMeasurement) {
+    // KPI performansını tüm kalan ölçümler üzerinden yeniden hesapla
+    const kpi = await prisma.kPI.findUnique({ where: { id: kpiId }, select: { unit: true, targetValue: true } });
+    if (kpi) {
+      const kpiStats = await recalculateKPIPerformance(kpiId, kpi.unit, kpi.targetValue);
       await prisma.kPI.update({
         where: { id: kpiId },
-        data: {
-          lastMeasurementValue: latestMeasurement.value,
-          lastMeasurementDate: latestMeasurement.measurementDate,
-          currentPerformance: latestMeasurement.performance,
-        },
-      });
-    } else {
-      // Hiç ölçüm kalmadı
-      await prisma.kPI.update({
-        where: { id: kpiId },
-        data: {
-          lastMeasurementValue: null,
-          lastMeasurementDate: null,
-          currentPerformance: null,
-        },
+        data: kpiStats
+          ? { lastMeasurementValue: kpiStats.lastMeasurementValue, lastMeasurementDate: kpiStats.lastMeasurementDate, currentPerformance: kpiStats.currentPerformance }
+          : { lastMeasurementValue: null, lastMeasurementDate: null, currentPerformance: null },
       });
     }
 
