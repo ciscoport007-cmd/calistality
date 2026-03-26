@@ -175,6 +175,15 @@ export default function OHSEmergencyPage() {
   });
   const [drillReport, setDrillReport] = useState<File | null>(null);
 
+  // Edit Drill Dialog
+  const [editDrillOpen, setEditDrillOpen] = useState(false);
+  const [selectedDrill, setSelectedDrill] = useState<EmergencyDrill | null>(null);
+  const [editDrillForm, setEditDrillForm] = useState({
+    title: '', drillDate: '', duration: '', participantCount: '',
+    departments: '', result: '', findings: '', improvements: '',
+  });
+  const [updating, setUpdating] = useState(false);
+
   useEffect(() => {
     fetchPlans();
     fetchDrills();
@@ -353,6 +362,60 @@ export default function OHSEmergencyPage() {
       toast.error('Hata oluştu');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleRowClickDrill = (drill: EmergencyDrill) => {
+    setSelectedDrill(drill);
+    setEditDrillForm({
+      title: drill.title,
+      drillDate: drill.drillDate ? drill.drillDate.split('T')[0] + 'T' + (drill.drillDate.split('T')[1]?.slice(0, 5) || '00:00') : '',
+      duration: drill.duration?.toString() || '',
+      participantCount: drill.participantCount?.toString() || '',
+      departments: drill.departments || '',
+      result: drill.result || '',
+      findings: drill.findings || '',
+      improvements: drill.improvements || '',
+    });
+    setEditDrillOpen(true);
+  };
+
+  const handleUpdateDrill = async () => {
+    if (!selectedDrill) return;
+    if (!editDrillForm.title || !editDrillForm.drillDate) {
+      toast.error('Başlık ve tarih zorunludur');
+      return;
+    }
+    try {
+      setUpdating(true);
+      const response = await fetch(`/api/ohs/emergency/drills/${selectedDrill.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editDrillForm.title,
+          drillDate: editDrillForm.drillDate,
+          duration: editDrillForm.duration ? parseInt(editDrillForm.duration) : null,
+          participantCount: editDrillForm.participantCount ? parseInt(editDrillForm.participantCount) : null,
+          departments: editDrillForm.departments || null,
+          result: editDrillForm.result || null,
+          findings: editDrillForm.findings || null,
+          improvements: editDrillForm.improvements || null,
+        }),
+      });
+      if (response.ok) {
+        toast.success('Tatbikat güncellendi');
+        setEditDrillOpen(false);
+        setSelectedDrill(null);
+        fetchDrills();
+      } else {
+        const err = await response.json();
+        toast.error(err.error || 'Güncelleme başarısız');
+      }
+    } catch (error) {
+      console.error('Update error:', error);
+      toast.error('Hata oluştu');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -542,6 +605,7 @@ export default function OHSEmergencyPage() {
                     <TableHead>Süre</TableHead>
                     <TableHead>Katılımcı</TableHead>
                     <TableHead>Sonuç</TableHead>
+                    <TableHead className="text-right">İşlemler</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -553,7 +617,7 @@ export default function OHSEmergencyPage() {
                     </TableRow>
                   ) : (
                     drills.map((drill) => (
-                      <TableRow key={drill.id}>
+                      <TableRow key={drill.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleRowClickDrill(drill)}>
                         <TableCell className="font-mono text-sm">{drill.code}</TableCell>
                         <TableCell>
                           <span className="text-muted-foreground">{drill.plan.code}</span>
@@ -591,6 +655,11 @@ export default function OHSEmergencyPage() {
                             <Badge variant="outline">Değerlendirilmedi</Badge>
                           )}
                         </TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); handleRowClickDrill(drill); }}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -600,6 +669,71 @@ export default function OHSEmergencyPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Tatbikat Düzenleme Dialog */}
+      <Dialog open={editDrillOpen} onOpenChange={setEditDrillOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Tatbikat Kaydını Düzenle</DialogTitle>
+            <DialogDescription>{selectedDrill?.code} — {selectedDrill?.plan?.title}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Tatbikat Başlığı *</Label>
+                <Input value={editDrillForm.title} onChange={(e) => setEditDrillForm({ ...editDrillForm, title: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Tatbikat Tarihi *</Label>
+                <Input type="datetime-local" value={editDrillForm.drillDate} onChange={(e) => setEditDrillForm({ ...editDrillForm, drillDate: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Süre (dk)</Label>
+                <Input type="number" min="1" value={editDrillForm.duration} onChange={(e) => setEditDrillForm({ ...editDrillForm, duration: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Katılımcı Sayısı</Label>
+                <Input type="number" min="1" value={editDrillForm.participantCount} onChange={(e) => setEditDrillForm({ ...editDrillForm, participantCount: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Sonuç</Label>
+                <Select
+                  value={editDrillForm.result || '__none__'}
+                  onValueChange={(v) => setEditDrillForm({ ...editDrillForm, result: v === '__none__' ? '' : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Seçin" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Seçilmedi</SelectItem>
+                    {Object.entries(DRILL_RESULT_LABELS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Katılan Departmanlar</Label>
+              <Input value={editDrillForm.departments} onChange={(e) => setEditDrillForm({ ...editDrillForm, departments: e.target.value })} placeholder="Örn: Üretim, Depo, Ofis" />
+            </div>
+            <div className="space-y-2">
+              <Label>Bulgular</Label>
+              <Textarea value={editDrillForm.findings} onChange={(e) => setEditDrillForm({ ...editDrillForm, findings: e.target.value })} rows={3} placeholder="Tatbikat sırasında tespit edilen bulgular..." />
+            </div>
+            <div className="space-y-2">
+              <Label>İyileştirme Önerileri</Label>
+              <Textarea value={editDrillForm.improvements} onChange={(e) => setEditDrillForm({ ...editDrillForm, improvements: e.target.value })} rows={3} placeholder="Düzeltme ve iyileştirme önerileri..." />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setEditDrillOpen(false)}>İptal</Button>
+            <Button onClick={handleUpdateDrill} disabled={updating}>
+              {updating ? 'Kaydediliyor...' : 'Güncelle'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Yeni Plan Dialog */}
       <Dialog open={planDialogOpen} onOpenChange={setPlanDialogOpen}>
@@ -722,11 +856,15 @@ export default function OHSEmergencyPage() {
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <Label>Acil Durum Planı *</Label>
-              <Select value={drillForm.planId} onValueChange={(v) => setDrillForm({ ...drillForm, planId: v })}>
+              <Select
+                value={drillForm.planId || '__none__'}
+                onValueChange={(v) => setDrillForm({ ...drillForm, planId: v === '__none__' ? '' : v })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Plan seçin" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__none__">Plan seçin</SelectItem>
                   {plans.filter(p => p.status === 'AKTIF').map((plan) => (
                     <SelectItem key={plan.id} value={plan.id}>
                       {plan.code} - {plan.title}
@@ -756,11 +894,15 @@ export default function OHSEmergencyPage() {
               </div>
               <div className="space-y-2">
                 <Label>Sonuç</Label>
-                <Select value={drillForm.result} onValueChange={(v) => setDrillForm({ ...drillForm, result: v })}>
+                <Select
+                  value={drillForm.result || '__none__'}
+                  onValueChange={(v) => setDrillForm({ ...drillForm, result: v === '__none__' ? '' : v })}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Seçin" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__none__">Seçilmedi</SelectItem>
                     {Object.entries(DRILL_RESULT_LABELS).map(([key, label]) => (
                       <SelectItem key={key} value={key}>{label}</SelectItem>
                     ))}
