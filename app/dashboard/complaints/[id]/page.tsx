@@ -950,13 +950,14 @@ export default function ComplaintDetailPage() {
               <div className="space-y-2">
                 <Label>Sorumlu</Label>
                 <Select
-                  value={complaint.assignedUser?.id || ''}
-                  onValueChange={(value) => assignUser(value, 'assignedUserId')}
+                  value={complaint.assignedUser?.id || '__none__'}
+                  onValueChange={(value) => assignUser(value === '__none__' ? '' : value, 'assignedUserId')}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Kişi seçin" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__none__">Seçilmedi</SelectItem>
                     {users.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.name} {user.surname}
@@ -968,13 +969,14 @@ export default function ComplaintDetailPage() {
               <div className="space-y-2">
                 <Label>Ekip Lideri</Label>
                 <Select
-                  value={complaint.teamLeader?.id || ''}
-                  onValueChange={(value) => assignUser(value, 'teamLeaderId')}
+                  value={complaint.teamLeader?.id || '__none__'}
+                  onValueChange={(value) => assignUser(value === '__none__' ? '' : value, 'teamLeaderId')}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Kişi seçin" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__none__">Seçilmedi</SelectItem>
                     {users.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.name} {user.surname}
