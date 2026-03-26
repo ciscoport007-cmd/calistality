@@ -149,7 +149,8 @@ model User {
   closedActions          StrategicAction[]      @relation("ActionClosedBy")
   actionHistories        StrategicActionHistory[] @relation("ActionHistoryUser")
   completedMilestones    ActionMilestone[]      @relation("MilestoneCompletedBy")
-  
+  milestoneProgressEntries MilestoneProgress[]  @relation("MilestoneProgressCreator")
+
   // SWOT ve PESTEL ilişkileri
   createdSWOTStudies     SWOTStudy[]            @relation("SWOTStudyCreator")
   createdPESTELStudies   PESTELStudy[]          @relation("PESTELStudyCreator")
@@ -3189,17 +3190,42 @@ model ActionMilestone {
   actualDate    DateTime?
   
   weight        Float    @default(1.0)  // Ağırlık (ilerleme hesabı için)
-  
+
+  // Sayısal ilerleme takibi (KPI benzeri)
+  targetValue   Float?   // Hedef değer
+  unit          String?  // Birim (%, adet, TL, vb.)
+  currentValue  Float?   // Son ölçüm değeri (cache)
+
   deliverables  String?  // Teslim edilecekler
   evidence      String?  // Tamamlanma kanıtı
-  
+
   completedById String?
   completedBy   User?    @relation("MilestoneCompletedBy", fields: [completedById], references: [id])
-  
+
+  progressEntries MilestoneProgress[]
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
+
   @@map("action_milestones")
+}
+
+// Kilometre Taşı İlerleme Kayıtları
+model MilestoneProgress {
+  id              String   @id @default(cuid())
+  milestoneId     String
+  milestone       ActionMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  value           Float
+  measurementDate DateTime
+  notes           String?
+
+  createdById     String
+  createdBy       User     @relation("MilestoneProgressCreator", fields: [createdById], references: [id])
+
+  createdAt       DateTime @default(now())
+
+  @@map("milestone_progress")
 }
 
 // Hedef-KPI İlişki Tablosu

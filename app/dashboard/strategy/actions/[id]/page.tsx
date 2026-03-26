@@ -140,7 +140,15 @@ export default function ActionDetailPage() {
     plannedDate: '',
     weight: 1,
     deliverables: '',
+    targetValue: '',
+    unit: '',
   });
+
+  // Progress (ölçüm) states
+  const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+  const [selectedMilestone, setSelectedMilestone] = useState<any>(null);
+  const [progressForm, setProgressForm] = useState({ value: '', measurementDate: '', notes: '' });
+  const [addingProgress, setAddingProgress] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -521,7 +529,7 @@ export default function ActionDetailPage() {
       if (res.ok) {
         toast.success('Kilometre taşı eklendi');
         setMilestoneDialogOpen(false);
-        setMilestoneForm({ name: '', description: '', plannedDate: '', weight: 1, deliverables: '' });
+        setMilestoneForm({ name: '', description: '', plannedDate: '', weight: 1, deliverables: '', targetValue: '', unit: '' });
         fetchAction();
       } else {
         toast.error('Ekleme başarısız');
@@ -565,6 +573,54 @@ export default function ActionDetailPage() {
         toast.error('Silme başarısız');
       }
     } catch (error) {
+      toast.error('Bir hata oluştu');
+    }
+  };
+
+  const handleOpenProgressDialog = (milestone: any) => {
+    setSelectedMilestone(milestone);
+    setProgressForm({ value: '', measurementDate: new Date().toISOString().split('T')[0], notes: '' });
+    setProgressDialogOpen(true);
+  };
+
+  const handleAddProgress = async () => {
+    if (!selectedMilestone || !progressForm.value || !progressForm.measurementDate) {
+      toast.error('Değer ve tarih zorunludur');
+      return;
+    }
+    setAddingProgress(true);
+    try {
+      const res = await fetch(`/api/strategic-actions/${id}/milestones/${selectedMilestone.id}/progress`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(progressForm),
+      });
+      if (res.ok) {
+        toast.success('İlerleme kaydı eklendi');
+        setProgressDialogOpen(false);
+        fetchAction();
+      } else {
+        toast.error('Ekleme başarısız');
+      }
+    } catch {
+      toast.error('Bir hata oluştu');
+    } finally {
+      setAddingProgress(false);
+    }
+  };
+
+  const handleDeleteProgress = async (milestoneId: string, progressId: string) => {
+    if (!confirm('Bu ölçüm kaydını silmek istiyor musunuz?')) return;
+    try {
+      const res = await fetch(
+        `/api/strategic-actions/${id}/milestones/${milestoneId}/progress?progressId=${progressId}`,
+        { method: 'DELETE' }
+      );
+      if (res.ok) {
+        toast.success('Ölçüm silindi');
+        fetchAction();
+      }
+    } catch {
       toast.error('Bir hata oluştu');
     }
   };
@@ -1339,6 +1395,28 @@ export default function ActionDetailPage() {
                         </p>
                       </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Hedef Değer</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="any"
+                          value={milestoneForm.targetValue}
+                          onChange={(e) => setMilestoneForm({ ...milestoneForm, targetValue: e.target.value })}
+                          placeholder="Örn: 100"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Boş bırakılabilir</p>
+                      </div>
+                      <div>
+                        <Label>Birim</Label>
+                        <Input
+                          value={milestoneForm.unit}
+                          onChange={(e) => setMilestoneForm({ ...milestoneForm, unit: e.target.value })}
+                          placeholder="%, adet, TL..."
+                        />
+                      </div>
+                    </div>
                     <div>
                       <Label>Teslim Edilecekler</Label>
                       <Textarea
@@ -1365,9 +1443,9 @@ export default function ActionDetailPage() {
                     <TableRow>
                       <TableHead>Adı</TableHead>
                       <TableHead>Durum</TableHead>
+                      <TableHead>İlerleme</TableHead>
                       <TableHead>Planlanan</TableHead>
                       <TableHead>Gerçekleşen</TableHead>
-                      <TableHead>Ağırlık</TableHead>
                       <TableHead>İşlemler</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1375,6 +1453,10 @@ export default function ActionDetailPage() {
                     {action.milestones?.map((milestone: any) => {
                       const mStatus = milestoneStatusConfig[milestone.status] || milestoneStatusConfig.BEKLIYOR;
                       const isDelayed = new Date(milestone.plannedDate) < new Date() && milestone.status !== 'TAMAMLANDI';
+                      const hasNumericTarget = milestone.targetValue != null;
+                      const progressPct = hasNumericTarget && milestone.targetValue > 0
+                        ? Math.min(100, Math.round(((milestone.currentValue ?? 0) / milestone.targetValue) * 100))
+                        : null;
 
                       return (
                         <TableRow key={milestone.id}>
@@ -1401,6 +1483,26 @@ export default function ActionDetailPage() {
                               </SelectContent>
                             </Select>
                           </TableCell>
+                          <TableCell className="min-w-[160px]">
+                            {hasNumericTarget ? (
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="font-medium">
+                                    {milestone.currentValue ?? 0}{milestone.unit || ''} / {milestone.targetValue}{milestone.unit || ''}
+                                  </span>
+                                  <span className="text-gray-500">%{progressPct}</span>
+                                </div>
+                                <Progress value={progressPct ?? 0} className="h-2" />
+                                {milestone.progressEntries?.length > 0 && (
+                                  <p className="text-xs text-gray-400">
+                                    Son: {format(new Date(milestone.progressEntries[0].measurementDate), 'dd MMM yyyy', { locale: tr })}
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-sm text-gray-400">-</span>
+                            )}
+                          </TableCell>
                           <TableCell className={isDelayed ? 'text-red-600' : ''}>
                             {format(new Date(milestone.plannedDate), 'dd MMM yyyy', { locale: tr })}
                           </TableCell>
@@ -1409,15 +1511,26 @@ export default function ActionDetailPage() {
                               ? format(new Date(milestone.actualDate), 'dd MMM yyyy', { locale: tr })
                               : '-'}
                           </TableCell>
-                          <TableCell>{milestone.weight}</TableCell>
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteMilestone(milestone.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              {hasNumericTarget && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleOpenProgressDialog(milestone)}
+                                  title="Ölçüm ekle"
+                                >
+                                  <Plus className="h-3 w-3 mr-1" /> Ölçüm
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteMilestone(milestone.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -1428,6 +1541,91 @@ export default function ActionDetailPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Ölçüm Ekleme Dialog */}
+        <Dialog open={progressDialogOpen} onOpenChange={setProgressDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>İlerleme Kaydı Ekle</DialogTitle>
+            </DialogHeader>
+            {selectedMilestone && (
+              <div className="space-y-4">
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="font-medium text-sm">{selectedMilestone.name}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Hedef: {selectedMilestone.targetValue}{selectedMilestone.unit || ''}
+                    {selectedMilestone.currentValue != null && (
+                      <span> · Mevcut: {selectedMilestone.currentValue}{selectedMilestone.unit || ''}</span>
+                    )}
+                  </p>
+                </div>
+
+                {/* Ölçüm geçmişi */}
+                {selectedMilestone.progressEntries?.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium mb-2">Ölçüm Geçmişi</p>
+                    <div className="space-y-1 max-h-40 overflow-y-auto">
+                      {selectedMilestone.progressEntries.map((entry: any) => (
+                        <div key={entry.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                          <div>
+                            <span className="font-medium">{entry.value}{selectedMilestone.unit || ''}</span>
+                            <span className="text-gray-400 ml-2">
+                              {format(new Date(entry.measurementDate), 'dd MMM yyyy', { locale: tr })}
+                            </span>
+                            {entry.notes && <span className="text-gray-500 ml-2">- {entry.notes}</span>}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => handleDeleteProgress(selectedMilestone.id, entry.id)}
+                          >
+                            <Trash2 className="h-3 w-3 text-red-400" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Değer *</Label>
+                    <Input
+                      type="number"
+                      step="any"
+                      value={progressForm.value}
+                      onChange={(e) => setProgressForm({ ...progressForm, value: e.target.value })}
+                      placeholder={`Örn: 75${selectedMilestone.unit || ''}`}
+                    />
+                  </div>
+                  <div>
+                    <Label>Tarih *</Label>
+                    <Input
+                      type="date"
+                      value={progressForm.measurementDate}
+                      onChange={(e) => setProgressForm({ ...progressForm, measurementDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label>Notlar</Label>
+                  <Input
+                    value={progressForm.notes}
+                    onChange={(e) => setProgressForm({ ...progressForm, notes: e.target.value })}
+                    placeholder="İsteğe bağlı not"
+                  />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setProgressDialogOpen(false)}>İptal</Button>
+              <Button onClick={handleAddProgress} disabled={addingProgress}>
+                {addingProgress ? 'Kaydediliyor...' : 'Kaydet'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* KPI Sekmesi */}
         <TabsContent value="kpis">

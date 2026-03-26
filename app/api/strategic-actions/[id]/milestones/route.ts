@@ -22,6 +22,12 @@ export async function GET(
         completedBy: {
           select: { id: true, name: true, surname: true, email: true },
         },
+        progressEntries: {
+          include: {
+            createdBy: { select: { id: true, name: true, surname: true } },
+          },
+          orderBy: { measurementDate: 'desc' },
+        },
       },
       orderBy: { plannedDate: 'asc' },
     });
@@ -62,7 +68,7 @@ export async function POST(
 
     const { id } = await params;
     const body = await request.json();
-    const { name, description, plannedDate, weight, deliverables } = body;
+    const { name, description, plannedDate, weight, deliverables, targetValue, unit } = body;
 
     if (!name || !plannedDate) {
       return NextResponse.json({ error: 'Gerekli alanlar eksik' }, { status: 400 });
@@ -85,6 +91,8 @@ export async function POST(
         plannedDate: new Date(plannedDate),
         weight: weight || 1.0,
         deliverables,
+        targetValue: targetValue !== undefined && targetValue !== '' ? parseFloat(targetValue) : null,
+        unit: unit || null,
       },
       include: {
         completedBy: {

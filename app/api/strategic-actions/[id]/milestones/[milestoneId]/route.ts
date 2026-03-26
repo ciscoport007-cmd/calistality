@@ -17,7 +17,7 @@ export async function PATCH(
 
     const { id, milestoneId } = await params;
     const body = await request.json();
-    const { name, description, status, plannedDate, actualDate, weight, deliverables, evidence } = body;
+    const { name, description, status, plannedDate, actualDate, weight, deliverables, evidence, targetValue, unit } = body;
 
     const milestone = await prisma.actionMilestone.findUnique({
       where: { id: milestoneId },
@@ -40,6 +40,8 @@ export async function PATCH(
         ...(weight !== undefined && { weight }),
         ...(deliverables !== undefined && { deliverables }),
         ...(evidence !== undefined && { evidence }),
+        ...(targetValue !== undefined && { targetValue: targetValue !== '' ? parseFloat(targetValue) : null }),
+        ...(unit !== undefined && { unit: unit || null }),
         ...(status === 'TAMAMLANDI' && !milestone.completedById && {
           completedById: session.user.id,
           actualDate: actualDate ? new Date(actualDate) : new Date(),
