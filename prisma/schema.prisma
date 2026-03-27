@@ -258,7 +258,23 @@ model User {
   // Acil Durum ilişkileri
   createdEmergencyPlans       OHSEmergencyPlan[]   @relation("OHSEmergencyPlanCreator")
   createdEmergencyDrills      OHSEmergencyDrill[]  @relation("OHSEmergencyDrillCreator")
-  
+
+  // HACCP & Gıda Güvenliği ilişkileri
+  createdHACCPEquipment       HACCPEquipment[]       @relation("HACCPEquipmentCreator")
+  haccpTemperatureLogs        HACCPTemperatureLog[]  @relation("HACCPTemperatureMeasurer")
+  haccpCorrectiveActions      HACCPTemperatureLog[]  @relation("HACCPCorrectiveActionBy")
+  createdHACCPCCPs            HACCPCCP[]             @relation("HACCPCCPCreator")
+  responsibleCCPs             HACCPCCP[]             @relation("CCPResponsible")
+  ccpChecklists               HACCPCCPChecklist[]    @relation("CCPChecklistChecker")
+  approvedCCPChecklists       HACCPCCPChecklist[]    @relation("CCPChecklistApprover")
+  createdPestStations         HACCPPestStation[]     @relation("HACCPPestStationCreator")
+  pestInspections             HACCPPestLog[]         @relation("HACCPPestInspector")
+  createdFoodSamples          HACCPFoodSample[]      @relation("HACCPFoodSampleCreator")
+  disposedFoodSamples         HACCPFoodSample[]      @relation("HACCPSampleDisposer")
+  createdCleaningAreas        HACCPCleaningArea[]    @relation("HACCPCleaningAreaCreator")
+  cleaningLogs                HACCPCleaningLog[]     @relation("HACCPCleaningPerformer")
+  signedOffCleaningLogs       HACCPCleaningLog[]     @relation("HACCPCleaningSignOff")
+
   @@map("users")
 }
 
@@ -6089,4 +6105,348 @@ model OHSEmergencyDrill {
   updatedAt       DateTime @updatedAt
   
   @@map("ohs_emergency_drills")
+}
+
+// ============================================
+// HACCP & GIDA GÜVENLİĞİ YÖNETİMİ
+// ============================================
+
+enum HACCPEquipmentType {
+  BUZDOLABI         // Buzdolabı
+  DERIN_DONDURUCU   // Derin dondurucu
+  SICAK_TUTUCU      // Sıcak tutucu
+  ACIK_BUFE         // Açık büfe
+  FIRIN             // Fırın
+  PISIRME_EKIPMAN   // Pişirme ekipmanı
+  DIGER             // Diğer
+}
+
+enum HACCPEquipmentStatus {
+  AKTIF     // Aktif
+  BAKIMDA   // Bakımda
+  ARIZALI   // Arızalı
+  PASIF     // Pasif
+}
+
+enum HACCPMeasurementFrequency {
+  SAATLIK       // Saatlik
+  VARDIYA_BASI  // Vardiya başı
+  GUNDE_3_KEZ   // Günde 3 kez
+  GUNDE_2_KEZ   // Günde 2 kez
+  GUNLUK        // Günlük
+}
+
+enum HACCPCCPProcess {
+  PISIRME   // Pişirme
+  SOGUTMA   // Soğutma
+  SAKLAMA   // Saklama
+  SERVIS    // Servis
+  HAZIRLIK  // Hazırlık
+  TESLIM    // Teslim alma
+}
+
+enum HACCPChecklistStatus {
+  YAPILDI    // Yapıldı
+  YAPILMADI  // Yapılmadı
+  UYGUNSUZ   // Uygunsuz
+}
+
+enum HACCPPestAreaType {
+  MUTFAK     // Mutfak
+  DEPO       // Depo
+  COP_ALANI  // Çöp alanı
+  RESTORAN   // Restoran
+  BAHCE      // Bahçe
+  TEKNIK     // Teknik alan
+  DIGER      // Diğer
+}
+
+enum HACCPPestStationStatus {
+  TEMIZ          // Temiz
+  AKTIVITE_VAR   // Aktivite var
+  HASARLI        // Hasarlı
+  DEGISTIRILDI   // Değiştirildi
+}
+
+enum HACCPPestControlFrequency {
+  HAFTALIK   // Haftalık
+  AYLIK      // Aylık
+  IKI_AYLIK  // İki aylık
+  UC_AYLIK   // Üç aylık
+}
+
+// HACCP Ekipman Tanımları (Buzdolabı, Dondurucu, vb.)
+model HACCPEquipment {
+  id               String                    @id @default(cuid())
+  code             String                    @unique  // EKP-YYYY-NNNN
+  name             String
+  type             HACCPEquipmentType
+  location         String
+  brand            String?
+  model            String?
+  serialNumber     String?
+
+  // Sıcaklık limitleri
+  minTemp          Float?
+  maxTemp          Float?
+  targetTemp       Float?
+
+  // Ölçüm periyodu
+  measurementFrequency HACCPMeasurementFrequency?
+
+  status           HACCPEquipmentStatus      @default(AKTIF)
+  notes            String?
+
+  temperatureLogs  HACCPTemperatureLog[]
+
+  createdById      String
+  createdBy        User     @relation("HACCPEquipmentCreator", fields: [createdById], references: [id])
+
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("haccp_equipment")
+}
+
+// HACCP Sıcaklık Kayıtları
+model HACCPTemperatureLog {
+  id               String          @id @default(cuid())
+
+  equipmentId      String
+  equipment        HACCPEquipment  @relation(fields: [equipmentId], references: [id])
+
+  temperature      Float
+  measuredAt       DateTime
+  isOutOfRange     Boolean         @default(false)
+
+  notes            String?
+
+  // Düzeltici Faaliyet
+  correctiveAction   String?
+  correctiveActionAt DateTime?
+  correctiveActionById String?
+  correctiveActionBy   User?   @relation("HACCPCorrectiveActionBy", fields: [correctiveActionById], references: [id])
+
+  measuredById     String
+  measuredBy       User    @relation("HACCPTemperatureMeasurer", fields: [measuredById], references: [id])
+
+  createdAt        DateTime @default(now())
+
+  @@map("haccp_temperature_logs")
+}
+
+// HACCP Kritik Kontrol Noktaları (CCP)
+model HACCPCCP {
+  id                  String          @id @default(cuid())
+  code                String          @unique  // CCP-YYYY-NNNN
+  name                String
+  process             HACCPCCPProcess
+  description         String?
+
+  criticalLimitMin    Float?
+  criticalLimitMax    Float?
+  criticalLimitUnit   String?
+  criticalLimitDesc   String?
+
+  monitoringMethod    String?
+  monitoringFrequency String?
+
+  responsibleId       String?
+  responsible         User?   @relation("CCPResponsible", fields: [responsibleId], references: [id])
+
+  correctiveProcedure String?
+
+  isActive            Boolean @default(true)
+
+  checklists          HACCPCCPChecklist[]
+
+  createdById         String
+  createdBy           User    @relation("HACCPCCPCreator", fields: [createdById], references: [id])
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("haccp_ccps")
+}
+
+// HACCP CCP Günlük Kontrol Listesi
+model HACCPCCPChecklist {
+  id             String               @id @default(cuid())
+
+  ccpId          String
+  ccp            HACCPCCP             @relation(fields: [ccpId], references: [id])
+
+  checkDate      DateTime
+  status         HACCPChecklistStatus
+  measuredValue  Float?
+  notes          String?
+
+  photoFileName  String?
+  photoFileSize  Int?
+  photoFileType  String?
+  photoCloudPath String?
+
+  nonConformity  String?
+  capaCreated    Boolean  @default(false)
+  capaId         String?
+
+  isApproved     Boolean  @default(false)
+  approvedById   String?
+  approvedBy     User?    @relation("CCPChecklistApprover", fields: [approvedById], references: [id])
+  approvedAt     DateTime?
+
+  checkedById    String
+  checkedBy      User     @relation("CCPChecklistChecker", fields: [checkedById], references: [id])
+
+  createdAt      DateTime @default(now())
+
+  @@map("haccp_ccp_checklists")
+}
+
+// HACCP Haşere Kontrol İstasyonları
+model HACCPPestStation {
+  id               String                    @id @default(cuid())
+  code             String                    @unique  // PST-YYYY-NNNN
+  name             String
+  areaType         HACCPPestAreaType
+  location         String
+  stationType      String?
+
+  controlFrequency HACCPPestControlFrequency @default(HAFTALIK)
+  lastControlDate  DateTime?
+  nextControlDate  DateTime?
+
+  isActive         Boolean @default(true)
+
+  pestLogs         HACCPPestLog[]
+
+  createdById      String
+  createdBy        User    @relation("HACCPPestStationCreator", fields: [createdById], references: [id])
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("haccp_pest_stations")
+}
+
+// HACCP Haşere Kontrol Kayıtları
+model HACCPPestLog {
+  id              String                 @id @default(cuid())
+
+  stationId       String
+  station         HACCPPestStation       @relation(fields: [stationId], references: [id])
+
+  controlDate     DateTime
+  status          HACCPPestStationStatus
+  findings        String?
+
+  externalCompany String?
+
+  reportFileName  String?
+  reportFileSize  Int?
+  reportFileType  String?
+  reportCloudPath String?
+
+  actionRequired  Boolean @default(false)
+  actionTaken     String?
+
+  inspectedById   String
+  inspectedBy     User    @relation("HACCPPestInspector", fields: [inspectedById], references: [id])
+
+  createdAt       DateTime @default(now())
+
+  @@map("haccp_pest_logs")
+}
+
+// HACCP Gıda Numune Takibi
+model HACCPFoodSample {
+  id             String    @id @default(cuid())
+  code           String    @unique  // NMN-YYYY-NNNN
+
+  productName    String
+  sampleDate     DateTime
+  sampleTime     String?
+  mealType       String?
+
+  storageTemp    Float?
+  retentionHours Int       @default(72)
+  expiryDateTime DateTime
+
+  isExpired      Boolean   @default(false)
+  isDisposed     Boolean   @default(false)
+  disposedAt     DateTime?
+  disposedById   String?
+  disposedBy     User?     @relation("HACCPSampleDisposer", fields: [disposedById], references: [id])
+
+  labelFileName  String?
+  labelFileSize  Int?
+  labelFileType  String?
+  labelCloudPath String?
+
+  notes          String?
+
+  createdById    String
+  createdBy      User      @relation("HACCPFoodSampleCreator", fields: [createdById], references: [id])
+
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("haccp_food_samples")
+}
+
+// HACCP Temizlik Alan Tanımları
+model HACCPCleaningArea {
+  id             String    @id @default(cuid())
+  name           String
+  areaType       String
+  description    String?
+
+  checklistItems String    // JSON array of checklist item strings
+
+  frequency      String    @default("GUNLUK")
+
+  isActive       Boolean   @default(true)
+
+  cleaningLogs   HACCPCleaningLog[]
+
+  createdById    String
+  createdBy      User      @relation("HACCPCleaningAreaCreator", fields: [createdById], references: [id])
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("haccp_cleaning_areas")
+}
+
+// HACCP Temizlik Kontrol Kayıtları
+model HACCPCleaningLog {
+  id               String    @id @default(cuid())
+
+  areaId           String
+  area             HACCPCleaningArea @relation(fields: [areaId], references: [id])
+
+  logDate          DateTime
+  shift            String?
+
+  checklistResults String    // JSON: [{item, done, note}]
+
+  overallStatus    String    @default("TAMAM")
+  notes            String?
+
+  actionRequired   Boolean   @default(false)
+  actionTaken      String?
+
+  isSignedOff      Boolean   @default(false)
+  signedOffById    String?
+  signedOffBy      User?     @relation("HACCPCleaningSignOff", fields: [signedOffById], references: [id])
+  signedOffAt      DateTime?
+
+  performedById    String
+  performedBy      User      @relation("HACCPCleaningPerformer", fields: [performedById], references: [id])
+
+  createdAt        DateTime  @default(now())
+
+  @@map("haccp_cleaning_logs")
 }

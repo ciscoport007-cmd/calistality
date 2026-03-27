@@ -32,6 +32,7 @@ import {
   Bell,
   HardHat,
   Lightbulb,
+  UtensilsCrossed,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { signOut, useSession } from 'next-auth/react';
@@ -104,6 +105,20 @@ const menuItems = [
     title: 'Tedarikçi Yönetimi',
     href: '/dashboard/suppliers',
     icon: Truck,
+  },
+  {
+    title: 'HACCP & Gıda Güvenliği',
+    href: '/dashboard/haccp',
+    icon: UtensilsCrossed,
+    subItems: [
+      { title: 'Genel Bakış', href: '/dashboard/haccp' },
+      { title: 'Sıcaklık Takibi', href: '/dashboard/haccp/temperature' },
+      { title: 'CCP Kontrolleri', href: '/dashboard/haccp/ccp' },
+      { title: 'Haşere Kontrol', href: '/dashboard/haccp/pest' },
+      { title: 'Gıda Numuneleri', href: '/dashboard/haccp/food-samples' },
+      { title: 'Temizlik Kontrol', href: '/dashboard/haccp/cleaning' },
+      { title: 'Raporlar & Denetim', href: '/dashboard/haccp/reports' },
+    ],
   },
   {
     title: 'İş Sağlığı ve Güvenliği',

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep:*)",
+      "Bash(wc -l /c/Users/Cinema/Desktop/Calistality/nextjs_space/app/dashboard/ohs/risks/[id]/page.tsx)",
+      "Bash(grep -n \"progress\\\\|action.*status\\\\|completion\\\\|TAMAMLANDI\" /c/Users/Cinema/Desktop/Calistality/nextjs_space/app/dashboard/ohs/risks/[id]/page.tsx)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(npx ts-node:*)",
+      "Bash(node -e \":*)",
+      "Bash(node node_modules/.bin/prisma --version)",
+      "Bash(dir /b \"c:\\\\Users\\\\Cinema\\\\Desktop\\\\Calistality\\\\nextjs_space\")"
+    ]
+  }
+}
