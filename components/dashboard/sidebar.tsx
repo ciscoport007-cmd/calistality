@@ -33,6 +33,7 @@ import {
   HardHat,
   Lightbulb,
   UtensilsCrossed,
+  Leaf,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { signOut, useSession } from 'next-auth/react';
@@ -180,6 +181,20 @@ const menuItems = [
     subItems: [
       { title: 'İnovasyon Fikirleri', href: '/dashboard/innovation' },
       { title: 'Projeler', href: '/dashboard/innovation/projects' },
+    ],
+  },
+  {
+    title: 'Enerji & Çevre Yönetimi',
+    href: '/dashboard/sustainability',
+    icon: Leaf,
+    subItems: [
+      { title: 'Genel Bakış', href: '/dashboard/sustainability' },
+      { title: 'Enerji Yönetimi', href: '/dashboard/sustainability/energy' },
+      { title: 'Su Yönetimi', href: '/dashboard/sustainability/water' },
+      { title: 'Atık Yönetimi', href: '/dashboard/sustainability/waste' },
+      { title: 'Karbon Ayak İzi', href: '/dashboard/sustainability/carbon' },
+      { title: 'Hedef & Aksiyon', href: '/dashboard/sustainability/targets' },
+      { title: 'Raporlar & Denetim', href: '/dashboard/sustainability/reports' },
     ],
   },
   {

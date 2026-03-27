@@ -275,6 +275,15 @@ model User {
   cleaningLogs                HACCPCleaningLog[]     @relation("HACCPCleaningPerformer")
   signedOffCleaningLogs       HACCPCleaningLog[]     @relation("HACCPCleaningSignOff")
 
+  // Sustainability
+  createdSustMeters           SustainabilityMeter[]         @relation("SustMeterCreator")
+  createdSustReadings         SustainabilityReading[]       @relation("SustReadingCreator")
+  createdSustWasteRecords     SustainabilityWasteRecord[]   @relation("SustWasteCreator")
+  createdSustTargets          SustainabilityTarget[]        @relation("SustTargetCreator")
+  assignedSustActions         SustainabilityAction[]        @relation("SustActionAssignee")
+  createdSustActions          SustainabilityAction[]        @relation("SustActionCreator")
+  resolvedSustAlerts          SustainabilityAlert[]         @relation("SustAlertResolver")
+
   @@map("users")
 }
 
@@ -6449,4 +6458,163 @@ model HACCPCleaningLog {
   createdAt        DateTime  @default(now())
 
   @@map("haccp_cleaning_logs")
+}
+
+// ==========================================
+// ENERJİ & ÇEVRE YÖNETİMİ (SUSTAINABILITY)
+// ==========================================
+
+// Sayaç Türleri: ELEKTRIK, DOGALGAZ, LPG, JENERATOR, SU
+// Sayaç Seviyeleri: ANA, ALT
+
+model SustainabilityMeter {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  type         String   // ELEKTRIK | DOGALGAZ | LPG | JENERATOR | SU
+  category     String   // ENERJI | SU
+  level        String   @default("ALT")  // ANA | ALT
+  location     String   // mutfak, spa, odalar, bahce vb.
+  unit         String   // kWh, m3, litre
+  parentId     String?
+  parent       SustainabilityMeter?  @relation("MeterHierarchy", fields: [parentId], references: [id])
+  children     SustainabilityMeter[] @relation("MeterHierarchy")
+  isActive     Boolean  @default(true)
+  notes        String?
+
+  readings     SustainabilityReading[]
+
+  createdById  String
+  createdBy    User     @relation("SustMeterCreator", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("sustainability_meters")
+}
+
+model SustainabilityReading {
+  id           String   @id @default(cuid())
+  meterId      String
+  meter        SustainabilityMeter @relation(fields: [meterId], references: [id])
+  readingDate  DateTime
+  period       String   // GUNLUK | HAFTALIK | AYLIK
+  value        Float    // Tüketim miktarı (kWh, m3, litre)
+  cost         Float?   // Maliyet (TL)
+  occupancyRate Float?  // Doluluk oranı (%)
+  guestCount   Int?     // Misafir sayısı
+  notes        String?
+  isAnomalous  Boolean  @default(false)
+  alertSent    Boolean  @default(false)
+
+  createdById  String
+  createdBy    User     @relation("SustReadingCreator", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@map("sustainability_readings")
+}
+
+model SustainabilityWasteRecord {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  recordDate   DateTime
+  period       String   @default("GUNLUK")  // GUNLUK | HAFTALIK
+  wasteType    String   // ORGANIK | PLASTIK | CAM | KAGIT | TEHLIKELI | DIGER
+  area         String   // mutfak, bar, housekeeping vb.
+  quantity     Float    // kg
+  isRecycled   Boolean  @default(false)
+  disposalFirm String?  // Lisanslı firma adı
+  waybillNo    String?  // İrsaliye no
+  notes        String?
+
+  attachmentFileName  String?
+  attachmentFileSize  Int?
+  attachmentFileType  String?
+  attachmentCloudPath String?
+
+  createdById  String
+  createdBy    User     @relation("SustWasteCreator", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("sustainability_waste_records")
+}
+
+model SustainabilityEmissionFactor {
+  id           String   @id @default(cuid())
+  sourceType   String   @unique  // ELEKTRIK | DOGALGAZ | LPG | JENERATOR | SU
+  factor       Float    // kg CO2 per unit
+  unit         String   // per kWh, per m3, etc.
+  year         Int
+  source       String?  // IPCC, DEFRA, vb.
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("sustainability_emission_factors")
+}
+
+model SustainabilityTarget {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  title        String
+  category     String   // ENERJI | SU | ATIK | KARBON
+  metricType   String   // Hangi KPI (kWh_PER_ROOM, LITRE_PER_GUEST, vb.)
+  baselineValue Float   // Baz değer
+  targetValue  Float    // Hedef değer
+  targetUnit   String   // %, kWh, litre, kg
+  reductionPct Float    // Azaltım yüzdesi hedefi
+  period       String   // AYLIK | YILLIK
+  startDate    DateTime
+  endDate      DateTime
+  status       String   @default("AKTIF")  // AKTIF | TAMAMLANDI | IPTAL
+
+  actions      SustainabilityAction[]
+
+  createdById  String
+  createdBy    User     @relation("SustTargetCreator", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("sustainability_targets")
+}
+
+model SustainabilityAction {
+  id           String   @id @default(cuid())
+  targetId     String
+  target       SustainabilityTarget @relation(fields: [targetId], references: [id])
+  title        String
+  description  String?
+  assignedToId String?
+  assignedTo   User?    @relation("SustActionAssignee", fields: [assignedToId], references: [id])
+  dueDate      DateTime?
+  status       String   @default("ACIK")  // ACIK | DEVAM_EDIYOR | TAMAMLANDI | IPTAL
+  priority     String   @default("ORTA")  // DUSUK | ORTA | YUKSEK
+  completedAt  DateTime?
+  notes        String?
+
+  createdById  String
+  createdBy    User     @relation("SustActionCreator", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("sustainability_actions")
+}
+
+model SustainabilityAlert {
+  id           String   @id @default(cuid())
+  category     String   // ENERJI | SU | ATIK | KARBON
+  alertType    String   // LIMIT_ASIMI | ANOMALI | HEDEF_SAPMA
+  severity     String   @default("UYARI")  // BILGI | UYARI | KRITIK
+  title        String
+  message      String
+  meterId      String?
+  readingId    String?
+  isRead       Boolean  @default(false)
+  isResolved   Boolean  @default(false)
+  resolvedById String?
+  resolvedBy   User?    @relation("SustAlertResolver", fields: [resolvedById], references: [id])
+  resolvedAt   DateTime?
+  createdAt    DateTime @default(now())
+
+  @@map("sustainability_alerts")
 }
