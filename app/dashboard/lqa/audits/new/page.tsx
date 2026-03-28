@@ -234,14 +234,14 @@ export default function NewAuditPage() {
             <div>
               <Label htmlFor="auditor">Denetçi</Label>
               <Select
-                value={formData.auditorId}
-                onValueChange={(v) => setFormData((prev) => ({ ...prev, auditorId: v }))}
+                value={formData.auditorId || 'NONE'}
+                onValueChange={(v) => setFormData((prev) => ({ ...prev, auditorId: v === 'NONE' ? '' : v }))}
               >
                 <SelectTrigger id="auditor" className="mt-1">
                   <SelectValue placeholder="Denetçi seçin (isteğe bağlı)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— Seçiniz —</SelectItem>
+                  <SelectItem value="NONE">— Seçiniz —</SelectItem>
                   {users.map((u) => (
                     <SelectItem key={u.id} value={u.id}>
                       {u.name} {u.surname}
