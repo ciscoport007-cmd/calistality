@@ -39,6 +39,7 @@ export default function LoginPage() {
           title: 'Giriş Başarılı',
           description: 'Yönlendiriliyorsunuz...',
         });
+        router.refresh();
         router.push('/dashboard');
       }
     } catch (error) {
