@@ -86,21 +86,45 @@ export async function POST(req: NextRequest) {
     const count = await prisma.lQAAudit.count();
     const code = `LQA.${new Date().getFullYear()}.${String(count + 1).padStart(4, '0')}`;
 
+    const selectedCategoryIds = Array.isArray(categoryIds) ? categoryIds : [];
+
+    // Seçili kategorilerin aktif kriterlerini çek
+    const criteria = await prisma.lQACriteria.findMany({
+      where: {
+        categoryId: { in: selectedCategoryIds },
+        isActive: true,
+      },
+    });
+
+    // Fisher-Yates shuffle — her denetimde rastgele sıra
+    const shuffled = [...criteria];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
     const audit = await prisma.lQAAudit.create({
       data: {
         title: title.trim(),
         code,
         auditDate: auditDate ? new Date(auditDate) : new Date(),
         auditType: (type ?? 'IC') as 'IC' | 'DIS' | 'MYSTERY',
-        selectedCategories: Array.isArray(categoryIds) ? categoryIds : [],
+        selectedCategories: selectedCategoryIds,
         areaName: areaInfo ?? null,
         auditorId: auditorId ?? null,
         auditorName: auditorName ?? null,
         notes: notes ?? null,
         createdById: session.user.id,
+        items: {
+          create: shuffled.map((c) => ({
+            criteriaId: c.id,
+            categoryId: c.categoryId,
+          })),
+        },
       },
       include: {
         auditor: { select: { id: true, name: true } },
+        _count: { select: { items: true } },
       },
     });
 

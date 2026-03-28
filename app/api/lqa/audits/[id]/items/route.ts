@@ -20,33 +20,50 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const data = await req.json();
+  try {
+    const data = await req.json() as {
+      itemId: string;
+      answer: string | null;
+      notes?: string | null;
+    };
 
-  // Upsert item (create or update)
-  const item = await prisma.lQAAuditItem.upsert({
-    where: {
-      auditId_criteriaId: {
-        auditId: params.id,
-        criteriaId: data.criteriaId,
+    if (!data.itemId) {
+      return NextResponse.json({ error: 'itemId zorunludur' }, { status: 400 });
+    }
+
+    const item = await prisma.lQAAuditItem.update({
+      where: { id: data.itemId, auditId: params.id },
+      data: {
+        result: (data.answer ?? null) as 'EVET' | 'HAYIR' | 'NA' | null,
+        notes: data.notes ?? null,
       },
-    },
-    create: {
-      auditId: params.id,
-      criteriaId: data.criteriaId,
-      categoryId: data.categoryId,
-      result: data.result,
-      notes: data.notes,
-      photoUrl: data.photoUrl,
-      score: data.score,
-    },
-    update: {
-      result: data.result,
-      notes: data.notes,
-      photoUrl: data.photoUrl,
-      score: data.score,
-    },
-    include: { criteria: true, category: true },
-  });
+      include: {
+        criteria: {
+          include: { category: { select: { id: true, name: true, code: true } } },
+        },
+        category: true,
+      },
+    });
 
-  return NextResponse.json(item);
+    // Normalize to match frontend AuditItem interface
+    return NextResponse.json({
+      id: item.id,
+      criterionId: item.criteriaId,
+      criterion: {
+        id: item.criteria.id,
+        code: item.criteria.code,
+        description: item.criteria.description,
+        weight: item.criteria.weight,
+        isCritical: item.criteria.isCritical,
+        category: item.criteria.category,
+      },
+      answer: item.result ?? null,
+      notes: item.notes ?? null,
+      score: item.score ?? null,
+    });
+  } catch (error) {
+    console.error('LQA audit item POST error:', error);
+    const message = error instanceof Error ? error.message : 'Kaydedilemedi';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
