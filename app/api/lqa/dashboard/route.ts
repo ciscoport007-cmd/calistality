@@ -12,6 +12,7 @@ export async function GET() {
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
+  // First batch — no cross-dependencies
   const [
     totalAudits,
     completedAudits,
@@ -20,7 +21,6 @@ export async function GET() {
     categoryScoresRaw,
     targets,
     monthlyAuditsRaw,
-    avgResult,
   ] = await Promise.all([
     prisma.lQAAudit.count({ where: { auditDate: { gte: startOfYear } } }),
     prisma.lQAAudit.count({ where: { status: 'TAMAMLANDI', auditDate: { gte: startOfYear } } }),
@@ -58,22 +58,23 @@ export async function GET() {
       select: { auditDate: true, overallScore: true },
       orderBy: { auditDate: 'asc' },
     }),
-    completedAudits > 0
-      ? prisma.lQAAudit.aggregate({
-          where: { status: 'TAMAMLANDI', auditDate: { gte: startOfYear } },
-          _avg: { overallScore: true },
-        })
-      : Promise.resolve({ _avg: { overallScore: null } }),
   ]);
 
-  // Build category scores with names
+  // Second batch — needs completedAudits
+  const avgResult = completedAudits > 0
+    ? await prisma.lQAAudit.aggregate({
+        where: { status: 'TAMAMLANDI', auditDate: { gte: startOfYear } },
+        _avg: { overallScore: true },
+      })
+    : { _avg: { overallScore: null } };
+
   const categories = await prisma.lQACategory.findMany({ orderBy: { order: 'asc' } });
+
   const scoreMap = categoryScoresRaw.reduce((acc, s) => {
     acc[s.categoryId] = s._avg.score ?? 0;
     return acc;
   }, {} as Record<string, number>);
 
-  // Build target score map by categoryId
   const targetMap = targets.reduce((acc, t) => {
     if (t.categoryId) acc[t.categoryId] = t.score;
     return acc;
@@ -85,14 +86,14 @@ export async function GET() {
     target: targetMap[cat.id] ?? 90,
   }));
 
-  // Build target comparisons
   const targetComparisons = targets.map((t) => ({
     category: t.category ? t.category.name : t.targetName,
     target: t.score,
-    actual: t.categoryId ? (scoreMap[t.categoryId] !== undefined ? Math.round((scoreMap[t.categoryId]) * 10) / 10 : null) : null,
+    actual: t.categoryId && scoreMap[t.categoryId] !== undefined
+      ? Math.round(scoreMap[t.categoryId] * 10) / 10
+      : null,
   }));
 
-  // Build monthly trend: group by month
   const monthMap = new Map<string, { total: number; count: number }>();
   for (const audit of monthlyAuditsRaw) {
     const month = new Date(audit.auditDate).toLocaleDateString('tr-TR', { month: 'short', year: '2-digit' });
@@ -107,7 +108,6 @@ export async function GET() {
     count: val.count,
   }));
 
-  // Normalize recent audits shape
   const recentAudits = recentAuditsRaw.map((a) => ({
     id: a.id,
     code: a.code,
@@ -119,14 +119,13 @@ export async function GET() {
     status: a.status,
   }));
 
+  const rawAvg = avgResult._avg.overallScore;
   return NextResponse.json({
     stats: {
       totalAudits,
       completedAudits,
       inProgressAudits,
-      averageScore: avgResult._avg.overallScore !== null
-        ? Math.round((avgResult._avg.overallScore ?? 0) * 10) / 10
-        : null,
+      averageScore: rawAvg != null ? Math.round(rawAvg * 10) / 10 : null,
     },
     categoryScores,
     recentAudits,
