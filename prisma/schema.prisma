@@ -6700,8 +6700,9 @@ model LQAAudit {
   roomNumbers         String?
   areaName            String?
 
-  auditorId           String
-  auditor             User            @relation("LQAAuditor", fields: [auditorId], references: [id])
+  auditorId           String?
+  auditor             User?           @relation("LQAAuditor", fields: [auditorId], references: [id])
+  auditorName         String?
 
   mysteryGuestEmail   String?
   mysteryGuestToken   String?         @unique

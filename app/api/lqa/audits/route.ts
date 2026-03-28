@@ -58,14 +58,20 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
+  const { categoryIds, auditorId, auditorName, type, areaInfo, ...rest } = body;
 
   const count = await prisma.lQAAudit.count();
   const code = `LQA.${new Date().getFullYear()}.${String(count + 1).padStart(4, '0')}`;
 
   const audit = await prisma.lQAAudit.create({
     data: {
-      ...body,
+      ...rest,
       code,
+      auditType: type ?? 'IC',
+      selectedCategories: Array.isArray(categoryIds) ? categoryIds : [],
+      areaName: areaInfo ?? null,
+      auditorId: auditorId ?? null,
+      auditorName: auditorName ?? null,
       createdById: session.user.id,
     },
     include: {

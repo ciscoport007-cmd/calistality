@@ -37,6 +37,7 @@ interface FormData {
   type: string;
   auditDate: string;
   auditorId: string;
+  auditorName: string;
   selectedCategories: string[];
   areaInfo: string;
   notes: string;
@@ -54,6 +55,7 @@ export default function NewAuditPage() {
     type: 'IC',
     auditDate: new Date().toISOString().slice(0, 10),
     auditorId: '',
+    auditorName: '',
     selectedCategories: [],
     areaInfo: '',
     notes: '',
@@ -117,6 +119,7 @@ export default function NewAuditPage() {
           type: formData.type,
           auditDate: formData.auditDate,
           auditorId: formData.auditorId || null,
+          auditorName: formData.auditorId ? null : (formData.auditorName.trim() || null),
           categoryIds: formData.selectedCategories,
           areaInfo: formData.areaInfo.trim() || null,
           notes: formData.notes.trim() || null,
@@ -235,13 +238,19 @@ export default function NewAuditPage() {
               <Label htmlFor="auditor">Denetçi</Label>
               <Select
                 value={formData.auditorId || 'NONE'}
-                onValueChange={(v) => setFormData((prev) => ({ ...prev, auditorId: v === 'NONE' ? '' : v }))}
+                onValueChange={(v) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    auditorId: v === 'NONE' ? '' : v,
+                    auditorName: v !== 'NONE' ? '' : prev.auditorName,
+                  }))
+                }
               >
                 <SelectTrigger id="auditor" className="mt-1">
-                  <SelectValue placeholder="Denetçi seçin (isteğe bağlı)" />
+                  <SelectValue placeholder="Sistemdeki kullanıcıdan seçin" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="NONE">— Seçiniz —</SelectItem>
+                  <SelectItem value="NONE">— Sistemde yok, manuel gir —</SelectItem>
                   {users.map((u) => (
                     <SelectItem key={u.id} value={u.id}>
                       {u.name} {u.surname}
@@ -249,6 +258,16 @@ export default function NewAuditPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {!formData.auditorId && (
+                <Input
+                  className="mt-2"
+                  placeholder="Denetçi adı (manuel)"
+                  value={formData.auditorName}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, auditorName: e.target.value }))
+                  }
+                />
+              )}
             </div>
 
             <div>
