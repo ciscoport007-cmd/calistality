@@ -284,6 +284,11 @@ model User {
   createdSustActions          SustainabilityAction[]        @relation("SustActionCreator")
   resolvedSustAlerts          SustainabilityAlert[]         @relation("SustAlertResolver")
 
+  // LQA ilişkileri
+  lqaAudits                   LQAAudit[]                    @relation("LQAAuditor")
+  lqaAuditCreations           LQAAudit[]                    @relation("LQAAuditCreator")
+  lqaTargets                  LQATarget[]                   @relation("LQATargetCreator")
+
   @@map("users")
 }
 
@@ -6617,4 +6622,157 @@ model SustainabilityAlert {
   createdAt    DateTime @default(now())
 
   @@map("sustainability_alerts")
+}
+
+// ============================================================
+// LQA (Leading Quality Assurance) Modülü
+// ============================================================
+
+enum LQAAuditType {
+  IC
+  DIS
+  MYSTERY
+}
+
+enum LQAAuditStatus {
+  TASLAK
+  DEVAM_EDIYOR
+  TAMAMLANDI
+  IPTAL
+}
+
+enum LQACriteriaResult {
+  EVET
+  HAYIR
+  NA
+}
+
+model LQACategory {
+  id          String        @id @default(cuid())
+  code        String        @unique
+  name        String
+  description String?
+  icon        String?
+  order       Int           @default(0)
+  isActive    Boolean       @default(true)
+  weight      Float         @default(1.0)
+
+  criteria    LQACriteria[]
+  auditItems  LQAAuditItem[]
+  scores      LQAAuditScore[]
+  targets     LQATarget[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("lqa_categories")
+}
+
+model LQACriteria {
+  id          String        @id @default(cuid())
+  categoryId  String
+  category    LQACategory   @relation(fields: [categoryId], references: [id])
+  code        String        @unique
+  description String
+  guidance    String?
+  weight      Float         @default(1.0)
+  isCritical  Boolean       @default(false)
+  isActive    Boolean       @default(true)
+  order       Int           @default(0)
+
+  auditItems  LQAAuditItem[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("lqa_criteria")
+}
+
+model LQAAudit {
+  id                  String          @id @default(cuid())
+  code                String          @unique
+  title               String
+  auditType           LQAAuditType    @default(IC)
+  status              LQAAuditStatus  @default(TASLAK)
+  auditDate           DateTime
+
+  selectedCategories  String[]
+  roomNumbers         String?
+  areaName            String?
+
+  auditorId           String
+  auditor             User            @relation("LQAAuditor", fields: [auditorId], references: [id])
+
+  mysteryGuestEmail   String?
+  mysteryGuestToken   String?         @unique
+
+  overallScore        Float?
+  notes               String?
+
+  items               LQAAuditItem[]
+  scores              LQAAuditScore[]
+
+  createdById         String
+  createdBy           User            @relation("LQAAuditCreator", fields: [createdById], references: [id])
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@map("lqa_audits")
+}
+
+model LQAAuditItem {
+  id          String              @id @default(cuid())
+  auditId     String
+  audit       LQAAudit            @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  criteriaId  String
+  criteria    LQACriteria         @relation(fields: [criteriaId], references: [id])
+  categoryId  String
+  category    LQACategory         @relation(fields: [categoryId], references: [id])
+
+  result      LQACriteriaResult?
+  score       Float?
+  notes       String?
+  photoUrl    String?
+
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@unique([auditId, criteriaId])
+  @@map("lqa_audit_items")
+}
+
+model LQAAuditScore {
+  id           String      @id @default(cuid())
+  auditId      String
+  audit        LQAAudit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  categoryId   String
+  category     LQACategory @relation(fields: [categoryId], references: [id])
+
+  totalPoints  Float
+  earnedPoints Float
+  score        Float
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([auditId, categoryId])
+  @@map("lqa_audit_scores")
+}
+
+model LQATarget {
+  id          String       @id @default(cuid())
+  categoryId  String?
+  category    LQACategory? @relation(fields: [categoryId], references: [id])
+  targetType  String       @default("GENEL")
+  targetName  String
+  score       Float
+  period      String       @default("YILLIK")
+  year        Int
+
+  createdById String
+  createdBy   User         @relation("LQATargetCreator", fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("lqa_targets")
 }

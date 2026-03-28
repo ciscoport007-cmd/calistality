@@ -34,6 +34,7 @@ import {
   Lightbulb,
   UtensilsCrossed,
   Leaf,
+  Award,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { signOut, useSession } from 'next-auth/react';
@@ -181,6 +182,18 @@ const menuItems = [
     subItems: [
       { title: 'İnovasyon Fikirleri', href: '/dashboard/innovation' },
       { title: 'Projeler', href: '/dashboard/innovation/projects' },
+    ],
+  },
+  {
+    title: 'LQA Kalite Değerlendirme',
+    href: '/dashboard/lqa',
+    icon: Award,
+    subItems: [
+      { title: 'Genel Bakış', href: '/dashboard/lqa' },
+      { title: 'Standart Kütüphanesi', href: '/dashboard/lqa/standards' },
+      { title: 'Denetimler', href: '/dashboard/lqa/audits' },
+      { title: 'Raporlar & Analiz', href: '/dashboard/lqa/reports' },
+      { title: 'Hedef Yönetimi', href: '/dashboard/lqa/targets' },
     ],
   },
   {
