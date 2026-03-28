@@ -69,7 +69,7 @@ export default function NewAuditPage() {
       .then(([usersData, categoriesData]) => {
         const usersList: UserOption[] = Array.isArray(usersData)
           ? usersData
-          : usersData.data ?? [];
+          : usersData.data ?? usersData.users ?? [];
         const catsList: Category[] = Array.isArray(categoriesData)
           ? categoriesData
           : categoriesData.data ?? [];

@@ -57,27 +57,57 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body = await req.json();
-  const { categoryIds, auditorId, auditorName, type, areaInfo, ...rest } = body;
+  try {
+    const body = await req.json();
+    const {
+      title,
+      notes,
+      categoryIds,
+      auditorId,
+      auditorName,
+      type,
+      areaInfo,
+      auditDate,
+    } = body as {
+      title: string;
+      notes?: string | null;
+      categoryIds?: string[];
+      auditorId?: string | null;
+      auditorName?: string | null;
+      type?: string;
+      areaInfo?: string | null;
+      auditDate?: string;
+    };
 
-  const count = await prisma.lQAAudit.count();
-  const code = `LQA.${new Date().getFullYear()}.${String(count + 1).padStart(4, '0')}`;
+    if (!title?.trim()) {
+      return NextResponse.json({ error: 'Denetim başlığı zorunludur' }, { status: 400 });
+    }
 
-  const audit = await prisma.lQAAudit.create({
-    data: {
-      ...rest,
-      code,
-      auditType: type ?? 'IC',
-      selectedCategories: Array.isArray(categoryIds) ? categoryIds : [],
-      areaName: areaInfo ?? null,
-      auditorId: auditorId ?? null,
-      auditorName: auditorName ?? null,
-      createdById: session.user.id,
-    },
-    include: {
-      auditor: { select: { id: true, name: true } },
-    },
-  });
+    const count = await prisma.lQAAudit.count();
+    const code = `LQA.${new Date().getFullYear()}.${String(count + 1).padStart(4, '0')}`;
 
-  return NextResponse.json(audit, { status: 201 });
+    const audit = await prisma.lQAAudit.create({
+      data: {
+        title: title.trim(),
+        code,
+        auditDate: auditDate ? new Date(auditDate) : new Date(),
+        auditType: (type ?? 'IC') as 'IC' | 'DIS' | 'MYSTERY',
+        selectedCategories: Array.isArray(categoryIds) ? categoryIds : [],
+        areaName: areaInfo ?? null,
+        auditorId: auditorId ?? null,
+        auditorName: auditorName ?? null,
+        notes: notes ?? null,
+        createdById: session.user.id,
+      },
+      include: {
+        auditor: { select: { id: true, name: true } },
+      },
+    });
+
+    return NextResponse.json(audit, { status: 201 });
+  } catch (error) {
+    console.error('LQA audit POST error:', error);
+    const message = error instanceof Error ? error.message : 'Denetim oluşturulamadı';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
