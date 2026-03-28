@@ -14,7 +14,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       createdBy: { select: { id: true, name: true } },
       items: {
         include: {
-          criteria: true,
+          criteria: {
+            include: { category: { select: { id: true, name: true, code: true } } },
+          },
           category: true,
         },
         orderBy: [{ categoryId: 'asc' }, { criteriaId: 'asc' }],
@@ -26,7 +28,55 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   });
 
   if (!audit) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  return NextResponse.json(audit);
+
+  // Fetch categories referenced in this audit
+  const categories = audit.selectedCategories.length > 0
+    ? await prisma.lQACategory.findMany({
+        where: { id: { in: audit.selectedCategories } },
+        orderBy: { order: 'asc' },
+      })
+    : [];
+
+  // Normalize to match frontend interface
+  const normalized = {
+    id: audit.id,
+    code: audit.code,
+    title: audit.title,
+    type: audit.auditType,
+    auditDate: audit.auditDate,
+    status: audit.status,
+    notes: audit.notes,
+    areaInfo: audit.areaName,
+    totalScore: audit.overallScore ?? null,
+    auditor: audit.auditor
+      ? { id: audit.auditor.id, name: audit.auditor.name, surname: '' }
+      : audit.auditorName
+        ? { id: '', name: audit.auditorName, surname: '' }
+        : null,
+    categories: categories.map((c) => ({
+      id: c.id,
+      code: c.code,
+      name: c.name,
+      iconName: c.icon ?? null,
+    })),
+    items: audit.items.map((item) => ({
+      id: item.id,
+      criterionId: item.criteriaId,
+      criterion: {
+        id: item.criteria.id,
+        code: item.criteria.code,
+        description: item.criteria.description,
+        weight: item.criteria.weight,
+        isCritical: item.criteria.isCritical,
+        category: item.criteria.category,
+      },
+      answer: item.result ?? null,
+      notes: item.notes ?? null,
+      score: item.score ?? null,
+    })),
+  };
+
+  return NextResponse.json(normalized);
 }
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
