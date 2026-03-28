@@ -92,6 +92,24 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  if (session.user.role !== 'Admin') {
+    return NextResponse.json({ error: 'Bu işlem için Admin yetkisi gereklidir' }, { status: 403 });
+  }
+
+  const audit = await prisma.lQAAudit.findUnique({
+    where: { id: params.id },
+    select: { status: true },
+  });
+
+  if (!audit) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  if (audit.status !== 'TAMAMLANDI') {
+    return NextResponse.json(
+      { error: 'Yalnızca tamamlanmış denetimler silinebilir' },
+      { status: 400 }
+    );
+  }
+
   await prisma.lQAAudit.delete({ where: { id: params.id } });
   return NextResponse.json({ success: true });
 }

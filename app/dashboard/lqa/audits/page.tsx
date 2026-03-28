@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +19,7 @@ import {
   ClipboardCheck,
   Search,
   Eye,
+  Trash2,
   AlertCircle,
   ChevronLeft,
   ChevronRight,
@@ -72,9 +74,12 @@ function getScoreColor(score: number | null): string {
 }
 
 export default function LQAAuditsPage() {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === 'Admin';
   const [audits, setAudits] = useState<Audit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
@@ -110,6 +115,25 @@ export default function LQAAuditsPage() {
   useEffect(() => {
     fetchAudits();
   }, [fetchAudits]);
+
+  const handleDelete = async (auditId: string, auditCode: string) => {
+    if (!confirm(`"${auditCode}" kodlu denetimi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`)) return;
+    setDeletingId(auditId);
+    try {
+      const res = await fetch(`/api/lqa/audits/${auditId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error((errData as { error?: string }).error ?? 'Silinemedi');
+      }
+      setAudits((prev) => prev.filter((a) => a.id !== auditId));
+      setTotal((prev) => prev - 1);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Silinemedi';
+      setError(message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const totalPages = Math.ceil(total / limit);
 
@@ -275,11 +299,24 @@ export default function LQAAuditsPage() {
                           </span>
                         </td>
                         <td className="p-4 text-right">
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link href={`/dashboard/lqa/audits/${audit.id}`}>
-                              <Eye className="w-4 h-4" />
-                            </Link>
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link href={`/dashboard/lqa/audits/${audit.id}`}>
+                                <Eye className="w-4 h-4" />
+                              </Link>
+                            </Button>
+                            {isAdmin && audit.status === 'TAMAMLANDI' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleDelete(audit.id, audit.code)}
+                                disabled={deletingId === audit.id}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
