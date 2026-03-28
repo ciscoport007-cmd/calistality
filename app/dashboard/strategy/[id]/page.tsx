@@ -106,6 +106,7 @@ const perspectiveColors: Record<string, string> = {
   MUS: 'border-l-blue-500 bg-blue-50',
   SUR: 'border-l-amber-500 bg-amber-50',
   OGR: 'border-l-purple-500 bg-purple-50',
+  SDG: 'border-l-emerald-500 bg-emerald-50',
 };
 
 export default function StrategyDetailPage() {

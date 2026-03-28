@@ -241,12 +241,19 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 }
 
-// CAPA Sil (soft delete)
+// CAPA Sil (soft delete) - Yalnızca Admin
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
+    }
+
+    if (session.user.role !== 'Admin') {
+      return NextResponse.json(
+        { error: 'Bu işlem için Admin yetkisi gereklidir' },
+        { status: 403 }
+      );
     }
 
     const { id } = await context.params;

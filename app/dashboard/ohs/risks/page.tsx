@@ -201,7 +201,8 @@ export default function OHSRisksPage() {
       const response = await fetch('/api/users');
       if (response.ok) {
         const data = await response.json();
-        setUsers(Array.isArray(data) ? data : []);
+        const list = Array.isArray(data) ? data : (data.users ?? data.data ?? []);
+        setUsers(list);
       }
     } catch (error) {
       console.error('Users fetch error:', error);

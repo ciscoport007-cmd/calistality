@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Filter, FileText, AlertTriangle, CheckCircle, Clock, RefreshCw, Calendar } from 'lucide-react';
+import { Plus, Search, Filter, FileText, AlertTriangle, CheckCircle, Clock, RefreshCw, Calendar, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { ExportButton } from '@/components/ui/export-button';
@@ -78,7 +79,10 @@ const priorityColors: Record<string, string> = {
 
 export default function CAPAsPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === 'Admin';
   const [capas, setCAPAs] = useState<any[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -189,6 +193,25 @@ export default function CAPAsPage() {
       }
     } catch (error) {
       console.error('CAPA oluşturma hatası:', error);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, capaId: string, capaCode: string) => {
+    e.stopPropagation();
+    if (!confirm(`"${capaCode}" kodlu CAPA kaydını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`)) return;
+    setDeletingId(capaId);
+    try {
+      const res = await fetch(`/api/capas/${capaId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error((errData as { error?: string }).error ?? 'Silinemedi');
+      }
+      setCAPAs((prev) => prev.filter((c: any) => c.id !== capaId));
+    } catch (error) {
+      console.error('CAPA silme hatası:', error);
+      alert(error instanceof Error ? error.message : 'Silinemedi');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -525,6 +548,7 @@ export default function CAPAsPage() {
                   <TableHead>Öncelik</TableHead>
                   <TableHead>Sorumlu</TableHead>
                   <TableHead>Tarih</TableHead>
+                  {isAdmin && <TableHead className="text-right">İşlem</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -552,6 +576,19 @@ export default function CAPAsPage() {
                     <TableCell className="text-sm text-gray-500">
                       {format(new Date(capa.createdAt), 'dd MMM yyyy', { locale: tr })}
                     </TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={(e) => handleDelete(e, capa.id, capa.code)}
+                          disabled={deletingId === capa.id}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

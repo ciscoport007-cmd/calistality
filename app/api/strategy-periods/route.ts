@@ -142,6 +142,7 @@ export async function POST(request: NextRequest) {
       { code: 'MUS', name: 'Müşteri', color: '#3B82F6', sortOrder: 2 },
       { code: 'SUR', name: 'İç Süreç', color: '#F59E0B', sortOrder: 3 },
       { code: 'OGR', name: 'Öğrenme & Gelişim', color: '#8B5CF6', sortOrder: 4 },
+      { code: 'SDG', name: 'Sürdürülebilirlik', color: '#22C55E', sortOrder: 5 },
     ];
 
     await prisma.bSCPerspective.createMany({
