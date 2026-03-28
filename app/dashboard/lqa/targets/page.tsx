@@ -277,7 +277,7 @@ export default function LQATargetsPage() {
                 />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
                 <Tooltip
-                  formatter={(v: number | null) => (v !== null ? `%${v}` : 'Veri yok')}
+                  formatter={(v: unknown) => (v != null ? `%${v}` : 'Veri yok')}
                 />
                 <Legend />
                 <Bar dataKey="hedef" name="Hedef" fill="#fed7aa" radius={[4, 4, 0, 0]} />
