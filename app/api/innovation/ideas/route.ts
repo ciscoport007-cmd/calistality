@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     // Yöneticilere bildirim gönder
     const managers = await prisma.user.findMany({
       where: {
-        role: { in: ['Admin', 'Yönetici'] },
+        role: { name: { in: ['Admin', 'Yönetici'] } },
         id: { not: session.user.id },
         isActive: true,
       },
