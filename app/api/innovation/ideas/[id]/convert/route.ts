@@ -41,15 +41,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Fikir bulunamadı' }, { status: 404 });
     }
 
+    if (idea.status === 'PROJELESTI') {
+      return NextResponse.json({ error: 'Bu fikir zaten bir projeye dönüştürülmüş' }, { status: 400 });
+    }
+
     if (idea.status !== 'ONAYLANDI') {
       return NextResponse.json(
         { error: 'Sadece onaylanmış fikirler projeye dönüştürülebilir' },
         { status: 400 }
       );
-    }
-
-    if (idea.status === 'PROJELESTI') {
-      return NextResponse.json({ error: 'Bu fikir zaten bir projeye dönüştürülmüş' }, { status: 400 });
     }
 
     const projectCode = await generateProjectCode();
