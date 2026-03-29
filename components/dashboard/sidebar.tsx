@@ -182,6 +182,8 @@ const menuItems = [
     subItems: [
       { title: 'İnovasyon Fikirleri', href: '/dashboard/innovation' },
       { title: 'Projeler', href: '/dashboard/innovation/projects' },
+      { title: 'Kanban Panosu', href: '/dashboard/innovation/kanban' },
+      { title: 'Dashboard', href: '/dashboard/innovation/dashboard' },
     ],
   },
   {

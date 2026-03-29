@@ -289,6 +289,18 @@ model User {
   lqaAuditCreations           LQAAudit[]                    @relation("LQAAuditCreator")
   lqaTargets                  LQATarget[]                   @relation("LQATargetCreator")
 
+  // İnovasyon ilişkileri
+  createdInnovationIdeas        InnovationIdea[]              @relation("InnovationIdeaCreator")
+  reviewedInnovationIdeas       InnovationIdea[]              @relation("InnovationIdeaReviewer")
+  innovationIdeaVotes           InnovationIdeaVote[]          @relation("InnovationIdeaVoter")
+  innovationIdeaComments        InnovationIdeaComment[]       @relation("InnovationIdeaCommentAuthor")
+  uploadedInnovationAttachments InnovationIdeaAttachment[]    @relation("InnovationIdeaAttachmentUploader")
+  managedInnovationProjects     InnovationProject[]           @relation("InnovationProjectManager")
+  createdInnovationProjects     InnovationProject[]           @relation("InnovationProjectCreator")
+  assignedInnovationTasks       InnovationTask[]              @relation("InnovationTaskAssignee")
+  createdInnovationTasks        InnovationTask[]              @relation("InnovationTaskCreator")
+  innovationStakeholderRoles    InnovationProjectStakeholder[] @relation("InnovationProjectStakeholder")
+
   @@map("users")
 }
 
@@ -371,7 +383,11 @@ model Department {
   committeeDecisions  CommitteeDecision[] @relation("CommitteeDecisionDept")
   ohsHealthRecords    OHSHealthRecord[]   @relation("OHSHealthRecordDept")
   ohsPPEs             OHSPPE[]            @relation("OHSPPEDept")
-  
+
+  // İnovasyon ilişkileri
+  innovationIdeas     InnovationIdea[]    @relation("InnovationIdeaDepartment")
+  innovationProjects  InnovationProject[] @relation("InnovationProjectDepartment")
+
   @@map("departments")
 }
 
@@ -2972,7 +2988,11 @@ model StrategicGoal {
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  
+
+  // İnovasyon ilişkileri
+  innovationIdeas     InnovationIdea[]    @relation("InnovationIdeaGoal")
+  innovationProjects  InnovationProject[] @relation("InnovationProjectGoal")
+
   @@map("strategic_goals")
 }
 
@@ -6776,4 +6796,274 @@ model LQATarget {
   updatedAt   DateTime     @updatedAt
 
   @@map("lqa_targets")
+}
+// ============================================
+// İNOVASYON YÖNETİMİ
+// ============================================
+
+enum InnovationIdeaStatus {
+  YENI
+  DEGERLENDIRME
+  ONAYLANDI
+  PROJELESTI
+  REDDEDILDI
+  ARSIV
+}
+
+enum InnovationIdeaCategory {
+  MISAFIR_DENEYIMI
+  OPERASYONEL_VERIMLILIK
+  SURDURULEBILIRLIK
+  TEKNOLOJI
+  PERSONEL_REFAHI
+  MALIYET_AZALTMA
+  GELIR_ARTIRMA
+}
+
+enum InnovationIdeaMaturity {
+  HAM_FIKIR
+  KONSEPT
+  IS_PLANI
+  PROJE
+}
+
+enum InnovationProjectStatus {
+  PLANLAMA
+  BASLADI
+  DEVAM_EDIYOR
+  PILOT
+  YAYGINLASTIRMA
+  TAMAMLANDI
+  IPTAL
+}
+
+enum InnovationTaskStatus {
+  YAPILACAK
+  DEVAM_EDIYOR
+  INCELEMEDE
+  TAMAMLANDI
+}
+
+enum InnovationTaskPriority {
+  DUSUK
+  ORTA
+  YUKSEK
+  ACIL
+}
+
+enum InnovationMilestoneStatus {
+  BEKLIYOR
+  DEVAM_EDIYOR
+  TAMAMLANDI
+  GECIKTI
+}
+
+model InnovationIdea {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  title           String
+  description     String
+
+  category        InnovationIdeaCategory
+  status          InnovationIdeaStatus   @default(YENI)
+  maturity        InnovationIdeaMaturity @default(HAM_FIKIR)
+
+  isAnonymous     Boolean  @default(false)
+
+  costSavingEstimate         Float?
+  revenueEstimate            Float?
+  guestSatisfactionImpact    String?
+  employeeSatisfactionImpact String?
+
+  departmentId    String?
+  department      Department?    @relation("InnovationIdeaDepartment", fields: [departmentId], references: [id])
+
+  strategicGoalId String?
+  strategicGoal   StrategicGoal? @relation("InnovationIdeaGoal", fields: [strategicGoalId], references: [id])
+
+  createdById     String
+  createdBy       User     @relation("InnovationIdeaCreator", fields: [createdById], references: [id])
+
+  upVotes         Int      @default(0)
+  downVotes       Int      @default(0)
+  score           Int      @default(0)
+
+  reviewNote      String?
+  reviewedById    String?
+  reviewedBy      User?    @relation("InnovationIdeaReviewer", fields: [reviewedById], references: [id])
+  reviewedAt      DateTime?
+
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  votes           InnovationIdeaVote[]
+  comments        InnovationIdeaComment[]
+  attachments     InnovationIdeaAttachment[]
+  project         InnovationProject?
+
+  @@map("innovation_ideas")
+}
+
+model InnovationIdeaVote {
+  id        String   @id @default(cuid())
+  isUpVote  Boolean
+
+  ideaId    String
+  idea      InnovationIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  userId    String
+  user      User     @relation("InnovationIdeaVoter", fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([ideaId, userId])
+  @@map("innovation_idea_votes")
+}
+
+model InnovationIdeaComment {
+  id        String   @id @default(cuid())
+  content   String
+
+  ideaId    String
+  idea      InnovationIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  authorId  String
+  author    User     @relation("InnovationIdeaCommentAuthor", fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("innovation_idea_comments")
+}
+
+model InnovationIdeaAttachment {
+  id           String   @id @default(cuid())
+  fileName     String
+  cloudStoragePath String
+  fileSize     Int?
+  mimeType     String?
+  isPublic     Boolean  @default(false)
+
+  ideaId       String
+  idea         InnovationIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+
+  uploadedById String
+  uploadedBy   User   @relation("InnovationIdeaAttachmentUploader", fields: [uploadedById], references: [id])
+
+  createdAt    DateTime @default(now())
+
+  @@map("innovation_idea_attachments")
+}
+
+model InnovationProject {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+  description     String?
+
+  status          InnovationProjectStatus @default(PLANLAMA)
+
+  ideaId          String?  @unique
+  idea            InnovationIdea? @relation(fields: [ideaId], references: [id])
+
+  departmentId    String?
+  department      Department? @relation("InnovationProjectDepartment", fields: [departmentId], references: [id])
+
+  strategicGoalId String?
+  strategicGoal   StrategicGoal? @relation("InnovationProjectGoal", fields: [strategicGoalId], references: [id])
+
+  managerId       String?
+  manager         User?    @relation("InnovationProjectManager", fields: [managerId], references: [id])
+
+  createdById     String
+  createdBy       User     @relation("InnovationProjectCreator", fields: [createdById], references: [id])
+
+  startDate       DateTime?
+  endDate         DateTime?
+  actualEndDate   DateTime?
+
+  estimatedBudget Float?
+  actualBudget    Float?
+  budgetCurrency  String   @default("TRY")
+
+  estimatedROI    Float?
+  actualROI       Float?
+  roiNote         String?
+
+  progress        Float    @default(0)
+
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tasks           InnovationTask[]
+  milestones      InnovationMilestone[]
+  stakeholders    InnovationProjectStakeholder[]
+
+  @@map("innovation_projects")
+}
+
+model InnovationTask {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+
+  status      InnovationTaskStatus   @default(YAPILACAK)
+  priority    InnovationTaskPriority @default(ORTA)
+
+  projectId   String
+  project     InnovationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  assigneeId  String?
+  assignee    User?    @relation("InnovationTaskAssignee", fields: [assigneeId], references: [id])
+
+  createdById String
+  createdBy   User     @relation("InnovationTaskCreator", fields: [createdById], references: [id])
+
+  startDate   DateTime?
+  dueDate     DateTime?
+  completedAt DateTime?
+
+  sortOrder   Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("innovation_tasks")
+}
+
+model InnovationMilestone {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+
+  status      InnovationMilestoneStatus @default(BEKLIYOR)
+
+  projectId   String
+  project     InnovationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  dueDate     DateTime?
+  completedAt DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("innovation_milestones")
+}
+
+model InnovationProjectStakeholder {
+  id        String   @id @default(cuid())
+  role      String
+
+  projectId String
+  project   InnovationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId    String
+  user      User     @relation("InnovationProjectStakeholder", fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, userId])
+  @@map("innovation_project_stakeholders")
 }
