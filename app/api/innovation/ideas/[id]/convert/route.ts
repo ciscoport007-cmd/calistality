@@ -48,7 +48,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
-    if (idea.projectId) {
+    if (idea.status === 'PROJELESTI') {
       return NextResponse.json({ error: 'Bu fikir zaten bir projeye dönüştürülmüş' }, { status: 400 });
     }
 
