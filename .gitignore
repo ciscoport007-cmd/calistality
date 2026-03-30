@@ -26,3 +26,6 @@ dist/
 
 # Other
 .abacus.donotdelete
+
+# MCP config (contains API keys)
+.mcp.json
