@@ -301,6 +301,9 @@ model User {
   createdInnovationTasks        InnovationTask[]              @relation("InnovationTaskCreator")
   innovationStakeholderRoles    InnovationProjectStakeholder[] @relation("InnovationProjectStakeholder")
 
+  // Modül Erişimi
+  moduleAccess                  ModuleAccess[]               @relation("UserModuleAccess")
+
   @@map("users")
 }
 
@@ -388,7 +391,27 @@ model Department {
   innovationIdeas     InnovationIdea[]    @relation("InnovationIdeaDepartment")
   innovationProjects  InnovationProject[] @relation("InnovationProjectDepartment")
 
+  // Modül Erişimi
+  moduleAccess        ModuleAccess[]      @relation("DepartmentModuleAccess")
+
   @@map("departments")
+}
+
+model ModuleAccess {
+  id           String      @id @default(cuid())
+  moduleKey    String      // 'documents', 'risks', 'haccp' vb.
+
+  userId       String?
+  user         User?       @relation("UserModuleAccess", fields: [userId], references: [id], onDelete: Cascade)
+
+  departmentId String?
+  department   Department? @relation("DepartmentModuleAccess", fields: [departmentId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime    @default(now())
+
+  @@unique([moduleKey, userId])
+  @@unique([moduleKey, departmentId])
+  @@map("module_access")
 }
 
 model Position {

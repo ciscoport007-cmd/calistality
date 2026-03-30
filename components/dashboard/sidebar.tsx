@@ -39,6 +39,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { signOut, useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
+import { hasFullAccess } from '@/lib/modules';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,11 +51,13 @@ import { Badge } from '@/components/ui/badge';
 
 const menuItems = [
   {
+    moduleKey: 'dashboard',
     title: 'Ana Sayfa',
     href: '/dashboard',
     icon: LayoutDashboard,
   },
   {
+    moduleKey: 'documents',
     title: 'Dokümanlar',
     href: '/dashboard/documents',
     icon: FileText,
@@ -65,16 +68,19 @@ const menuItems = [
     ],
   },
   {
+    moduleKey: 'complaints',
     title: 'Müşteri Şikayetleri',
     href: '/dashboard/complaints',
     icon: MessageSquareWarning,
   },
   {
+    moduleKey: 'capas',
     title: 'CAPA / DÖF',
     href: '/dashboard/capas',
     icon: ClipboardCheck,
   },
   {
+    moduleKey: 'meetings',
     title: 'Toplantı Yönetimi',
     href: '/dashboard/meetings',
     icon: Calendar,
@@ -85,16 +91,19 @@ const menuItems = [
     ],
   },
   {
+    moduleKey: 'audits',
     title: 'Denetim Yönetimi',
     href: '/dashboard/audits',
     icon: ClipboardList,
   },
   {
+    moduleKey: 'risks',
     title: 'Risk Değerlendirmesi',
     href: '/dashboard/risks',
     icon: AlertTriangle,
   },
   {
+    moduleKey: 'equipment',
     title: 'Ekipman Yönetimi',
     href: '/dashboard/equipment',
     icon: Package,
@@ -104,11 +113,13 @@ const menuItems = [
     ],
   },
   {
+    moduleKey: 'suppliers',
     title: 'Tedarikçi Yönetimi',
     href: '/dashboard/suppliers',
     icon: Truck,
   },
   {
+    moduleKey: 'haccp',
     title: 'HACCP & Gıda Güvenliği',
     href: '/dashboard/haccp',
     icon: UtensilsCrossed,
@@ -123,6 +134,7 @@ const menuItems = [
     ],
   },
   {
+    moduleKey: 'ohs',
     title: 'İş Sağlığı ve Güvenliği',
     href: '/dashboard/ohs',
     icon: HardHat,
@@ -137,11 +149,13 @@ const menuItems = [
     ],
   },
   {
+    moduleKey: 'kpis',
     title: 'Ölçüm Yönetimi (KPI)',
     href: '/dashboard/kpis',
     icon: BarChart3,
   },
   {
+    moduleKey: 'trainings',
     title: 'Eğitim Yönetimi',
     href: '/dashboard/trainings',
     icon: GraduationCap,
@@ -151,6 +165,7 @@ const menuItems = [
     ],
   },
   {
+    moduleKey: 'strategy',
     title: 'Stratejik Planlama',
     href: '/dashboard/strategy',
     icon: Target,
@@ -167,6 +182,7 @@ const menuItems = [
     ],
   },
   {
+    moduleKey: 'committees',
     title: 'Komite Yönetimi',
     href: '/dashboard/committees',
     icon: Users,
@@ -176,6 +192,7 @@ const menuItems = [
     ],
   },
   {
+    moduleKey: 'innovation',
     title: 'İnovasyon Yönetimi',
     href: '/dashboard/innovation',
     icon: Lightbulb,
@@ -187,6 +204,7 @@ const menuItems = [
     ],
   },
   {
+    moduleKey: 'lqa',
     title: 'LQA Kalite Değerlendirme',
     href: '/dashboard/lqa',
     icon: Award,
@@ -199,6 +217,7 @@ const menuItems = [
     ],
   },
   {
+    moduleKey: 'sustainability',
     title: 'Enerji & Çevre Yönetimi',
     href: '/dashboard/sustainability',
     icon: Leaf,
@@ -213,6 +232,7 @@ const menuItems = [
     ],
   },
   {
+    moduleKey: 'management',
     title: 'Yönetim',
     href: '/dashboard/users',
     icon: Settings,
@@ -251,6 +271,8 @@ export function Sidebar() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [appSettings, setAppSettings] = useState<Record<string, string | null>>({});
+  // null = tüm modüller erişilebilir, string[] = kısıtlı liste
+  const [allowedModules, setAllowedModules] = useState<string[] | null>(null);
 
   // Fetch app settings
   useEffect(() => {
@@ -262,11 +284,28 @@ export function Sidebar() {
           setAppSettings(data);
         }
       } catch (error) {
-        console.error('App settings alınırken hata:', error);
+        // sessiz hata
       }
     };
     fetchAppSettings();
   }, []);
+
+  // Modül erişimini yükle
+  useEffect(() => {
+    if (!session?.user) return;
+    const fetchModuleAccess = async () => {
+      try {
+        const res = await fetch('/api/module-access');
+        if (res.ok) {
+          const data = await res.json();
+          setAllowedModules(data.modules); // null veya string[]
+        }
+      } catch {
+        // Hata durumunda tam erişim bırak
+      }
+    };
+    fetchModuleAccess();
+  }, [session]);
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: '/login' });
@@ -447,7 +486,9 @@ export function Sidebar() {
           {/* Menu */}
           <nav className="flex-1 p-4 overflow-y-auto">
             <ul className="space-y-2">
-              {(menuItems ?? [])?.map?.((item: any) => {
+              {(menuItems ?? [])?.filter?.((item: any) =>
+                allowedModules === null || allowedModules.includes(item.moduleKey)
+              )?.map?.((item: any) => {
                 const isActive = pathname === item?.href || pathname?.startsWith(item?.href + '/');
                 const hasSubItems = item?.subItems && item.subItems.length > 0;
                 const isExpanded = expandedMenus.includes(item.title);

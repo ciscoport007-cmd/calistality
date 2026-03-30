@@ -8,11 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Building2, Pencil, Trash2, Users, ChevronDown, ChevronRight, Briefcase } from 'lucide-react';
+import { Plus, Building2, Pencil, Trash2, Users, ChevronDown, ChevronRight, Briefcase, LayoutGrid } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ALL_MODULES } from '@/lib/modules';
 
 interface Position {
   id: string;
@@ -47,7 +49,13 @@ export default function DepartmentsPage() {
   const [editFormData, setEditFormData] = useState({ name: '', code: '', description: '', isActive: true });
   const [submitting, setSubmitting] = useState(false);
   const [expandedDepts, setExpandedDepts] = useState<Set<string>>(new Set());
-  
+
+  // Modül Erişimi state'leri
+  const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
+  const [moduleSelectedDept, setModuleSelectedDept] = useState<Department | null>(null);
+  const [deptModules, setDeptModules] = useState<string[]>([]);
+  const [moduleSubmitting, setModuleSubmitting] = useState(false);
+
   // Pozisyon state'leri
   const [positionDialogOpen, setPositionDialogOpen] = useState(false);
   const [editPositionDialogOpen, setEditPositionDialogOpen] = useState(false);
@@ -180,6 +188,51 @@ export default function DepartmentsPage() {
       toast({ title: 'Hata', description: 'Bir hata oluştu', variant: 'destructive' });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Modül Erişimi işlemleri
+  const handleOpenModuleDialog = async (dept: Department) => {
+    setModuleSelectedDept(dept);
+    try {
+      const res = await fetch(`/api/departments/${dept.id}/module-access`);
+      if (res.ok) {
+        const data = await res.json();
+        setDeptModules(data.modules ?? []);
+      } else {
+        setDeptModules([]);
+      }
+    } catch {
+      setDeptModules([]);
+    }
+    setModuleDialogOpen(true);
+  };
+
+  const toggleDeptModule = (key: string) => {
+    setDeptModules((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
+
+  const handleModuleSubmit = async () => {
+    if (!moduleSelectedDept) return;
+    setModuleSubmitting(true);
+    try {
+      const res = await fetch(`/api/departments/${moduleSelectedDept.id}/module-access`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modules: deptModules }),
+      });
+      if (res.ok) {
+        toast({ title: 'Başarılı', description: 'Departman modül erişimi güncellendi' });
+        setModuleDialogOpen(false);
+      } else {
+        toast({ title: 'Hata', description: 'Bir hata oluştu', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Hata', description: 'Bir hata oluştu', variant: 'destructive' });
+    } finally {
+      setModuleSubmitting(false);
     }
   };
 
@@ -571,6 +624,67 @@ export default function DepartmentsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Departman Modül Erişimi Dialog */}
+      <Dialog open={moduleDialogOpen} onOpenChange={setModuleDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modül Erişimi — {moduleSelectedDept?.name}</DialogTitle>
+            <DialogDescription>
+              Bu departmandaki kullanıcıların görebileceği modülleri seçin.
+              Hiç seçilmezse departmandaki kullanıcılar tüm modüllere erişebilir.
+              Kullanıcı bazlı erişim, departman erişimini geçersiz kılar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setDeptModules(ALL_MODULES.map((m) => m.key))}
+              >
+                Tümünü Seç
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setDeptModules([])}
+              >
+                Temizle
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {ALL_MODULES.map((mod) => (
+                <div key={mod.key} className="flex items-start space-x-2 p-2 rounded hover:bg-gray-50 border">
+                  <Checkbox
+                    id={`dmod-${mod.key}`}
+                    checked={deptModules.includes(mod.key)}
+                    onCheckedChange={() => toggleDeptModule(mod.key)}
+                  />
+                  <label htmlFor={`dmod-${mod.key}`} className="cursor-pointer">
+                    <div className="text-sm font-medium">{mod.label}</div>
+                    <div className="text-xs text-gray-400">{mod.description}</div>
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => setModuleDialogOpen(false)}>
+              İptal
+            </Button>
+            <Button
+              onClick={handleModuleSubmit}
+              className="bg-purple-600 hover:bg-purple-700"
+              disabled={moduleSubmitting}
+            >
+              {moduleSubmitting ? 'Kaydediliyor...' : 'Kaydet'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle>Departmanlar ve Pozisyonlar</CardTitle>
@@ -624,14 +738,25 @@ export default function DepartmentsPage() {
                               size="sm"
                               onClick={() => handleAddPosition(dept)}
                               className="text-green-600 hover:text-green-700"
+                              title="Pozisyon Ekle"
                             >
                               <Plus className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
+                              onClick={() => handleOpenModuleDialog(dept)}
+                              className="text-purple-600 hover:text-purple-700"
+                              title="Modül Erişimi"
+                            >
+                              <LayoutGrid className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
                               onClick={() => handleEdit(dept)}
                               className="text-blue-600 hover:text-blue-700"
+                              title="Düzenle"
                             >
                               <Pencil className="w-4 h-4" />
                             </Button>
@@ -640,6 +765,7 @@ export default function DepartmentsPage() {
                               size="sm"
                               onClick={() => handleDeleteClick(dept)}
                               className="text-red-600 hover:text-red-700"
+                              title="Sil"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
