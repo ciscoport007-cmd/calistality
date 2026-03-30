@@ -139,6 +139,10 @@ export default function AppSettingsPage() {
   const [showLlmKey, setShowLlmKey] = useState(false);
   const [llmTestResult, setLlmTestResult] = useState<string | null>(null);
 
+  // Kayıt Ayarları
+  const [signupDomain, setSignupDomain] = useState('calista.com.tr');
+  const [savingSignup, setSavingSignup] = useState(false);
+
   useEffect(() => {
     if (status === 'loading') return;
     if (!session?.user || !isAdmin(session.user.role)) {
@@ -176,6 +180,7 @@ export default function AppSettingsPage() {
           llmCustomModel: data.llmCustomModel || '',
           llmEnabled: data.llmEnabled || 'false',
         });
+        setSignupDomain(data.signup_domain || 'calista.com.tr');
       }
     } catch (error) {
       console.error('Ayarlar alınırken hata:', error);
@@ -300,6 +305,30 @@ export default function AppSettingsPage() {
     }
   };
 
+  const handleSaveSignupDomain = async () => {
+    if (!signupDomain.trim()) {
+      toast.error('Domain boş olamaz');
+      return;
+    }
+    setSavingSignup(true);
+    try {
+      const res = await fetch('/api/app-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'signup_domain', value: signupDomain.trim().toLowerCase() }),
+      });
+      if (res.ok) {
+        toast.success('Kayıt domain ayarı kaydedildi');
+      } else {
+        toast.error('Ayar kaydedilemedi');
+      }
+    } catch {
+      toast.error('Bir hata oluştu');
+    } finally {
+      setSavingSignup(false);
+    }
+  };
+
   const selectedProvider = LLM_PROVIDERS.find(p => p.id === llmSettings.llmProvider);
 
   const handleProviderChange = (providerId: string) => {
@@ -420,6 +449,7 @@ export default function AppSettingsPage() {
           <TabsTrigger value="llm" className="flex items-center gap-1.5">
             <Bot className="h-3.5 w-3.5" /> LLM API
           </TabsTrigger>
+          <TabsTrigger value="signup">Kayıt Ayarları</TabsTrigger>
         </TabsList>
 
         <TabsContent value="branding" className="space-y-6 mt-4">
@@ -917,6 +947,41 @@ export default function AppSettingsPage() {
               </Button>
             </div>
           )}
+        </TabsContent>
+
+        {/* Kayıt Ayarları */}
+        <TabsContent value="signup" className="space-y-6 mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Kayıt Domain Ayarı</CardTitle>
+              <CardDescription>
+                Dışarıdan kayıt olan kullanıcıların kullanabileceği e-posta domain'i.
+                Örnek: <strong>calista.com.tr</strong> → kullanici@calista.com.tr
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="signupDomain">İzin Verilen E-posta Domain</Label>
+                <div className="flex items-center gap-2 max-w-sm">
+                  <span className="text-gray-500 text-sm">@</span>
+                  <Input
+                    id="signupDomain"
+                    placeholder="calista.com.tr"
+                    value={signupDomain}
+                    onChange={(e) => setSignupDomain(e.target.value.replace(/@/g, '').toLowerCase())}
+                  />
+                </div>
+                <p className="text-xs text-gray-500">
+                  Bu domain dışındaki e-postalar kayıt sırasında reddedilir.
+                  Değiştirmek yalnızca yeni kayıtları etkiler; mevcut kullanıcıları etkilemez.
+                </p>
+              </div>
+              <Button onClick={handleSaveSignupDomain} disabled={savingSignup}>
+                <Save className="h-4 w-4 mr-2" />
+                {savingSignup ? 'Kaydediliyor...' : 'Kaydet'}
+              </Button>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

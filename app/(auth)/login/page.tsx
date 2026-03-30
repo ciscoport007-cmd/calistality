@@ -109,8 +109,14 @@ export default function LoginPage() {
               {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
             </Button>
           </form>
-          <div className="mt-6 text-center text-sm text-gray-600">
+          <div className="mt-6 text-center text-sm text-gray-600 space-y-2">
             <p>Test Hesabı: john@doe.com / johndoe123</p>
+            <p>
+              Hesabınız yok mu?{' '}
+              <a href="/signup" className="text-blue-600 hover:underline font-medium">
+                Kayıt Ol
+              </a>
+            </p>
           </div>
         </CardContent>
       </Card>

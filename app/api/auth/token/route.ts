@@ -45,8 +45,8 @@ export async function POST(req: NextRequest) {
       include: { role: true, department: true, position: true },
     });
 
-    // Kullanıcı bulunamadı veya pasif — aynı hata mesajı (bilgi sızıntısını önler)
-    if (!user || !user.isActive) {
+    // Kullanıcı bulunamadı, pasif veya onay bekliyor — aynı hata mesajı (bilgi sızıntısını önler)
+    if (!user || !user.isActive || user.registrationStatus === 'pending') {
       return apiError('Geçersiz kimlik bilgileri', 401);
     }
 

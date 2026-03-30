@@ -29,7 +29,7 @@ export const authOptions: NextAuthOptions = {
           },
         });
 
-        if (!user || !user.isActive) {
+        if (!user || !user.isActive || user.registrationStatus === 'pending') {
           return null;
         }
 

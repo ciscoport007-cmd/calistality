@@ -3,8 +3,9 @@ import { getToken } from 'next-auth/jwt';
 
 // Public API endpoint'leri — kimlik doğrulaması gerektirmez
 const PUBLIC_API_PATHS = [
-  '/api/auth/',   // NextAuth handler'ları
-  '/api/signup',  // Kullanıcı kaydı
+  '/api/auth/',    // NextAuth handler'ları
+  '/api/signup',   // Kullanıcı kaydı
+  '/api/public/',  // Kayıt formu için genel veriler (departman, pozisyon)
 ];
 
 export async function middleware(req: NextRequest) {

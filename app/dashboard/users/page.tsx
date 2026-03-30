@@ -28,8 +28,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { ALL_MODULES, hasFullAccess } from '@/lib/modules';
@@ -54,9 +55,21 @@ interface User {
   position: any;
 }
 
+interface PendingUser {
+  id: string;
+  email: string;
+  name: string;
+  surname: string | null;
+  phone: string | null;
+  createdAt: string;
+  department: { id: string; name: string } | null;
+  position: { id: string; name: string } | null;
+}
+
 export default function UsersPage() {
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -82,11 +95,12 @@ export default function UsersPage() {
 
   const fetchData = async () => {
     try {
-      const [usersRes, rolesRes, deptsRes, posRes] = await Promise.all([
+      const [usersRes, rolesRes, deptsRes, posRes, pendingRes] = await Promise.all([
         fetch('/api/users'),
         fetch('/api/roles'),
         fetch('/api/departments'),
         fetch('/api/positions'),
+        fetch('/api/users/pending'),
       ]);
 
       if (usersRes?.ok) setUsers((await usersRes.json())?.users ?? []);
@@ -96,6 +110,7 @@ export default function UsersPage() {
         const data = await posRes.json();
         setPositions(Array.isArray(data) ? data : (data?.positions ?? []));
       }
+      if (pendingRes?.ok) setPendingUsers((await pendingRes.json())?.users ?? []);
     } catch {
       // sessiz hata
     } finally {
@@ -108,7 +123,6 @@ export default function UsersPage() {
     [roles, formData.roleId]
   );
 
-  // Seçili rol yönetici ise modül seçimi gösterme
   const showModuleSelector = formData.roleId && !hasFullAccess(selectedRoleName);
 
   const filteredPositions = useMemo(() => {
@@ -150,7 +164,6 @@ export default function UsersPage() {
       const savedUser = await response.json();
       const userId = editingUser?.id ?? savedUser?.id ?? savedUser?.user?.id;
 
-      // Modül erişimini kaydet (sadece normal kullanıcılar için)
       if (userId && showModuleSelector) {
         await fetch(`/api/users/${userId}/module-access`, {
           method: 'PUT',
@@ -184,7 +197,6 @@ export default function UsersPage() {
       positionId: user?.position?.id ?? '',
     });
 
-    // Mevcut modül erişimini yükle
     try {
       const res = await fetch(`/api/users/${user.id}/module-access`);
       if (res.ok) {
@@ -208,6 +220,35 @@ export default function UsersPage() {
       }
     } catch {
       toast({ title: 'Hata', description: 'Kullanıcı silinirken hata oluştu', variant: 'destructive' });
+    }
+  };
+
+  const handleApprove = async (id: string, action: 'approve' | 'reject') => {
+    const confirmMsg =
+      action === 'approve'
+        ? 'Bu kullanıcıyı onaylamak istiyor musunuz?'
+        : 'Bu kayıt talebini reddetmek ve silmek istiyor musunuz?';
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      const response = await fetch(`/api/users/${id}/approve`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+
+      if (response?.ok) {
+        toast({
+          title: 'Başarılı',
+          description: action === 'approve' ? 'Kullanıcı onaylandı' : 'Kayıt talebi reddedildi',
+        });
+        fetchData();
+      } else {
+        const data = await response?.json?.();
+        toast({ title: 'Hata', description: data?.error || 'Bir hata oluştu', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Hata', description: 'Bir hata oluştu', variant: 'destructive' });
     }
   };
 
@@ -316,33 +357,21 @@ export default function UsersPage() {
                 </Select>
               </div>
 
-              {/* Modül Erişimi - Sadece normal kullanıcılar için */}
               {showModuleSelector && (
                 <div className="border rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-semibold">Modül Erişimi</Label>
                     <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedModules(ALL_MODULES.map((m) => m.key))}
-                      >
+                      <Button type="button" variant="outline" size="sm" onClick={() => setSelectedModules(ALL_MODULES.map((m) => m.key))}>
                         Tümünü Seç
                       </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedModules([])}
-                      >
+                      <Button type="button" variant="outline" size="sm" onClick={() => setSelectedModules([])}>
                         Temizle
                       </Button>
                     </div>
                   </div>
                   <p className="text-xs text-gray-500">
-                    Boş bırakırsanız kullanıcı tüm modüllere erişebilir.
-                    Departman erişimi varsa onu geçersiz kılar.
+                    Boş bırakırsanız kullanıcı tüm modüllere erişebilir. Departman erişimi varsa onu geçersiz kılar.
                   </p>
                   <div className="grid grid-cols-2 gap-2">
                     {ALL_MODULES.map((mod) => (
@@ -375,59 +404,146 @@ export default function UsersPage() {
         </Dialog>
       </div>
 
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle>Kullanıcılar</CardTitle>
-          <CardDescription>Toplam {users.length} kullanıcı</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Ad Soyad</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Rol</TableHead>
-                <TableHead>Departman</TableHead>
-                <TableHead>Pozisyon</TableHead>
-                <TableHead>Durum</TableHead>
-                <TableHead className="text-right">İşlemler</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                    Henüz kullanıcı bulunmuyor
-                  </TableCell>
-                </TableRow>
-              ) : (
-                users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name} {user.surname}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.role?.name ?? '-'}</TableCell>
-                    <TableCell>{user.department?.name ?? '-'}</TableCell>
-                    <TableCell>{user.position?.name ?? '-'}</TableCell>
-                    <TableCell>
-                      <Badge className={user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                        {user.isActive ? 'Aktif' : 'Pasif'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button size="sm" variant="ghost" onClick={() => handleEdit(user)}>
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700" onClick={() => handleDelete(user.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
+      <Tabs defaultValue="users">
+        <TabsList>
+          <TabsTrigger value="users">
+            Aktif Kullanıcılar
+            <Badge className="ml-2 bg-gray-100 text-gray-700 text-xs">{users.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="pending">
+            Bekleyen Onaylar
+            {pendingUsers.length > 0 && (
+              <Badge className="ml-2 bg-amber-100 text-amber-700 text-xs">{pendingUsers.length}</Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users">
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle>Kullanıcılar</CardTitle>
+              <CardDescription>Toplam {users.length} kullanıcı</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ad Soyad</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Rol</TableHead>
+                    <TableHead>Departman</TableHead>
+                    <TableHead>Pozisyon</TableHead>
+                    <TableHead>Durum</TableHead>
+                    <TableHead className="text-right">İşlemler</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {users.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                        Henüz kullanıcı bulunmuyor
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.name} {user.surname}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.role?.name ?? '-'}</TableCell>
+                        <TableCell>{user.department?.name ?? '-'}</TableCell>
+                        <TableCell>{user.position?.name ?? '-'}</TableCell>
+                        <TableCell>
+                          <Badge className={user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                            {user.isActive ? 'Aktif' : 'Pasif'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button size="sm" variant="ghost" onClick={() => handleEdit(user)}>
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700" onClick={() => handleDelete(user.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pending">
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-amber-500" />
+                Bekleyen Kayıt Talepleri
+              </CardTitle>
+              <CardDescription>
+                Dışarıdan kayıt olmuş ve onayınızı bekleyen kullanıcılar
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ad Soyad</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Telefon</TableHead>
+                    <TableHead>Departman</TableHead>
+                    <TableHead>Pozisyon</TableHead>
+                    <TableHead>Talep Tarihi</TableHead>
+                    <TableHead className="text-right">İşlemler</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingUsers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                        Bekleyen kayıt talebi bulunmuyor
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    pendingUsers.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.name} {user.surname}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>{user.phone ?? '-'}</TableCell>
+                        <TableCell>{user.department?.name ?? '-'}</TableCell>
+                        <TableCell>{user.position?.name ?? '-'}</TableCell>
+                        <TableCell className="text-sm text-gray-500">
+                          {new Date(user.createdAt).toLocaleDateString('tr-TR')}
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => handleApprove(user.id, 'approve')}
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-1" />
+                            Onayla
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => handleApprove(user.id, 'reject')}
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            Reddet
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
