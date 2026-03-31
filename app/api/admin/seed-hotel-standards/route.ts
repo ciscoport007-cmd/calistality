@@ -75,16 +75,8 @@ const CATEGORIES = [
   },
 ];
 
-export async function POST(request: NextRequest) {
+async function runSeed() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
-    }
-    if (!isAdmin(session.user?.role)) {
-      return NextResponse.json({ error: 'Yönetici yetkisi gerekli' }, { status: 403 });
-    }
-
     const results: { category: string; added: number; updated: number }[] = [];
 
     // Mevcut tüm kategorileri çek
@@ -147,4 +139,23 @@ export async function POST(request: NextRequest) {
     console.error('Seed error:', error);
     return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 });
   }
+}
+
+async function checkAuth() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
+  if (!isAdmin(session.user?.role)) return NextResponse.json({ error: 'Yönetici yetkisi gerekli' }, { status: 403 });
+  return null;
+}
+
+export async function GET() {
+  const authError = await checkAuth();
+  if (authError) return authError;
+  return runSeed();
+}
+
+export async function POST() {
+  const authError = await checkAuth();
+  if (authError) return authError;
+  return runSeed();
 }
