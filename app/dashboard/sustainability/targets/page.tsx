@@ -204,15 +204,14 @@ export default function TargetsPage() {
   };
 
   const getProgressValue = (t: SustTarget) => {
-    if (t.baselineValue === 0) return 0;
+    if (!t.actions?.length) return 0;
     const completed = t.actions.filter(a => a.status === 'TAMAMLANDI').length;
-    const total = t.actions.length;
-    return total > 0 ? (completed / total) * 100 : 0;
+    return (completed / t.actions.length) * 100;
   };
 
   const activeCount = targets.filter(t => t.status === 'AKTIF').length;
   const completedCount = targets.filter(t => t.status === 'TAMAMLANDI').length;
-  const openActions = targets.flatMap(t => t.actions).filter(a => a.status === 'ACIK' || a.status === 'DEVAM_EDIYOR').length;
+  const openActions = targets.flatMap(t => t.actions ?? []).filter(a => a.status === 'ACIK' || a.status === 'DEVAM_EDIYOR').length;
 
   return (
     <div className="p-6 space-y-6">
@@ -290,7 +289,7 @@ export default function TargetsPage() {
           {targets.map(target => {
             const progress = getProgressValue(target);
             const isExpanded = expandedTarget === target.id;
-            const openActs = target.actions.filter(a => a.status !== 'TAMAMLANDI' && a.status !== 'IPTAL').length;
+            const openActs = (target.actions ?? []).filter(a => a.status !== 'TAMAMLANDI' && a.status !== 'IPTAL').length;
 
             return (
               <Card key={target.id} className={`transition-all ${target.status === 'TAMAMLANDI' ? 'opacity-75' : ''}`}>
@@ -316,7 +315,7 @@ export default function TargetsPage() {
                           <span>Baz: {target.baselineValue} → {target.targetValue} {target.targetUnit}</span>
                           <span>Bitiş: {new Date(target.endDate).toLocaleDateString('tr-TR')}</span>
                         </div>
-                        {target.actions.length > 0 && (
+                        {(target.actions?.length ?? 0) > 0 && (
                           <div className="mt-2">
                             <div className="flex items-center gap-2">
                               <Progress value={progress} className="h-1.5 flex-1" />
@@ -349,10 +348,10 @@ export default function TargetsPage() {
                   {/* Expanded: Actions */}
                   {isExpanded && (
                     <div className="mt-4 ml-7 space-y-2">
-                      {target.actions.length === 0 ? (
+                      {(target.actions?.length ?? 0) === 0 ? (
                         <p className="text-sm text-gray-400 italic">Henüz aksiyon yok.</p>
                       ) : (
-                        target.actions.map(action => (
+                        (target.actions ?? []).map(action => (
                           <div key={action.id} className={`flex items-start gap-3 p-3 rounded-lg border ${action.status === 'TAMAMLANDI' ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-100'}`}>
                             <div className="mt-0.5">
                               {action.status === 'TAMAMLANDI' ? (
@@ -444,7 +443,7 @@ export default function TargetsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowTargetDialog(false)}>İptal</Button>
-            <Button onClick={handleCreateTarget} disabled={!targetForm.title}>Oluştur</Button>
+            <Button onClick={handleCreateTarget} disabled={!targetForm.title || !targetForm.category}>Oluştur</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

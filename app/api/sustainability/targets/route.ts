@@ -47,8 +47,16 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { title, category, metricType, baselineValue, targetValue, targetUnit, reductionPct, period, startDate, endDate } = body;
 
-    if (!title || !category || !metricType || baselineValue === undefined || targetValue === undefined) {
-      return NextResponse.json({ error: 'Zorunlu alanlar eksik' }, { status: 400 });
+    if (!title || !category) {
+      return NextResponse.json({ error: 'Başlık ve kategori zorunludur' }, { status: 400 });
+    }
+
+    const parsedBaseline = baselineValue !== '' && baselineValue != null ? parseFloat(baselineValue) : 0;
+    const parsedTarget = targetValue !== '' && targetValue != null ? parseFloat(targetValue) : 0;
+    const parsedReduction = reductionPct !== '' && reductionPct != null ? parseFloat(reductionPct) : 0;
+
+    if (isNaN(parsedBaseline) || isNaN(parsedTarget) || isNaN(parsedReduction)) {
+      return NextResponse.json({ error: 'Sayısal alanlara geçerli değer girin' }, { status: 400 });
     }
 
     const year = new Date().getFullYear();
@@ -64,14 +72,14 @@ export async function POST(req: NextRequest) {
         code,
         title,
         category,
-        metricType,
-        baselineValue: parseFloat(baselineValue),
-        targetValue: parseFloat(targetValue),
+        metricType: metricType || '',
+        baselineValue: parsedBaseline,
+        targetValue: parsedTarget,
         targetUnit: targetUnit || '%',
-        reductionPct: parseFloat(reductionPct || 0),
+        reductionPct: parsedReduction,
         period: period || 'YILLIK',
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate: startDate ? new Date(startDate) : new Date(),
+        endDate: endDate ? new Date(endDate) : new Date(new Date().getFullYear(), 11, 31),
         createdById: session.user.id,
       },
     });
