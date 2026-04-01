@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -265,6 +265,7 @@ const typeColors: Record<string, string> = {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session } = useSession() || {};
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['Stratejik Planlama']);
@@ -308,7 +309,8 @@ export function Sidebar() {
   }, [session]);
 
   const handleLogout = async () => {
-    await signOut({ callbackUrl: '/login' });
+    router.push('/login');
+    await signOut({ redirect: false });
   };
 
   const toggleSubmenu = (title: string) => {
