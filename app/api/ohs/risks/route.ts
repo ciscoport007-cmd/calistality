@@ -128,13 +128,6 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!evidenceCloudPath) {
-      return NextResponse.json(
-        { error: 'Kanıt dokümanı zorunludur' },
-        { status: 400 }
-      );
-    }
-
     // Risk puanı hesapla
     const riskScore = likelihood * impact;
 

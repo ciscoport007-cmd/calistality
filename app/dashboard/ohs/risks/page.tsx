@@ -215,39 +215,46 @@ export default function OHSRisksPage() {
       return;
     }
 
-    if (!evidenceFile) {
-      toast.error('Kanıt dokümanı zorunludur');
-      return;
-    }
-
     try {
       setCreating(true);
 
-      // Önce dosyayı yükle
-      const presignedResponse = await fetch('/api/upload/presigned', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName: evidenceFile.name,
-          contentType: evidenceFile.type,
-          isPublic: false,
-        }),
-      });
+      let evidenceCloudPath: string | undefined;
+      let evidenceFileName: string | undefined;
+      let evidenceFileSize: number | undefined;
+      let evidenceFileType: string | undefined;
 
-      if (!presignedResponse.ok) {
-        throw new Error('Dosya yükleme URL\'si alınamadı');
-      }
+      // Kanıt dokümanı opsiyonel — yüklendiyse işle
+      if (evidenceFile) {
+        const presignedResponse = await fetch('/api/upload/presigned', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: evidenceFile.name,
+            contentType: evidenceFile.type,
+            isPublic: false,
+          }),
+        });
 
-      const { uploadUrl, cloud_storage_path } = await presignedResponse.json();
+        if (!presignedResponse.ok) {
+          throw new Error('Dosya yükleme URL\'si alınamadı');
+        }
 
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: evidenceFile,
-        headers: { 'Content-Type': evidenceFile.type },
-      });
+        const { uploadUrl, cloud_storage_path } = await presignedResponse.json();
 
-      if (!uploadResponse.ok) {
-        throw new Error('Dosya yüklenemedi');
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: evidenceFile,
+          headers: { 'Content-Type': evidenceFile.type },
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Dosya yüklenemedi');
+        }
+
+        evidenceCloudPath = cloud_storage_path;
+        evidenceFileName = evidenceFile.name;
+        evidenceFileSize = evidenceFile.size;
+        evidenceFileType = evidenceFile.type;
       }
 
       // Risk kaydı oluştur
@@ -258,10 +265,10 @@ export default function OHSRisksPage() {
           ...formData,
           likelihood: parseInt(formData.likelihood),
           impact: parseInt(formData.impact),
-          evidenceFileName: evidenceFile.name,
-          evidenceFileSize: evidenceFile.size,
-          evidenceFileType: evidenceFile.type,
-          evidenceCloudPath: cloud_storage_path,
+          evidenceFileName,
+          evidenceFileSize,
+          evidenceFileType,
+          evidenceCloudPath,
           evidenceIsPublic: false,
         }),
       });
@@ -629,7 +636,7 @@ export default function OHSRisksPage() {
               )}
 
               <div className="col-span-2 space-y-2">
-                <Label>Kanıt Dokümanı * (Fotoğraf veya PDF)</Label>
+                <Label>Kanıt Dokümanı (Fotoğraf veya PDF)</Label>
                 <Input
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png"
