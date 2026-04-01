@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 
@@ -108,7 +108,7 @@ export default function TargetsPage() {
   const [actionForm, setActionForm] = useState({
     title: '',
     description: '',
-    assignedToId: '',
+    assignedToId: 'none',
     dueDate: '',
     priority: 'ORTA',
     notes: '',
@@ -174,12 +174,12 @@ export default function TargetsPage() {
       const res = await fetch(`/api/sustainability/targets/${selectedTargetId}/actions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(actionForm),
+        body: JSON.stringify({ ...actionForm, assignedToId: actionForm.assignedToId === 'none' ? null : actionForm.assignedToId }),
       });
       if (res.ok) {
         toast.success('Aksiyon eklendi');
         setShowActionDialog(false);
-        setActionForm({ title: '', description: '', assignedToId: '', dueDate: '', priority: 'ORTA', notes: '' });
+        setActionForm({ title: '', description: '', assignedToId: 'none', dueDate: '', priority: 'ORTA', notes: '' });
         fetchTargets();
       } else {
         const err = await res.json();
@@ -395,7 +395,10 @@ export default function TargetsPage() {
       {/* Target Dialog */}
       <Dialog open={showTargetDialog} onOpenChange={setShowTargetDialog}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Yeni Sürdürülebilirlik Hedefi</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Yeni Sürdürülebilirlik Hedefi</DialogTitle>
+            <DialogDescription>Yeni bir sürdürülebilirlik hedefi tanımlayın.</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Hedef Başlığı *</Label>
@@ -451,7 +454,10 @@ export default function TargetsPage() {
       {/* Action Dialog */}
       <Dialog open={showActionDialog} onOpenChange={setShowActionDialog}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Aksiyon Ekle</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Aksiyon Ekle</DialogTitle>
+            <DialogDescription>Hedefe bağlı yeni bir aksiyon ekleyin.</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4">
             <div>
               <Label>Aksiyon Başlığı *</Label>
@@ -467,7 +473,7 @@ export default function TargetsPage() {
                 <Select value={actionForm.assignedToId} onValueChange={v => setActionForm({ ...actionForm, assignedToId: v })}>
                   <SelectTrigger><SelectValue placeholder="Seç" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Atanmamış</SelectItem>
+                    <SelectItem value="none">Atanmamış</SelectItem>
                     {users.map(u => (
                       <SelectItem key={u.id} value={u.id}>{u.name} {u.surname}</SelectItem>
                     ))}
