@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { toast } from 'sonner';
@@ -55,8 +55,8 @@ export default function WastePage() {
   const [records, setRecords] = useState<WasteRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
-  const [filterType, setFilterType] = useState('');
-  const [filterArea, setFilterArea] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [filterArea, setFilterArea] = useState('all');
 
   const [form, setForm] = useState({
     recordDate: new Date().toISOString().split('T')[0],
@@ -78,8 +78,8 @@ export default function WastePage() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ limit: '50' });
-      if (filterType) params.set('wasteType', filterType);
-      if (filterArea) params.set('area', filterArea);
+      if (filterType && filterType !== 'all') params.set('wasteType', filterType);
+      if (filterArea && filterArea !== 'all') params.set('area', filterArea);
       const res = await fetch(`/api/sustainability/waste?${params}`);
       if (res.ok) {
         const data = await res.json();
@@ -259,14 +259,14 @@ export default function WastePage() {
               <Select value={filterType} onValueChange={setFilterType}>
                 <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="Tür filtre" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Tüm Türler</SelectItem>
+                  <SelectItem value="all">Tüm Türler</SelectItem>
                   {Object.entries(WASTE_TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={filterArea} onValueChange={setFilterArea}>
                 <SelectTrigger className="w-32 h-8 text-xs"><SelectValue placeholder="Alan filtre" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Tüm Alanlar</SelectItem>
+                  <SelectItem value="all">Tüm Alanlar</SelectItem>
                   {AREA_OPTIONS.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -331,7 +331,10 @@ export default function WastePage() {
       {/* Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Yeni Atık Kaydı</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Yeni Atık Kaydı</DialogTitle>
+            <DialogDescription>Atık türü, miktarı ve alanı girerek kayıt oluşturun.</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>

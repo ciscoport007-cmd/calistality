@@ -24,6 +24,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -96,7 +97,7 @@ export default function WaterPage() {
     level: 'ALT',
     location: '',
     unit: 'm3',
-    parentId: '',
+    parentId: 'none',
     notes: '',
   });
 
@@ -157,12 +158,12 @@ export default function WaterPage() {
       const res = await fetch('/api/sustainability/meters', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...meterForm, type: 'SU', category: 'SU' }),
+        body: JSON.stringify({ ...meterForm, type: 'SU', category: 'SU', parentId: meterForm.parentId === 'none' ? null : meterForm.parentId }),
       });
       if (res.ok) {
         toast.success('Sayaç oluşturuldu');
         setShowMeterDialog(false);
-        setMeterForm({ name: '', level: 'ALT', location: '', unit: 'm3', parentId: '', notes: '' });
+        setMeterForm({ name: '', level: 'ALT', location: '', unit: 'm3', parentId: 'none', notes: '' });
         fetchMeters();
       } else {
         const err = await res.json();
@@ -457,6 +458,7 @@ export default function WaterPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Yeni Su Sayacı Ekle</DialogTitle>
+            <DialogDescription>Su tüketimini takip etmek için yeni bir sayaç tanımlayın.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -511,7 +513,7 @@ export default function WaterPage() {
               >
                 <SelectTrigger><SelectValue placeholder="Seç (opsiyonel)" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Yok</SelectItem>
+                  <SelectItem value="none">Yok</SelectItem>
                   {meters.filter(m => m.level === 'ANA').map(m => (
                     <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                   ))}
@@ -540,6 +542,7 @@ export default function WaterPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Okuma Gir — {selectedMeter?.name}</DialogTitle>
+            <DialogDescription>Sayaç için tüketim okuması girin.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
