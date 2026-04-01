@@ -85,10 +85,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Zorunlu alanlar eksik' }, { status: 400 });
     }
 
-    if (!evidenceCloudPath) {
-      return NextResponse.json({ error: 'Kanıt dokümanı zorunludur' }, { status: 400 });
-    }
-
     const year = new Date().getFullYear();
     const lastAccident = await prisma.oHSAccident.findFirst({
       where: { code: { startsWith: `KAZ-${year}` } },

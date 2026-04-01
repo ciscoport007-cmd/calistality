@@ -200,38 +200,45 @@ export default function OHSAccidentsPage() {
       return;
     }
 
-    if (!evidenceFile) {
-      toast.error('Kanıt dokümanı zorunludur');
-      return;
-    }
-
     try {
       setCreating(true);
 
-      const presignedResponse = await fetch('/api/upload/presigned', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName: evidenceFile.name,
-          contentType: evidenceFile.type,
-          isPublic: false,
-        }),
-      });
+      let evidenceFileName: string | undefined;
+      let evidenceFileSize: number | undefined;
+      let evidenceFileType: string | undefined;
+      let evidenceCloudPath: string | undefined;
 
-      if (!presignedResponse.ok) {
-        throw new Error('Dosya yükleme URL\'si alınamadı');
-      }
+      if (evidenceFile) {
+        const presignedResponse = await fetch('/api/upload/presigned', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: evidenceFile.name,
+            contentType: evidenceFile.type,
+            isPublic: false,
+          }),
+        });
 
-      const { uploadUrl, cloud_storage_path } = await presignedResponse.json();
+        if (!presignedResponse.ok) {
+          throw new Error('Dosya yükleme URL\'si alınamadı');
+        }
 
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: evidenceFile,
-        headers: { 'Content-Type': evidenceFile.type },
-      });
+        const { uploadUrl, cloud_storage_path } = await presignedResponse.json();
 
-      if (!uploadResponse.ok) {
-        throw new Error('Dosya yüklenemedi');
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: evidenceFile,
+          headers: { 'Content-Type': evidenceFile.type },
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Dosya yüklenemedi');
+        }
+
+        evidenceFileName = evidenceFile.name;
+        evidenceFileSize = evidenceFile.size;
+        evidenceFileType = evidenceFile.type;
+        evidenceCloudPath = cloud_storage_path;
       }
 
       const response = await fetch('/api/ohs/accidents', {
@@ -239,11 +246,11 @@ export default function OHSAccidentsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          evidenceFileName: evidenceFile.name,
-          evidenceFileSize: evidenceFile.size,
-          evidenceFileType: evidenceFile.type,
-          evidenceCloudPath: cloud_storage_path,
-          evidenceIsPublic: false,
+          evidenceFileName,
+          evidenceFileSize,
+          evidenceFileType,
+          evidenceCloudPath,
+          evidenceIsPublic: evidenceFile ? false : undefined,
           involvedPersons: involvedPersons.filter(p => p.externalName),
         }),
       });
@@ -396,7 +403,7 @@ export default function OHSAccidentsPage() {
               Yeni İş Kazası Kaydı
             </DialogTitle>
             <DialogDescription>
-              İş kazası bilgilerini girin. Kanıt dokümanı zorunludur.
+              İş kazası bilgilerini girin.
             </DialogDescription>
           </DialogHeader>
 
@@ -571,7 +578,7 @@ export default function OHSAccidentsPage() {
 
             {/* Kanıt Dokümanı */}
             <div className="space-y-2">
-              <Label>Kanıt Dokümanı *</Label>
+              <Label>Kanıt Dokümanı</Label>
               <div className="border-2 border-dashed rounded-lg p-4">
                 {evidenceFile ? (
                   <div className="flex items-center justify-between">
