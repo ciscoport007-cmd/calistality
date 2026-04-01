@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
 import {
   Plus,
   FileText,
@@ -31,6 +32,7 @@ interface Category {
   description: string | null;
   weight: number;
   iconName: string | null;
+  order: number;
   _count?: { criteria: number };
 }
 
@@ -61,6 +63,15 @@ interface CriterionFormData {
   isCritical: boolean;
 }
 
+interface CategoryFormData {
+  code: string;
+  name: string;
+  description: string;
+  weight: string;
+}
+
+const emptyCategoryForm: CategoryFormData = { code: '', name: '', description: '', weight: '' };
+
 export default function LQAStandardsPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
@@ -80,7 +91,15 @@ export default function LQAStandardsPage() {
     isCritical: false,
   });
 
-  useEffect(() => {
+  // Category add/edit state
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [editCategory, setEditCategory] = useState<Category | null>(null);
+  const [categoryForm, setCategoryForm] = useState<CategoryFormData>(emptyCategoryForm);
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+
+  const fetchCategories = () => {
+    setLoadingCategories(true);
     fetch('/api/lqa/categories')
       .then((r) => {
         if (!r.ok) throw new Error('Kategoriler alınamadı');
@@ -92,7 +111,14 @@ export default function LQAStandardsPage() {
         setError(message);
       })
       .finally(() => setLoadingCategories(false));
-  }, []);
+  };
+
+  useEffect(() => { fetchCategories(); }, []);
+
+  // Toplam ağırlık hesapla
+  const totalWeight = categories.reduce((sum, c) => sum + c.weight, 0);
+  const remaining = parseFloat((100 - totalWeight).toFixed(2));
+  const isComplete = Math.abs(totalWeight - 100) < 0.01;
 
   const openCategory = (cat: Category) => {
     setSelectedCategory(cat);
@@ -192,6 +218,99 @@ export default function LQAStandardsPage() {
     }
   };
 
+  // --- Category CRUD ---
+  const openAddCategory = () => {
+    setEditCategory(null);
+    setCategoryForm({ ...emptyCategoryForm, weight: remaining > 0 ? String(remaining) : '' });
+    setCategoryError(null);
+    setCategoryDialogOpen(true);
+  };
+
+  const openEditCategory = (cat: Category, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditCategory(cat);
+    setCategoryForm({
+      code: cat.code,
+      name: cat.name,
+      description: cat.description ?? '',
+      weight: String(cat.weight),
+    });
+    setCategoryError(null);
+    setCategoryDialogOpen(true);
+  };
+
+  const handleDeleteCategory = async (cat: Category, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`"${cat.name}" kategorisi ve tüm kriterleri silinecek. Emin misiniz?`)) return;
+    try {
+      const res = await fetch(`/api/lqa/categories/${cat.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Silinemedi');
+      setCategories((prev) => prev.filter((c) => c.id !== cat.id));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Silinemedi';
+      setError(message);
+    }
+  };
+
+  const handleSaveCategory = async () => {
+    const w = parseFloat(categoryForm.weight);
+    if (!categoryForm.code || !categoryForm.name) {
+      setCategoryError('Kod ve isim zorunludur');
+      return;
+    }
+    if (isNaN(w) || w <= 0) {
+      setCategoryError('Geçerli bir ağırlık girin');
+      return;
+    }
+    // Client-side pre-check
+    const othersTotal = editCategory
+      ? categories.filter(c => c.id !== editCategory.id).reduce((s, c) => s + c.weight, 0)
+      : totalWeight;
+    if (othersTotal + w > 100) {
+      const max = parseFloat((100 - othersTotal).toFixed(2));
+      setCategoryError(`Toplam 100'ü aşamaz. Kullanılabilir maksimum: ${max}`);
+      return;
+    }
+
+    setSavingCategory(true);
+    setCategoryError(null);
+    try {
+      const body = {
+        code: categoryForm.code,
+        name: categoryForm.name,
+        description: categoryForm.description || null,
+        weight: w,
+        order: editCategory?.order ?? (categories.length + 1),
+      };
+      const url = editCategory ? `/api/lqa/categories/${editCategory.id}` : '/api/lqa/categories';
+      const method = editCategory ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setCategoryError(json.error || 'Kaydedilemedi');
+        return;
+      }
+      setCategoryDialogOpen(false);
+      fetchCategories();
+    } catch {
+      setCategoryError('Bağlantı hatası');
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
+  // Girilen ağırlık için kalan hesapla
+  const enteredWeight = parseFloat(categoryForm.weight) || 0;
+  const otherTotal = editCategory
+    ? categories.filter(c => c.id !== editCategory.id).reduce((s, c) => s + c.weight, 0)
+    : totalWeight;
+  const wouldBe = otherTotal + enteredWeight;
+  const wouldExceed = wouldBe > 100.001;
+
   if (loadingCategories) {
     return (
       <div className="p-6 space-y-6">
@@ -220,14 +339,63 @@ export default function LQAStandardsPage() {
             <p className="text-gray-500 text-sm">Kategori ve kriter yönetimi</p>
           </div>
         </div>
+        <Button
+          size="sm"
+          onClick={openAddCategory}
+          disabled={remaining <= 0}
+        >
+          <Plus className="w-4 h-4 mr-1" />Kategori Ekle
+        </Button>
       </div>
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2 text-red-700 text-sm">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           {error}
+          <button className="ml-auto text-red-400 hover:text-red-600" onClick={() => setError(null)}>✕</button>
         </div>
       )}
+
+      {/* Ağırlık Göstergesi */}
+      <Card className={`border ${isComplete ? 'border-green-200 bg-green-50' : remaining < 0 ? 'border-red-200 bg-red-50' : 'border-orange-200 bg-orange-50'}`}>
+        <CardContent className="py-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              {isComplete ? (
+                <CheckCircle2 className="w-5 h-5 text-green-600" />
+              ) : (
+                <AlertCircle className="w-5 h-5 text-orange-500" />
+              )}
+              <span className="font-semibold text-sm">
+                {isComplete
+                  ? 'Kategori ağırlıkları dengeli — toplam %100'
+                  : remaining > 0
+                  ? `Dağıtılmamış ağırlık: %${remaining} kaldı`
+                  : `Ağırlık toplamı %100'ü aşıyor!`}
+              </span>
+            </div>
+            <span className={`text-lg font-bold ${isComplete ? 'text-green-700' : remaining < 0 ? 'text-red-700' : 'text-orange-700'}`}>
+              %{totalWeight.toFixed(1)} / 100
+            </span>
+          </div>
+          <Progress
+            value={Math.min(totalWeight, 100)}
+            className="h-2.5"
+          />
+          <div className="flex flex-wrap gap-2 mt-3">
+            {categories.map((cat, idx) => (
+              <div key={cat.id} className="flex items-center gap-1 text-xs">
+                <span
+                  className="w-2.5 h-2.5 rounded-full inline-block"
+                  style={{ backgroundColor: ['#3b82f6','#8b5cf6','#10b981','#f97316','#ec4899','#14b8a6','#eab308','#6366f1'][idx % 8] }}
+                />
+                <span className="text-gray-600">{cat.name}</span>
+                <span className="font-semibold text-gray-800">%{cat.weight}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Category Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -236,7 +404,7 @@ export default function LQAStandardsPage() {
           return (
             <Card
               key={cat.id}
-              className={`border cursor-pointer transition-all hover:shadow-md ${colorSet.bg} ${colorSet.border}`}
+              className={`border transition-all hover:shadow-md ${colorSet.bg} ${colorSet.border}`}
             >
               <CardContent className="pt-4 pb-4">
                 <div className="flex items-start gap-3">
@@ -246,27 +414,63 @@ export default function LQAStandardsPage() {
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-gray-900 text-sm leading-tight">{cat.name}</p>
                     <p className="text-xs text-gray-500 mt-0.5">Kod: {cat.code}</p>
-                    <p className="text-xs text-gray-500">Ağırlık: %{cat.weight}</p>
-                    <div className="flex items-center gap-1 mt-2">
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className={`text-sm font-bold ${colorSet.text}`}>%{cat.weight}</span>
+                      <span className="text-xs text-gray-400">ağırlık</span>
+                    </div>
+                    <div className="flex items-center gap-1 mt-0.5">
                       <span className={`text-xs font-bold ${colorSet.text}`}>
                         {cat._count?.criteria ?? 0} kriter
                       </span>
                     </div>
                   </div>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full mt-3 text-xs"
-                  onClick={() => openCategory(cat)}
-                >
-                  Kriterleri Görüntüle
-                  <ChevronRight className="w-3 h-3 ml-1" />
-                </Button>
+
+                <div className="flex gap-1 mt-3">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 text-xs"
+                    onClick={() => openCategory(cat)}
+                  >
+                    Kriterler
+                    <ChevronRight className="w-3 h-3 ml-1" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0"
+                    onClick={(e) => openEditCategory(cat, e)}
+                  >
+                    <Pencil className="w-3.5 h-3.5 text-gray-500" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-red-400 hover:text-red-600 hover:bg-red-50"
+                    onClick={(e) => handleDeleteCategory(cat, e)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           );
         })}
+
+        {/* "Kalan" gösterge kartı */}
+        {!isComplete && remaining > 0 && (
+          <Card
+            className="border border-dashed border-gray-300 bg-gray-50 cursor-pointer hover:border-purple-300 hover:bg-purple-50 transition-all"
+            onClick={openAddCategory}
+          >
+            <CardContent className="pt-4 pb-4 flex flex-col items-center justify-center h-full min-h-[140px] text-center">
+              <Plus className="w-8 h-8 text-gray-300 mb-2" />
+              <p className="text-sm text-gray-400">Kategori Ekle</p>
+              <p className="text-xs text-gray-400 mt-1">%{remaining} kalan</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {categories.length === 0 && !loadingCategories && (
@@ -283,6 +487,9 @@ export default function LQAStandardsPage() {
             <DialogTitle className="flex items-center gap-2">
               <Star className="w-5 h-5 text-purple-600" />
               {selectedCategory?.name} — Kriterler
+              <Badge className="ml-2 bg-purple-100 text-purple-700 text-xs">
+                Kategori Ağırlığı: %{selectedCategory?.weight}
+              </Badge>
             </DialogTitle>
           </DialogHeader>
 
@@ -415,6 +622,90 @@ export default function LQAStandardsPage() {
             </Button>
             <Button onClick={handleSaveCriterion} disabled={saving || !formData.code || !formData.description}>
               {saving ? 'Kaydediliyor…' : editCriterion ? 'Güncelle' : 'Ekle'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add/Edit Category Dialog */}
+      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{editCategory ? 'Kategori Düzenle' : 'Yeni Kategori Ekle'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Kalan ağırlık bilgisi */}
+            <div className={`rounded-lg p-3 text-sm ${wouldExceed ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-gray-50 text-gray-600 border border-gray-200'}`}>
+              <div className="flex justify-between mb-1">
+                <span>Mevcut toplam:</span>
+                <span className="font-semibold">%{otherTotal.toFixed(1)}</span>
+              </div>
+              <div className="flex justify-between mb-1">
+                <span>Bu kategori:</span>
+                <span className="font-semibold">%{enteredWeight.toFixed(1)}</span>
+              </div>
+              <div className={`flex justify-between font-bold border-t pt-1 mt-1 ${wouldExceed ? 'text-red-700' : wouldBe >= 99.99 ? 'text-green-700' : 'text-gray-700'}`}>
+                <span>Toplam:</span>
+                <span>%{wouldBe.toFixed(1)} / 100</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Kategori Kodu *</Label>
+                <Input
+                  value={categoryForm.code}
+                  onChange={(e) => setCategoryForm((p) => ({ ...p, code: e.target.value }))}
+                  placeholder="Örn: FO"
+                />
+              </div>
+              <div>
+                <Label>Ağırlık (%) *</Label>
+                <Input
+                  type="number"
+                  min="0.1"
+                  max={100 - otherTotal}
+                  step="0.1"
+                  value={categoryForm.weight}
+                  onChange={(e) => setCategoryForm((p) => ({ ...p, weight: e.target.value }))}
+                  placeholder={`Maks: ${(100 - otherTotal).toFixed(1)}`}
+                  className={wouldExceed ? 'border-red-400 focus:ring-red-400' : ''}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>Kategori Adı *</Label>
+              <Input
+                value={categoryForm.name}
+                onChange={(e) => setCategoryForm((p) => ({ ...p, name: e.target.value }))}
+                placeholder="Örn: Front Office"
+              />
+            </div>
+
+            <div>
+              <Label>Açıklama</Label>
+              <Input
+                value={categoryForm.description}
+                onChange={(e) => setCategoryForm((p) => ({ ...p, description: e.target.value }))}
+                placeholder="Opsiyonel"
+              />
+            </div>
+
+            {categoryError && (
+              <div className="bg-red-50 border border-red-200 rounded p-2 text-sm text-red-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {categoryError}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCategoryDialogOpen(false)}>İptal</Button>
+            <Button
+              onClick={handleSaveCategory}
+              disabled={savingCategory || wouldExceed || !categoryForm.code || !categoryForm.name || enteredWeight <= 0}
+            >
+              {savingCategory ? 'Kaydediliyor…' : editCategory ? 'Güncelle' : 'Ekle'}
             </Button>
           </DialogFooter>
         </DialogContent>

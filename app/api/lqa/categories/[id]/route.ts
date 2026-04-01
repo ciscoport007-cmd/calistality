@@ -24,6 +24,28 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const data = await req.json();
+
+  if (data.weight !== undefined) {
+    const newWeight = parseFloat(data.weight) || 0;
+    if (newWeight <= 0) {
+      return NextResponse.json({ error: 'Ağırlık 0\'dan büyük olmalıdır' }, { status: 400 });
+    }
+
+    const current = await prisma.lQACategory.findUnique({ where: { id: params.id } });
+    const oldWeight = current?.weight ?? 0;
+
+    const agg = await prisma.lQACategory.aggregate({ _sum: { weight: true } });
+    const totalExcludingSelf = (agg._sum.weight ?? 0) - oldWeight;
+
+    if (totalExcludingSelf + newWeight > 100) {
+      const remaining = parseFloat((100 - totalExcludingSelf).toFixed(2));
+      return NextResponse.json(
+        { error: `Toplam ağırlık 100'ü aşamaz. Bu kategori için kullanılabilir maksimum: ${remaining}` },
+        { status: 400 }
+      );
+    }
+  }
+
   const category = await prisma.lQACategory.update({ where: { id: params.id }, data });
   return NextResponse.json(category);
 }
