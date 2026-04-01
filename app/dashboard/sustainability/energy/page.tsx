@@ -32,6 +32,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
@@ -127,7 +128,7 @@ export default function EnergyPage() {
     level: 'ALT',
     location: '',
     unit: 'kWh',
-    parentId: '',
+    parentId: 'none',
     notes: '',
   });
 
@@ -188,12 +189,12 @@ export default function EnergyPage() {
       const res = await fetch('/api/sustainability/meters', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...meterForm, category: 'ENERJI' }),
+        body: JSON.stringify({ ...meterForm, category: 'ENERJI', parentId: meterForm.parentId === 'none' ? null : meterForm.parentId }),
       });
       if (res.ok) {
         toast.success('Sayaç oluşturuldu');
         setShowMeterDialog(false);
-        setMeterForm({ name: '', type: 'ELEKTRIK', level: 'ALT', location: '', unit: 'kWh', parentId: '', notes: '' });
+        setMeterForm({ name: '', type: 'ELEKTRIK', level: 'ALT', location: '', unit: 'kWh', parentId: 'none', notes: '' });
         fetchMeters();
       } else {
         const err = await res.json();
@@ -481,6 +482,7 @@ export default function EnergyPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Yeni Sayaç Ekle</DialogTitle>
+            <DialogDescription>Enerji tüketimini takip etmek için yeni bir sayaç tanımlayın.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -536,7 +538,7 @@ export default function EnergyPage() {
                 <Select value={meterForm.parentId} onValueChange={v => setMeterForm({ ...meterForm, parentId: v })}>
                   <SelectTrigger><SelectValue placeholder="Seç (opsiyonel)" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Yok</SelectItem>
+                    <SelectItem value="none">Yok</SelectItem>
                     {meters.filter(m => m.level === 'ANA').map(m => (
                       <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                     ))}
@@ -561,6 +563,7 @@ export default function EnergyPage() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Okuma Gir — {selectedMeter?.name}</DialogTitle>
+            <DialogDescription>Sayaç için tüketim okuması girin.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
