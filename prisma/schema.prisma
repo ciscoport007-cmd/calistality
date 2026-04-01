@@ -280,6 +280,7 @@ model User {
   createdSustMeters           SustainabilityMeter[]         @relation("SustMeterCreator")
   createdSustReadings         SustainabilityReading[]       @relation("SustReadingCreator")
   createdSustWasteRecords     SustainabilityWasteRecord[]   @relation("SustWasteCreator")
+  createdSustCarbonEntries    SustainabilityCarbonEntry[]   @relation("SustCarbonCreator")
   createdSustTargets          SustainabilityTarget[]        @relation("SustTargetCreator")
   assignedSustActions         SustainabilityAction[]        @relation("SustActionAssignee")
   createdSustActions          SustainabilityAction[]        @relation("SustActionCreator")
@@ -6600,6 +6601,25 @@ model SustainabilityEmissionFactor {
   updatedAt    DateTime @updatedAt
 
   @@map("sustainability_emission_factors")
+}
+
+model SustainabilityCarbonEntry {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  scope       Int      // 1-6
+  category    String   // Yakıt, Elektrik, Atık, Ulaşım, Tedarik, Diğer vb.
+  description String?
+  amountKg    Float    // kg CO2 cinsinden
+  entryDate   DateTime
+  year        Int
+  month       Int
+
+  createdById String
+  createdBy   User     @relation("SustCarbonCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("sustainability_carbon_entries")
 }
 
 model SustainabilityTarget {
