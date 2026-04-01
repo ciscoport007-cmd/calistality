@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
@@ -59,8 +59,8 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   ARSIV: ['YENI'],
 };
 
-export default function IdeaDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function IdeaDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const { data: session } = useSession();
   const router = useRouter();
 

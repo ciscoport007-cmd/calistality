@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import {
@@ -57,8 +57,8 @@ const MILESTONE_STATUS: Record<string, { label: string; color: string }> = {
   GECIKTI: { label: 'Gecikti', color: 'bg-red-100 text-red-700' },
 };
 
-export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function ProjectDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const { data: session } = useSession();
   const router = useRouter();
 
