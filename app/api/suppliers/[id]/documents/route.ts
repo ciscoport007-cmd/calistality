@@ -112,6 +112,17 @@ export async function POST(
       },
     });
 
+    // Sözleşme yüklendiğinde tedarikçi sözleşme durumunu güncelle
+    if (documentType === 'SOZLESME') {
+      await prisma.supplier.update({
+        where: { id: params.id },
+        data: {
+          contractStatus: 'MEVCUT',
+          contractUploadDate: new Date(),
+        },
+      });
+    }
+
     // Tedarikçi geçmişine ekle
     await prisma.supplierHistory.create({
       data: {
@@ -198,6 +209,22 @@ export async function DELETE(request: Request) {
     await prisma.supplierDocument.delete({
       where: { id: documentId },
     });
+
+    // Sözleşme silindiyse, başka sözleşme kalmadıysa durumu sıfırla
+    if (document.documentType === 'SOZLESME') {
+      const remainingContracts = await prisma.supplierDocument.count({
+        where: { supplierId: document.supplierId, documentType: 'SOZLESME' },
+      });
+      if (remainingContracts === 0) {
+        await prisma.supplier.update({
+          where: { id: document.supplierId },
+          data: {
+            contractStatus: 'BEKLENIYOR',
+            contractUploadDate: null,
+          },
+        });
+      }
+    }
 
     // Tedarikçi geçmişine ekle
     await prisma.supplierHistory.create({
