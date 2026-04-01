@@ -84,9 +84,13 @@ export default function WastePage() {
       if (res.ok) {
         const data = await res.json();
         setRecords(data.records || []);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || 'Kayıtlar yüklenemedi');
       }
     } catch (e) {
       console.error(e);
+      toast.error('Bağlantı hatası');
     } finally {
       setLoading(false);
     }

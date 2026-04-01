@@ -528,7 +528,7 @@ export default function WaterPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowMeterDialog(false)}>İptal</Button>
-            <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleCreateMeter}>
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleCreateMeter} disabled={!meterForm.name || !meterForm.location}>
               Oluştur
             </Button>
           </DialogFooter>

@@ -551,7 +551,7 @@ export default function EnergyPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowMeterDialog(false)}>İptal</Button>
-            <Button onClick={handleCreateMeter}>Oluştur</Button>
+            <Button onClick={handleCreateMeter} disabled={!meterForm.name || !meterForm.location}>Oluştur</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -133,7 +133,7 @@ export default function SustainabilityPage() {
 
   useEffect(() => {
     fetch('/api/sustainability')
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('API error')))
       .then(setStats)
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -166,10 +166,10 @@ export default function SustainabilityPage() {
     );
   }
 
-  const wasteData = stats
+  const wasteData = stats?.waste
     ? [
-        { name: 'Geri Dönüştürülen', value: stats.waste.recycledKg },
-        { name: 'Diğer Atık', value: stats.waste.totalKg - stats.waste.recycledKg },
+        { name: 'Geri Dönüştürülen', value: stats.waste.recycledKg ?? 0 },
+        { name: 'Diğer Atık', value: (stats.waste.totalKg ?? 0) - (stats.waste.recycledKg ?? 0) },
       ]
     : [];
 
@@ -187,7 +187,7 @@ export default function SustainabilityPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          {stats && stats.stats.unresolvedAlerts > 0 && (
+          {(stats?.stats?.unresolvedAlerts ?? 0) > 0 && (
             <Button
               variant="outline"
               size="sm"
@@ -195,7 +195,7 @@ export default function SustainabilityPage() {
               onClick={() => router.push('/dashboard/sustainability/energy')}
             >
               <AlertTriangle className="w-4 h-4 mr-1" />
-              {stats.stats.unresolvedAlerts} Uyarı
+              {stats?.stats?.unresolvedAlerts} Uyarı
             </Button>
           )}
           <Button size="sm" onClick={() => router.push('/dashboard/sustainability/reports')}>
@@ -213,9 +213,9 @@ export default function SustainabilityPage() {
               <div>
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Enerji (Bu Ay)</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {formatNumber(stats?.energy.totalKwh || 0)} <span className="text-sm font-normal text-gray-500">kWh</span>
+                  {formatNumber(stats?.energy?.totalKwh || 0)} <span className="text-sm font-normal text-gray-500">kWh</span>
                 </p>
-                {stats && (
+                {stats?.energy && (
                   <div className={`flex items-center gap-1 mt-1 text-sm ${changeColor(stats.energy.changePercent)}`}>
                     {changeIcon(stats.energy.changePercent)}
                     <span>{Math.abs(stats.energy.changePercent).toFixed(1)}% geçen aya göre</span>
@@ -235,9 +235,9 @@ export default function SustainabilityPage() {
               <div>
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Su (Bu Ay)</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {formatNumber(stats?.water.totalM3 || 0)} <span className="text-sm font-normal text-gray-500">m³</span>
+                  {formatNumber(stats?.water?.totalM3 || 0)} <span className="text-sm font-normal text-gray-500">m³</span>
                 </p>
-                {stats && (
+                {stats?.water && (
                   <div className={`flex items-center gap-1 mt-1 text-sm ${changeColor(stats.water.changePercent)}`}>
                     {changeIcon(stats.water.changePercent)}
                     <span>{Math.abs(stats.water.changePercent).toFixed(1)}% geçen aya göre</span>
@@ -257,11 +257,11 @@ export default function SustainabilityPage() {
               <div>
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Atık (Bu Ay)</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {formatNumber(stats?.waste.totalKg || 0)} <span className="text-sm font-normal text-gray-500">kg</span>
+                  {formatNumber(stats?.waste?.totalKg || 0)} <span className="text-sm font-normal text-gray-500">kg</span>
                 </p>
                 <div className="flex items-center gap-1 mt-1 text-sm text-green-600">
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>%{formatNumber(stats?.waste.recyclingRate || 0, 1)} geri dönüşüm</span>
+                  <span>%{formatNumber(stats?.waste?.recyclingRate || 0, 1)} geri dönüşüm</span>
                 </div>
               </div>
               <div className="p-2 bg-green-100 rounded-lg">
@@ -277,11 +277,11 @@ export default function SustainabilityPage() {
               <div>
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Karbon (Bu Ay)</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {formatNumber(stats?.carbon.totalTon || 0, 2)} <span className="text-sm font-normal text-gray-500">ton CO₂</span>
+                  {formatNumber(stats?.carbon?.totalTon || 0, 2)} <span className="text-sm font-normal text-gray-500">ton CO₂</span>
                 </p>
                 <div className="flex items-center gap-1 mt-1 text-sm text-slate-600">
                   <Activity className="w-4 h-4" />
-                  <span>{formatNumber(stats?.carbon.totalKg || 0, 0)} kg toplam</span>
+                  <span>{formatNumber(stats?.carbon?.totalKg || 0, 0)} kg toplam</span>
                 </div>
               </div>
               <div className="p-2 bg-slate-100 rounded-lg">
@@ -302,7 +302,7 @@ export default function SustainabilityPage() {
               </div>
               <div>
                 <p className="text-xs text-gray-500">Aktif Hedef</p>
-                <p className="text-xl font-bold">{stats?.stats.activeTargets || 0}</p>
+                <p className="text-xl font-bold">{stats?.stats?.activeTargets || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -315,7 +315,7 @@ export default function SustainabilityPage() {
               </div>
               <div>
                 <p className="text-xs text-gray-500">Açık Aksiyon</p>
-                <p className="text-xl font-bold">{stats?.stats.openActions || 0}</p>
+                <p className="text-xl font-bold">{stats?.stats?.openActions || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -328,7 +328,7 @@ export default function SustainabilityPage() {
               </div>
               <div>
                 <p className="text-xs text-gray-500">Aktif Uyarı</p>
-                <p className="text-xl font-bold text-red-600">{stats?.stats.unresolvedAlerts || 0}</p>
+                <p className="text-xl font-bold text-red-600">{stats?.stats?.unresolvedAlerts || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -386,8 +386,8 @@ export default function SustainabilityPage() {
                   <span className="text-sm font-medium">Enerji Tüketimi</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-sm font-bold">{formatNumber(stats?.energy.totalKwh || 0)} kWh</span>
-                  <span className="text-xs text-gray-500 ml-2">{stats?.energy.readingCount || 0} okuma</span>
+                  <span className="text-sm font-bold">{formatNumber(stats?.energy?.totalKwh || 0)} kWh</span>
+                  <span className="text-xs text-gray-500 ml-2">{stats?.energy?.readingCount || 0} okuma</span>
                 </div>
               </div>
               <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
@@ -396,8 +396,8 @@ export default function SustainabilityPage() {
                   <span className="text-sm font-medium">Su Tüketimi</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-sm font-bold">{formatNumber(stats?.water.totalM3 || 0)} m³</span>
-                  <span className="text-xs text-gray-500 ml-2">{stats?.water.readingCount || 0} okuma</span>
+                  <span className="text-sm font-bold">{formatNumber(stats?.water?.totalM3 || 0)} m³</span>
+                  <span className="text-xs text-gray-500 ml-2">{stats?.water?.readingCount || 0} okuma</span>
                 </div>
               </div>
               <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
@@ -406,8 +406,8 @@ export default function SustainabilityPage() {
                   <span className="text-sm font-medium">Atık Yönetimi</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-sm font-bold">{formatNumber(stats?.waste.totalKg || 0)} kg</span>
-                  <span className="text-xs text-gray-500 ml-2">%{formatNumber(stats?.waste.recyclingRate || 0, 1)} geri dönüşüm</span>
+                  <span className="text-sm font-bold">{formatNumber(stats?.waste?.totalKg || 0)} kg</span>
+                  <span className="text-xs text-gray-500 ml-2">%{formatNumber(stats?.waste?.recyclingRate || 0, 1)} geri dönüşüm</span>
                 </div>
               </div>
               <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
@@ -416,7 +416,7 @@ export default function SustainabilityPage() {
                   <span className="text-sm font-medium">Karbon Emisyonu</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-sm font-bold">{formatNumber(stats?.carbon.totalTon || 0, 2)} ton CO₂</span>
+                  <span className="text-sm font-bold">{formatNumber(stats?.carbon?.totalTon || 0, 2)} ton CO₂</span>
                   <span className="text-xs text-gray-500 ml-2">bu ay</span>
                 </div>
               </div>
