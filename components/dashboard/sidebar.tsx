@@ -309,8 +309,8 @@ export function Sidebar() {
   }, [session]);
 
   const handleLogout = async () => {
-    router.push('/login');
     await signOut({ redirect: false });
+    window.location.href = '/login';
   };
 
   const toggleSubmenu = (title: string) => {
