@@ -466,19 +466,11 @@ export default function CarbonPage() {
 
             <div>
               <Label>Kategori <span className="text-red-500">*</span></Label>
-              <Select
+              <Input
                 value={form.category}
-                onValueChange={v => setForm({ ...form, category: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Kategori seçin" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(selectedScopeInfo?.categories || []).map(c => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={e => setForm({ ...form, category: e.target.value })}
+                placeholder={selectedScopeInfo ? `Ör: ${selectedScopeInfo.categories[0]}` : 'Kategori girin'}
+              />
             </div>
 
             <div>
