@@ -45,6 +45,7 @@ function getTimeRemaining(expiryDateTime: string): { hours: number; urgent: bool
 
 export default function FoodSamplesPage() {
   const [samples, setSamples] = useState<FoodSample[]>([]);
+  const [stats, setStats] = useState({ active: 0, expired: 0, disposed: 0 });
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('active');
 
@@ -54,6 +55,18 @@ export default function FoodSamplesPage() {
 
   const [disposeDialogOpen, setDisposeDialogOpen] = useState(false);
   const [selectedSample, setSelectedSample] = useState<FoodSample | null>(null);
+
+  const fetchStats = useCallback(async () => {
+    const res = await fetch('/api/haccp/food-samples?statsOnly=true');
+    if (res.ok) {
+      const all: FoodSample[] = await res.json();
+      setStats({
+        active: all.filter((s) => !s.isDisposed && !s.isExpired).length,
+        expired: all.filter((s) => s.isExpired && !s.isDisposed).length,
+        disposed: all.filter((s) => s.isDisposed).length,
+      });
+    }
+  }, []);
 
   const fetchSamples = useCallback(async () => {
     const params = new URLSearchParams();
@@ -65,8 +78,8 @@ export default function FoodSamplesPage() {
   }, [filter]);
 
   useEffect(() => {
-    fetchSamples().finally(() => setLoading(false));
-  }, [fetchSamples]);
+    Promise.all([fetchSamples(), fetchStats()]).finally(() => setLoading(false));
+  }, [fetchSamples, fetchStats]);
 
   const saveSample = async () => {
     if (!form.productName || !form.sampleDate) { toast.error('Ürün adı ve tarih zorunludur'); return; }
@@ -89,6 +102,7 @@ export default function FoodSamplesPage() {
       toast.success('Numune imha edildi');
       setDisposeDialogOpen(false);
       fetchSamples();
+      fetchStats();
     } catch { toast.error('İmha işlemi başarısız'); }
   };
 
@@ -100,8 +114,6 @@ export default function FoodSamplesPage() {
   };
 
   if (loading) return <div className="p-6"><div className="h-8 w-64 bg-gray-200 rounded animate-pulse" /></div>;
-
-  const expiredCount = samples.filter((s) => s.isExpired && !s.isDisposed).length;
 
   return (
     <div className="p-6 space-y-6">
@@ -115,10 +127,10 @@ export default function FoodSamplesPage() {
         </Button>
       </div>
 
-      {expiredCount > 0 && filter !== 'disposed' && (
+      {stats.expired > 0 && filter !== 'disposed' && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2 text-red-700">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          <span className="text-sm font-medium">{expiredCount} numunenin süresi dolmuş — imha edilmesi gerekiyor</span>
+          <span className="text-sm font-medium">{stats.expired} numunenin süresi dolmuş — imha edilmesi gerekiyor</span>
         </div>
       )}
 
@@ -129,7 +141,7 @@ export default function FoodSamplesPage() {
             <FlaskConical className={`h-5 w-5 ${filter === 'active' ? 'text-purple-600' : 'text-gray-400'}`} />
             <div>
               <p className="text-xs text-gray-500">Aktif Numuneler</p>
-              <p className="text-xl font-bold">{samples.filter((s) => !s.isDisposed && !s.isExpired).length}</p>
+              <p className="text-xl font-bold">{stats.active}</p>
             </div>
           </CardContent>
         </Card>
@@ -138,7 +150,7 @@ export default function FoodSamplesPage() {
             <AlertTriangle className={`h-5 w-5 ${filter === 'expired' ? 'text-red-600' : 'text-gray-400'}`} />
             <div>
               <p className="text-xs text-gray-500">Süresi Dolan</p>
-              <p className="text-xl font-bold text-red-600">{samples.filter((s) => s.isExpired && !s.isDisposed).length}</p>
+              <p className="text-xl font-bold text-red-600">{stats.expired}</p>
             </div>
           </CardContent>
         </Card>
@@ -147,7 +159,7 @@ export default function FoodSamplesPage() {
             <CheckCircle2 className={`h-5 w-5 ${filter === 'disposed' ? 'text-green-600' : 'text-gray-400'}`} />
             <div>
               <p className="text-xs text-gray-500">İmha Edilen</p>
-              <p className="text-xl font-bold">{samples.filter((s) => s.isDisposed).length}</p>
+              <p className="text-xl font-bold">{stats.disposed}</p>
             </div>
           </CardContent>
         </Card>
