@@ -68,7 +68,35 @@ export async function POST(request: Request) {
       : 1;
     const code = `EKP-${year}-${String(nextNumber).padStart(4, '0')}`;
 
-    const equipment = await prisma.hACCPEquipment.create({
+    // Soğuk Oda eklendiğinde Ekipman Yönetimi modülüyle senkronize et
+    let linkedEquipmentId: string | null = null;
+    if (type === 'SOGUK_ODA') {
+      const equYear = new Date().getFullYear();
+      const lastEquip = await prisma.equipment.findFirst({
+        where: { code: { startsWith: `EKP-${equYear}-` } },
+        orderBy: { code: 'desc' },
+      });
+      const equNextNum = lastEquip
+        ? parseInt(lastEquip.code.split('-').pop() || '0') + 1
+        : 1;
+      const equCode = `EKP-${equYear}-${String(equNextNum).padStart(4, '0')}`;
+
+      const linkedEquip = await prisma.equipment.create({
+        data: {
+          code: equCode,
+          name,
+          description: `Soğuk Oda — HACCP sistemi üzerinden oluşturuldu`,
+          location: location || null,
+          serialNumber: serialNumber || null,
+          model: model || null,
+          createdById: session.user.id,
+        },
+      });
+      linkedEquipmentId = linkedEquip.id;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const equipment = await (prisma.hACCPEquipment.create as any)({
       data: {
         code,
         name,
@@ -82,6 +110,7 @@ export async function POST(request: Request) {
         targetTemp: targetTemp !== '' && targetTemp !== undefined ? parseFloat(targetTemp) : null,
         measurementFrequency: measurementFrequency || null,
         notes: notes || null,
+        linkedEquipmentId,
         createdById: session.user.id,
       },
     });

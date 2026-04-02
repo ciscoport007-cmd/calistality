@@ -68,6 +68,7 @@ const equipmentTypeLabels: Record<string, string> = {
   ACIK_BUFE: 'Açık Büfe',
   FIRIN: 'Fırın',
   PISIRME_EKIPMAN: 'Pişirme Ekipmanı',
+  SOGUK_ODA: 'Soğuk Oda',
   DIGER: 'Diğer',
 };
 

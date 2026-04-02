@@ -25,7 +25,42 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         }),
         ...(notes !== undefined && { notes: notes || null }),
       },
+      include: {
+        equipment: { select: { name: true, location: true, createdById: true } },
+      },
     });
+
+    // DF girilince ilgili kişilere bildirim gönder
+    if (correctiveAction) {
+      const notifyUsers = await prisma.user.findMany({
+        where: {
+          isActive: true,
+          OR: [
+            { id: (log as any).equipment.createdById },
+            { role: { name: { contains: 'Admin', mode: 'insensitive' } } },
+            { role: { name: { contains: 'Kalite', mode: 'insensitive' } } },
+            { role: { name: { contains: 'HACCP', mode: 'insensitive' } } },
+            { role: { name: { contains: 'Yönetici', mode: 'insensitive' } } },
+            { role: { name: { contains: 'Müdür', mode: 'insensitive' } } },
+          ],
+        },
+        select: { id: true },
+      });
+
+      const uniqueIds = [...new Set(notifyUsers.map((u) => u.id))];
+      if (uniqueIds.length > 0) {
+        await prisma.notification.createMany({
+          data: uniqueIds.map((userId) => ({
+            userId,
+            title: '✅ Düzeltici Faaliyet Tamamlandı',
+            message: `${(log as any).equipment.name} ekipmanı için limit dışı sıcaklık kaydına düzeltici faaliyet girildi: "${correctiveAction}"`,
+            type: 'BILGI',
+            link: '/dashboard/haccp/temperature',
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
 
     return NextResponse.json(log);
   } catch (error) {

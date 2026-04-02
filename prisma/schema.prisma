@@ -1947,10 +1947,11 @@ model Equipment {
   maintenances    EquipmentMaintenance[]
   calibrations    EquipmentCalibration[]
   histories       EquipmentHistory[]
-  
+  haccpEquipment  HACCPEquipment? @relation("HACCPLinkedEquipment")
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  
+
   @@map("equipment")
 }
 
@@ -6177,6 +6178,7 @@ enum HACCPEquipmentType {
   ACIK_BUFE         // Açık büfe
   FIRIN             // Fırın
   PISIRME_EKIPMAN   // Pişirme ekipmanı
+  SOGUK_ODA         // Soğuk Oda
   DIGER             // Diğer
 }
 
@@ -6255,6 +6257,10 @@ model HACCPEquipment {
 
   status           HACCPEquipmentStatus      @default(AKTIF)
   notes            String?
+
+  // Ekipman Yönetimi senkronizasyonu (Soğuk Oda için)
+  linkedEquipmentId String?   @unique
+  linkedEquipment   Equipment? @relation("HACCPLinkedEquipment", fields: [linkedEquipmentId], references: [id])
 
   temperatureLogs  HACCPTemperatureLog[]
 

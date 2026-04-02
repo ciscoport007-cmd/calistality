@@ -83,10 +83,43 @@ export async function POST(request: Request) {
         measuredById: session.user.id,
       },
       include: {
-        equipment: { select: { id: true, code: true, name: true, location: true, minTemp: true, maxTemp: true } },
+        equipment: { select: { id: true, code: true, name: true, location: true, minTemp: true, maxTemp: true, createdById: true } },
         measuredBy: { select: { id: true, name: true, surname: true } },
       },
     });
+
+    // Limit dışına çıkınca ilgili kişilere bildirim gönder
+    if (isOutOfRange) {
+      const notifyUsers = await prisma.user.findMany({
+        where: {
+          isActive: true,
+          OR: [
+            { id: log.equipment.createdById },
+            { role: { name: { contains: 'Admin', mode: 'insensitive' } } },
+            { role: { name: { contains: 'Kalite', mode: 'insensitive' } } },
+            { role: { name: { contains: 'HACCP', mode: 'insensitive' } } },
+            { role: { name: { contains: 'Gıda', mode: 'insensitive' } } },
+            { role: { name: { contains: 'Yönetici', mode: 'insensitive' } } },
+            { role: { name: { contains: 'Müdür', mode: 'insensitive' } } },
+          ],
+        },
+        select: { id: true },
+      });
+
+      const uniqueIds = [...new Set(notifyUsers.map((u) => u.id))];
+      if (uniqueIds.length > 0) {
+        await prisma.notification.createMany({
+          data: uniqueIds.map((userId) => ({
+            userId,
+            title: '⚠️ Limit Dışı Sıcaklık Uyarısı',
+            message: `${log.equipment.name} (${log.equipment.location}) ekipmanında sıcaklık ${temp}°C olarak ölçüldü. Limit: ${log.equipment.minTemp ?? '–'}°C / ${log.equipment.maxTemp ?? '–'}°C. Düzeltici faaliyet gerekli.`,
+            type: 'UYARI',
+            link: '/dashboard/haccp/temperature',
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
 
     return NextResponse.json({ ...log, isOutOfRange }, { status: 201 });
   } catch (error) {
