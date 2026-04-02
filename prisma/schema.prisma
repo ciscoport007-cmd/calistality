@@ -276,6 +276,13 @@ model User {
   cleaningLogs                HACCPCleaningLog[]     @relation("HACCPCleaningPerformer")
   signedOffCleaningLogs       HACCPCleaningLog[]     @relation("HACCPCleaningSignOff")
 
+  // Gıda Üretim & Depo Hareketleri ilişkileri
+  productionRecordsAsStaff    FoodProductionRecord[] @relation("FoodProductionStaff")
+  createdProductionRecords    FoodProductionRecord[] @relation("FoodProductionCreator")
+  warehouseMovementsAsStaff   FoodWarehouseMovement[] @relation("FoodMovementStaff")
+  createdWarehouseMovements   FoodWarehouseMovement[] @relation("FoodMovementCreator")
+  createdFoodWarehouses       FoodWarehouse[]         @relation("FoodWarehouseCreator")
+
   // Sustainability
   createdSustMeters           SustainabilityMeter[]         @relation("SustMeterCreator")
   createdSustReadings         SustainabilityReading[]       @relation("SustReadingCreator")
@@ -7135,4 +7142,120 @@ model InnovationProjectStakeholder {
 
   @@unique([projectId, userId])
   @@map("innovation_project_stakeholders")
+}
+
+// ============================================
+// GIDA ÜRETİM KAYDI & DEPO HAREKETLERİ
+// ============================================
+
+enum FoodWarehouseType {
+  ANA_DEPO   // Ana Depo
+  MUTFAK     // Mutfak
+  SOGUK_ODA  // Soğuk Oda
+  KILER      // Kiler
+  DIGER      // Diğer
+}
+
+model FoodWarehouse {
+  id          String            @id @default(cuid())
+  code        String            @unique  // DPO-YYYY-NNNN
+  name        String
+  type        FoodWarehouseType
+  location    String?
+  description String?
+  isActive    Boolean           @default(true)
+
+  createdById String
+  createdBy   User              @relation("FoodWarehouseCreator", fields: [createdById], references: [id])
+
+  sourceMovements FoodWarehouseMovement[]  @relation("MovementSource")
+  targetMovements FoodWarehouseMovement[]  @relation("MovementTarget")
+  ingredients     FoodProductionIngredient[]
+
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("food_warehouses")
+}
+
+model FoodProductionRecord {
+  id                String    @id @default(cuid())
+  code              String    @unique  // URK-YYYY-NNNN
+  productionDate    DateTime
+  productName       String
+  quantity          Float
+  quantityUnit      String    @default("kg")
+  cookingTemp       Float?
+  cookingDuration   Int?      // dakika
+  finalInternalTemp Float?
+  hasTempWarning    Boolean   @default(false)
+  notes             String?
+  isActive          Boolean   @default(true)
+
+  staffId     String
+  staff       User     @relation("FoodProductionStaff", fields: [staffId], references: [id])
+  createdById String
+  createdBy   User     @relation("FoodProductionCreator", fields: [createdById], references: [id])
+
+  ingredients FoodProductionIngredient[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("food_production_records")
+}
+
+model FoodProductionIngredient {
+  id           String   @id @default(cuid())
+  name         String
+  quantity     Float
+  unit         String   @default("kg")
+  lotNumber    String?
+
+  productionId String
+  production   FoodProductionRecord @relation(fields: [productionId], references: [id], onDelete: Cascade)
+
+  warehouseId  String?
+  warehouse    FoodWarehouse?       @relation(fields: [warehouseId], references: [id])
+
+  movement     FoodWarehouseMovement? @relation("IngredientMovement")
+
+  createdAt    DateTime @default(now())
+
+  @@map("food_production_ingredients")
+}
+
+model FoodWarehouseMovement {
+  id              String    @id @default(cuid())
+  code            String    @unique  // DHR-YYYY-NNNN
+  movementDate    DateTime
+  productName     String
+  quantity        Float
+  unit            String    @default("kg")
+  lotNumber       String?
+  transportTemp   Float?
+  hasTempWarning  Boolean   @default(false)
+  notes           String?
+  isAutoCreated   Boolean   @default(false)
+  isActive        Boolean   @default(true)
+
+  staffId           String
+  staff             User          @relation("FoodMovementStaff", fields: [staffId], references: [id])
+
+  sourceWarehouseId String
+  sourceWarehouse   FoodWarehouse @relation("MovementSource", fields: [sourceWarehouseId], references: [id])
+
+  targetWarehouseId String
+  targetWarehouse   FoodWarehouse @relation("MovementTarget", fields: [targetWarehouseId], references: [id])
+
+  ingredientId String?                   @unique
+  ingredient   FoodProductionIngredient? @relation("IngredientMovement", fields: [ingredientId], references: [id])
+
+  createdById String
+  createdBy   User          @relation("FoodMovementCreator", fields: [createdById], references: [id])
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("food_warehouse_movements")
 }

@@ -129,6 +129,8 @@ const menuItems = [
       { title: 'CCP Kontrolleri', href: '/dashboard/haccp/ccp' },
       { title: 'Haşere Kontrol', href: '/dashboard/haccp/pest' },
       { title: 'Gıda Numuneleri', href: '/dashboard/haccp/food-samples' },
+      { title: 'Üretim Kayıtları', href: '/dashboard/haccp/production' },
+      { title: 'Depo Hareketleri', href: '/dashboard/haccp/warehouse-movements' },
       { title: 'Temizlik Kontrol', href: '/dashboard/haccp/cleaning' },
       { title: 'Raporlar & Denetim', href: '/dashboard/haccp/reports' },
     ],
