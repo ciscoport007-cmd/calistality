@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
+import { isAdmin } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,5 +34,24 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   } catch (error) {
     console.error('HACCP CCP checklist update error:', error);
     return NextResponse.json({ error: 'Kontrol kaydı güncellenemedi' }, { status: 500 });
+  }
+}
+
+export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
+    }
+    if (!isAdmin(session.user.role)) {
+      return NextResponse.json({ error: 'Bu işlem için admin yetkisi gereklidir' }, { status: 403 });
+    }
+
+    await prisma.hACCPCCPChecklist.delete({ where: { id: params.id } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('HACCP CCP checklist delete error:', error);
+    return NextResponse.json({ error: 'Kayıt silinemedi' }, { status: 500 });
   }
 }

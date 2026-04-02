@@ -7,12 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, CheckSquare, AlertTriangle, CheckCircle2, Pencil } from 'lucide-react';
+import { Plus, CheckSquare, AlertTriangle, CheckCircle2, Pencil, Trash2, Settings2 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 interface CCP {
   id: string;
@@ -24,6 +25,8 @@ interface CCP {
   criticalLimitMax: number | null;
   criticalLimitUnit: string | null;
   criticalLimitDesc: string | null;
+  criticalTimeLimitValue: number | null;
+  criticalTimeLimitUnit: string | null;
   monitoringMethod: string | null;
   monitoringFrequency: string | null;
   responsible: { id: string; name: string; surname: string } | null;
@@ -39,6 +42,8 @@ interface Checklist {
   checkDate: string;
   status: string;
   measuredValue: number | null;
+  measuredDuration: number | null;
+  measurementArea: string | null;
   notes: string | null;
   nonConformity: string | null;
   capaCreated: boolean;
@@ -48,9 +53,21 @@ interface Checklist {
   checkedBy: { name: string; surname: string };
 }
 
+interface MeasurementArea {
+  id: string;
+  name: string;
+  sortOrder: number;
+}
+
 const processLabels: Record<string, string> = {
-  PISIRME: 'Pişirme', SOGUTMA: 'Soğutma', SAKLAMA: 'Saklama',
-  SERVIS: 'Servis', HAZIRLIK: 'Hazırlık', TESLIM: 'Teslim Alma',
+  PISIRME: 'Pişirme',
+  SOGUTMA: 'Soğutma',
+  SAKLAMA: 'Saklama',
+  SERVIS: 'Servis',
+  HAZIRLIK: 'Hazırlık',
+  TESLIM: 'Teslim Alma',
+  COZUNDURME: 'Çözündürme',
+  YENIDEN_ISITMA: 'Yeniden Isıtma',
 };
 
 const processColors: Record<string, string> = {
@@ -60,11 +77,17 @@ const processColors: Record<string, string> = {
   SERVIS: 'bg-green-100 text-green-700',
   HAZIRLIK: 'bg-yellow-100 text-yellow-700',
   TESLIM: 'bg-gray-100 text-gray-700',
+  COZUNDURME: 'bg-cyan-100 text-cyan-700',
+  YENIDEN_ISITMA: 'bg-red-100 text-red-700',
 };
 
 export default function CCPPage() {
+  const { data: session } = useSession();
+  const isAdminUser = ['Admin', 'Yönetici', 'admin', 'yönetici'].includes(session?.user?.role ?? '');
+
   const [ccps, setCCPs] = useState<CCP[]>([]);
   const [checklists, setChecklists] = useState<Checklist[]>([]);
+  const [areas, setAreas] = useState<MeasurementArea[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterProcess, setFilterProcess] = useState('');
 
@@ -73,16 +96,26 @@ export default function CCPPage() {
   const [ccpForm, setCCPForm] = useState({
     name: '', process: '', description: '',
     criticalLimitMin: '', criticalLimitMax: '', criticalLimitUnit: '', criticalLimitDesc: '',
+    criticalTimeLimitValue: '', criticalTimeLimitUnit: '',
     monitoringMethod: '', monitoringFrequency: '', correctiveProcedure: '',
   });
   const [savingCCP, setSavingCCP] = useState(false);
 
   const [checklistDialogOpen, setChecklistDialogOpen] = useState(false);
-  const [checkForm, setCheckForm] = useState({ ccpId: '', checkDate: '', status: '', measuredValue: '', notes: '', nonConformity: '' });
+  const [checkForm, setCheckForm] = useState({
+    ccpId: '', checkDate: '', measuredValue: '', measuredDuration: '',
+    measurementArea: 'none', status: '', notes: '', nonConformity: '',
+  });
+  const [autoStatus, setAutoStatus] = useState<string | null>(null);
   const [savingCheck, setSavingCheck] = useState(false);
 
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [selectedChecklist, setSelectedChecklist] = useState<Checklist | null>(null);
+
+  // Alan yönetimi
+  const [areaDialogOpen, setAreaDialogOpen] = useState(false);
+  const [newAreaName, setNewAreaName] = useState('');
+  const [savingArea, setSavingArea] = useState(false);
 
   const fetchCCPs = useCallback(async () => {
     const params = new URLSearchParams();
@@ -96,9 +129,32 @@ export default function CCPPage() {
     if (res.ok) setChecklists(await res.json());
   }, []);
 
+  const fetchAreas = useCallback(async () => {
+    const res = await fetch('/api/haccp/areas');
+    if (res.ok) setAreas(await res.json());
+  }, []);
+
   useEffect(() => {
-    Promise.all([fetchCCPs(), fetchChecklists()]).finally(() => setLoading(false));
-  }, [fetchCCPs, fetchChecklists]);
+    Promise.all([fetchCCPs(), fetchChecklists(), fetchAreas()]).finally(() => setLoading(false));
+  }, [fetchCCPs, fetchChecklists, fetchAreas]);
+
+  // Seçili CCP'nin limitlerine göre otomatik uygunluk hesapla
+  const computeAutoStatus = useCallback((ccpId: string, measuredValue: string, measuredDuration: string) => {
+    if (!ccpId || measuredValue === '') {
+      setAutoStatus(null);
+      return;
+    }
+    const ccp = ccps.find((c) => c.id === ccpId);
+    if (!ccp) { setAutoStatus(null); return; }
+
+    const val = parseFloat(measuredValue);
+    const dur = measuredDuration !== '' ? parseFloat(measuredDuration) : null;
+    const belowMin = ccp.criticalLimitMin !== null && val < ccp.criticalLimitMin;
+    const aboveMax = ccp.criticalLimitMax !== null && val > ccp.criticalLimitMax;
+    const exceedsDur = ccp.criticalTimeLimitValue !== null && dur !== null && dur > ccp.criticalTimeLimitValue;
+
+    setAutoStatus(belowMin || aboveMax || exceedsDur ? 'UYGUNSUZ' : 'YAPILDI');
+  }, [ccps]);
 
   const openCCPDialog = (ccp?: CCP) => {
     if (ccp) {
@@ -109,13 +165,20 @@ export default function CCPPage() {
         criticalLimitMax: ccp.criticalLimitMax?.toString() ?? '',
         criticalLimitUnit: ccp.criticalLimitUnit ?? '',
         criticalLimitDesc: ccp.criticalLimitDesc ?? '',
+        criticalTimeLimitValue: ccp.criticalTimeLimitValue?.toString() ?? '',
+        criticalTimeLimitUnit: ccp.criticalTimeLimitUnit ?? '',
         monitoringMethod: ccp.monitoringMethod ?? '',
         monitoringFrequency: ccp.monitoringFrequency ?? '',
         correctiveProcedure: ccp.correctiveProcedure ?? '',
       });
     } else {
       setEditCCP(null);
-      setCCPForm({ name: '', process: '', description: '', criticalLimitMin: '', criticalLimitMax: '', criticalLimitUnit: '', criticalLimitDesc: '', monitoringMethod: '', monitoringFrequency: '', correctiveProcedure: '' });
+      setCCPForm({
+        name: '', process: '', description: '',
+        criticalLimitMin: '', criticalLimitMax: '', criticalLimitUnit: '', criticalLimitDesc: '',
+        criticalTimeLimitValue: '', criticalTimeLimitUnit: '',
+        monitoringMethod: '', monitoringFrequency: '', correctiveProcedure: '',
+      });
     }
     setCCPDialogOpen(true);
   };
@@ -125,7 +188,11 @@ export default function CCPPage() {
     setSavingCCP(true);
     try {
       const url = editCCP ? `/api/haccp/ccp/${editCCP.id}` : '/api/haccp/ccp';
-      const res = await fetch(url, { method: editCCP ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ccpForm) });
+      const res = await fetch(url, {
+        method: editCCP ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ccpForm),
+      });
       if (!res.ok) throw new Error();
       toast.success(editCCP ? 'CCP güncellendi' : 'CCP eklendi');
       setCCPDialogOpen(false);
@@ -136,18 +203,34 @@ export default function CCPPage() {
 
   const openChecklistDialog = (ccpId?: string) => {
     const today = new Date().toISOString().slice(0, 10);
-    setCheckForm({ ccpId: ccpId ?? '', checkDate: today, status: '', measuredValue: '', notes: '', nonConformity: '' });
+    setCheckForm({
+      ccpId: ccpId ?? '', checkDate: today,
+      measuredValue: '', measuredDuration: '',
+      measurementArea: 'none', status: '', notes: '', nonConformity: '',
+    });
+    setAutoStatus(null);
     setChecklistDialogOpen(true);
   };
 
   const saveChecklist = async () => {
-    if (!checkForm.ccpId || !checkForm.checkDate || !checkForm.status) { toast.error('CCP, tarih ve durum zorunludur'); return; }
+    if (!checkForm.ccpId || !checkForm.checkDate) { toast.error('CCP ve tarih zorunludur'); return; }
+    if (checkForm.measuredValue === '' && !checkForm.status) {
+      toast.error('Ölçüm değeri girin veya "Yapılmadı" seçin'); return;
+    }
     setSavingCheck(true);
     try {
-      const res = await fetch('/api/haccp/ccp/checklists', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(checkForm) });
+      const res = await fetch('/api/haccp/ccp/checklists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...checkForm,
+          measurementArea: checkForm.measurementArea === 'none' ? null : checkForm.measurementArea,
+        }),
+      });
       if (!res.ok) throw new Error();
-      if (checkForm.status === 'UYGUNSUZ') {
-        toast.warning('Uygunsuzluk kaydedildi. Yönetici onayı gereklidir.');
+      const result = await res.json();
+      if (result.status === 'UYGUNSUZ') {
+        toast.warning('Uygunsuzluk tespit edildi! Yönetici onayı gereklidir.');
       } else {
         toast.success('Kontrol kaydedildi');
       }
@@ -157,9 +240,23 @@ export default function CCPPage() {
     finally { setSavingCheck(false); }
   };
 
+  const deleteChecklist = async (id: string) => {
+    if (!confirm('Bu kontrol kaydını silmek istediğinizden emin misiniz?')) return;
+    try {
+      const res = await fetch(`/api/haccp/ccp/checklists/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      toast.success('Kayıt silindi');
+      fetchChecklists();
+    } catch { toast.error('Silme başarısız'); }
+  };
+
   const approveChecklist = async (id: string) => {
     try {
-      const res = await fetch(`/api/haccp/ccp/checklists/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ approve: true }) });
+      const res = await fetch(`/api/haccp/ccp/checklists/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approve: true }),
+      });
       if (!res.ok) throw new Error();
       toast.success('Onaylandı');
       setApproveDialogOpen(false);
@@ -167,9 +264,41 @@ export default function CCPPage() {
     } catch { toast.error('Onay başarısız'); }
   };
 
+  const saveArea = async () => {
+    if (!newAreaName.trim()) { toast.error('Alan adı zorunludur'); return; }
+    setSavingArea(true);
+    try {
+      const res = await fetch('/api/haccp/areas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newAreaName.trim() }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? 'Hata');
+      }
+      toast.success('Alan eklendi');
+      setNewAreaName('');
+      fetchAreas();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Hata');
+    } finally { setSavingArea(false); }
+  };
+
+  const deleteArea = async (id: string) => {
+    if (!confirm('Bu alanı kaldırmak istediğinizden emin misiniz?')) return;
+    try {
+      const res = await fetch(`/api/haccp/areas?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      toast.success('Alan kaldırıldı');
+      fetchAreas();
+    } catch { toast.error('Silme başarısız'); }
+  };
+
   if (loading) return <div className="p-6"><div className="h-8 w-64 bg-gray-200 rounded animate-pulse" /></div>;
 
   const pendingApproval = checklists.filter((c) => c.status === 'UYGUNSUZ' && !c.isApproved);
+  const selectedCCP = ccps.find((c) => c.id === checkForm.ccpId);
 
   return (
     <div className="p-6 space-y-6">
@@ -179,6 +308,11 @@ export default function CCPPage() {
           <p className="text-gray-500 mt-1">Kritik kontrol noktaları tanımları ve günlük kontrol listeleri</p>
         </div>
         <div className="flex gap-2">
+          {isAdminUser && (
+            <Button variant="ghost" size="sm" onClick={() => setAreaDialogOpen(true)}>
+              <Settings2 className="h-4 w-4 mr-1" /> Alanlar
+            </Button>
+          )}
           <Button variant="outline" onClick={() => openCCPDialog()}>
             <Plus className="h-4 w-4 mr-2" /> CCP Ekle
           </Button>
@@ -210,6 +344,7 @@ export default function CCPPage() {
                   <TableHead>Süreç</TableHead>
                   <TableHead>Tarih</TableHead>
                   <TableHead>Ölçüm</TableHead>
+                  <TableHead>Alan</TableHead>
                   <TableHead>Durum</TableHead>
                   <TableHead>Yapan</TableHead>
                   <TableHead>Onay</TableHead>
@@ -219,7 +354,7 @@ export default function CCPPage() {
               <TableBody>
                 {checklists.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-gray-400 py-8">Henüz kayıt yok</TableCell>
+                    <TableCell colSpan={9} className="text-center text-gray-400 py-8">Henüz kayıt yok</TableCell>
                   </TableRow>
                 ) : (
                   checklists.map((c) => (
@@ -229,15 +364,23 @@ export default function CCPPage() {
                         <div className="text-xs text-gray-400">{c.ccp.code}</div>
                       </TableCell>
                       <TableCell>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${processColors[c.ccp.process]}`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${processColors[c.ccp.process] ?? 'bg-gray-100 text-gray-700'}`}>
                           {processLabels[c.ccp.process] ?? c.ccp.process}
                         </span>
                       </TableCell>
                       <TableCell className="text-sm">{new Date(c.checkDate).toLocaleDateString('tr-TR')}</TableCell>
-                      <TableCell className="text-sm">{c.measuredValue !== null ? `${c.measuredValue}` : '—'}</TableCell>
+                      <TableCell className="text-sm">
+                        {c.measuredValue !== null ? `${c.measuredValue}` : '—'}
+                        {c.measuredDuration !== null && <span className="text-xs text-gray-400 ml-1">/ {c.measuredDuration}</span>}
+                      </TableCell>
+                      <TableCell className="text-xs text-gray-500">{c.measurementArea ?? '—'}</TableCell>
                       <TableCell>
-                        <Badge className={c.status === 'YAPILDI' ? 'bg-green-100 text-green-800' : c.status === 'UYGUNSUZ' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}>
-                          {c.status === 'YAPILDI' ? 'Yapıldı' : c.status === 'YAPILMADI' ? 'Yapılmadı' : 'Uygunsuz'}
+                        <Badge className={
+                          c.status === 'YAPILDI' ? 'bg-green-100 text-green-800' :
+                          c.status === 'UYGUNSUZ' ? 'bg-red-100 text-red-800' :
+                          'bg-gray-100 text-gray-800'
+                        }>
+                          {c.status === 'YAPILDI' ? 'Uygun' : c.status === 'YAPILMADI' ? 'Yapılmadı' : 'Uygunsuz'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm">{c.checkedBy.name} {c.checkedBy.surname}</TableCell>
@@ -252,11 +395,18 @@ export default function CCPPage() {
                         ) : null}
                       </TableCell>
                       <TableCell>
-                        {c.status === 'UYGUNSUZ' && !c.isApproved && (
-                          <Button size="sm" variant="outline" onClick={() => { setSelectedChecklist(c); setApproveDialogOpen(true); }}>
-                            Onayla
-                          </Button>
-                        )}
+                        <div className="flex gap-1">
+                          {c.status === 'UYGUNSUZ' && !c.isApproved && (
+                            <Button size="sm" variant="outline" onClick={() => { setSelectedChecklist(c); setApproveDialogOpen(true); }}>
+                              Onayla
+                            </Button>
+                          )}
+                          {isAdminUser && (
+                            <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700" onClick={() => deleteChecklist(c.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -286,7 +436,7 @@ export default function CCPPage() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-medium">{ccp.name}</CardTitle>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${processColors[ccp.process]}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${processColors[ccp.process] ?? 'bg-gray-100 text-gray-700'}`}>
                       {processLabels[ccp.process] ?? ccp.process}
                     </span>
                   </div>
@@ -297,6 +447,12 @@ export default function CCPPage() {
                     <div className="text-xs text-gray-600">
                       <span className="font-medium">Kritik Limit: </span>
                       {ccp.criticalLimitDesc ?? `${ccp.criticalLimitMin ?? '—'} – ${ccp.criticalLimitMax ?? '—'} ${ccp.criticalLimitUnit ?? ''}`}
+                    </div>
+                  )}
+                  {(ccp.criticalTimeLimitValue !== null) && (
+                    <div className="text-xs text-gray-600">
+                      <span className="font-medium">Süre Limiti: </span>
+                      max {ccp.criticalTimeLimitValue} {ccp.criticalTimeLimitUnit ?? ''}
                     </div>
                   )}
                   {ccp.monitoringMethod && (
@@ -325,6 +481,7 @@ export default function CCPPage() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editCCP ? 'CCP Düzenle' : 'Yeni CCP Tanımla'}</DialogTitle>
+            <DialogDescription>CCP kritik kontrol noktası tanım bilgilerini girin.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -332,7 +489,7 @@ export default function CCPPage() {
                 <Label>CCP Adı *</Label>
                 <Input value={ccpForm.name} onChange={(e) => setCCPForm((f) => ({ ...f, name: e.target.value }))} placeholder="ör: Pişirme Sıcaklığı Kontrolü" />
               </div>
-              <div className="space-y-1.5">
+              <div className="col-span-2 space-y-1.5">
                 <Label>Süreç *</Label>
                 <Select value={ccpForm.process} onValueChange={(v) => setCCPForm((f) => ({ ...f, process: v }))}>
                   <SelectTrigger><SelectValue placeholder="Seçin" /></SelectTrigger>
@@ -343,21 +500,52 @@ export default function CCPPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label>Limit Birimi</Label>
-                <Input value={ccpForm.criticalLimitUnit} onChange={(e) => setCCPForm((f) => ({ ...f, criticalLimitUnit: e.target.value }))} placeholder="°C, dakika, vb." />
+
+              {/* Sıcaklık Limitleri */}
+              <div className="col-span-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Sıcaklık Limiti</p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1.5">
+                    <Label>Min (°C)</Label>
+                    <Input type="number" value={ccpForm.criticalLimitMin} onChange={(e) => setCCPForm((f) => ({ ...f, criticalLimitMin: e.target.value }))} placeholder="-18" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Max (°C)</Label>
+                    <Input type="number" value={ccpForm.criticalLimitMax} onChange={(e) => setCCPForm((f) => ({ ...f, criticalLimitMax: e.target.value }))} placeholder="75" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Birim</Label>
+                    <Input value={ccpForm.criticalLimitUnit} onChange={(e) => setCCPForm((f) => ({ ...f, criticalLimitUnit: e.target.value }))} placeholder="°C" />
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label>Min Kritik Limit</Label>
-                <Input type="number" value={ccpForm.criticalLimitMin} onChange={(e) => setCCPForm((f) => ({ ...f, criticalLimitMin: e.target.value }))} />
+
+              {/* Süre Limiti */}
+              <div className="col-span-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Süre Limiti</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <Label>Max Süre</Label>
+                    <Input type="number" step="0.5" value={ccpForm.criticalTimeLimitValue} onChange={(e) => setCCPForm((f) => ({ ...f, criticalTimeLimitValue: e.target.value }))} placeholder="ör: 2" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Birim</Label>
+                    <Select value={ccpForm.criticalTimeLimitUnit || 'none'} onValueChange={(v) => setCCPForm((f) => ({ ...f, criticalTimeLimitUnit: v === 'none' ? '' : v }))}>
+                      <SelectTrigger><SelectValue placeholder="Seçin" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">—</SelectItem>
+                        <SelectItem value="dakika">Dakika</SelectItem>
+                        <SelectItem value="saat">Saat</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Örnek: &quot;En az 65°C&apos;de en fazla 2 saat servis&quot;</p>
               </div>
-              <div className="space-y-1.5">
-                <Label>Max Kritik Limit</Label>
-                <Input type="number" value={ccpForm.criticalLimitMax} onChange={(e) => setCCPForm((f) => ({ ...f, criticalLimitMax: e.target.value }))} />
-              </div>
+
               <div className="col-span-2 space-y-1.5">
                 <Label>Kritik Limit Açıklaması</Label>
-                <Input value={ccpForm.criticalLimitDesc} onChange={(e) => setCCPForm((f) => ({ ...f, criticalLimitDesc: e.target.value }))} placeholder="ör: Min 75°C iç sıcaklık" />
+                <Input value={ccpForm.criticalLimitDesc} onChange={(e) => setCCPForm((f) => ({ ...f, criticalLimitDesc: e.target.value }))} placeholder="ör: Min 75°C iç sıcaklık, max 2 saat servis" />
               </div>
               <div className="col-span-2 space-y-1.5">
                 <Label>İzleme Yöntemi</Label>
@@ -385,46 +573,106 @@ export default function CCPPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>CCP Kontrol Girişi</DialogTitle>
+            <DialogDescription>Ölçüm değeri girildiğinde uygunluk otomatik hesaplanır.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>CCP Noktası *</Label>
-              <Select value={checkForm.ccpId} onValueChange={(v) => setCheckForm((f) => ({ ...f, ccpId: v }))}>
+              <Select value={checkForm.ccpId} onValueChange={(v) => {
+                setCheckForm((f) => ({ ...f, ccpId: v }));
+                computeAutoStatus(v, checkForm.measuredValue, checkForm.measuredDuration);
+              }}>
                 <SelectTrigger><SelectValue placeholder="CCP seçin" /></SelectTrigger>
                 <SelectContent>
                   {ccps.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name} ({processLabels[c.process]})</SelectItem>
+                    <SelectItem key={c.id} value={c.id}>{c.name} ({processLabels[c.process] ?? c.process})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
+            {selectedCCP && (selectedCCP.criticalLimitMin !== null || selectedCCP.criticalLimitMax !== null) && (
+              <div className="bg-blue-50 rounded-lg p-2 text-xs text-blue-700 space-y-0.5">
+                {(selectedCCP.criticalLimitMin !== null || selectedCCP.criticalLimitMax !== null) && (
+                  <p>Sıcaklık limiti: {selectedCCP.criticalLimitMin ?? '—'}°C – {selectedCCP.criticalLimitMax ?? '—'}°C</p>
+                )}
+                {selectedCCP.criticalTimeLimitValue !== null && (
+                  <p>Süre limiti: max {selectedCCP.criticalTimeLimitValue} {selectedCCP.criticalTimeLimitUnit ?? ''}</p>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Tarih *</Label>
                 <Input type="date" value={checkForm.checkDate} onChange={(e) => setCheckForm((f) => ({ ...f, checkDate: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
-                <Label>Ölçülen Değer</Label>
-                <Input type="number" step="0.1" value={checkForm.measuredValue} onChange={(e) => setCheckForm((f) => ({ ...f, measuredValue: e.target.value }))} placeholder="ör: 76.5" />
+                <Label>Ölçüm Alanı</Label>
+                <Select value={checkForm.measurementArea} onValueChange={(v) => setCheckForm((f) => ({ ...f, measurementArea: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Alan seçin" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Seçilmedi</SelectItem>
+                    {areas.map((a) => <SelectItem key={a.id} value={a.name}>{a.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Durum *</Label>
-              <Select value={checkForm.status} onValueChange={(v) => setCheckForm((f) => ({ ...f, status: v }))}>
-                <SelectTrigger><SelectValue placeholder="Sonuç" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="YAPILDI">Yapıldı — Uygun</SelectItem>
-                  <SelectItem value="YAPILMADI">Yapılmadı</SelectItem>
-                  <SelectItem value="UYGUNSUZ">Uygunsuz</SelectItem>
-                </SelectContent>
-              </Select>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Sıcaklık (°C)</Label>
+                <Input
+                  type="number" step="0.1"
+                  value={checkForm.measuredValue}
+                  onChange={(e) => {
+                    setCheckForm((f) => ({ ...f, measuredValue: e.target.value }));
+                    computeAutoStatus(checkForm.ccpId, e.target.value, checkForm.measuredDuration);
+                  }}
+                  placeholder="ör: 76.5"
+                />
+              </div>
+              {selectedCCP?.criticalTimeLimitValue !== null && selectedCCP?.criticalTimeLimitValue !== undefined && (
+                <div className="space-y-1.5">
+                  <Label>Süre ({selectedCCP.criticalTimeLimitUnit ?? ''})</Label>
+                  <Input
+                    type="number" step="0.5"
+                    value={checkForm.measuredDuration}
+                    onChange={(e) => {
+                      setCheckForm((f) => ({ ...f, measuredDuration: e.target.value }));
+                      computeAutoStatus(checkForm.ccpId, checkForm.measuredValue, e.target.value);
+                    }}
+                    placeholder="ör: 1.5"
+                  />
+                </div>
+              )}
             </div>
-            {checkForm.status === 'UYGUNSUZ' && (
+
+            {/* Otomatik hesaplanan durum */}
+            {autoStatus !== null ? (
+              <div className={`rounded-lg p-2 text-sm font-medium flex items-center gap-2 ${autoStatus === 'UYGUNSUZ' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                {autoStatus === 'UYGUNSUZ' ? <AlertTriangle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                Otomatik değerlendirme: {autoStatus === 'UYGUNSUZ' ? 'UYGUNSUZ — limit dışı' : 'UYGUN'}
+              </div>
+            ) : checkForm.measuredValue === '' ? (
+              <div className="space-y-1.5">
+                <Label>Durum *</Label>
+                <Select value={checkForm.status} onValueChange={(v) => setCheckForm((f) => ({ ...f, status: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Ölçüm yapılmadıysa seçin" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="YAPILMADI">Yapılmadı</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
+            {(autoStatus === 'UYGUNSUZ' || checkForm.status === 'UYGUNSUZ') && (
               <div className="space-y-1.5">
                 <Label>Uygunsuzluk Açıklaması</Label>
-                <Textarea value={checkForm.nonConformity} onChange={(e) => setCheckForm((f) => ({ ...f, nonConformity: e.target.value }))} rows={2} placeholder="Uygunsuzluğu açıklayın..." />
+                <Textarea value={checkForm.nonConformity} onChange={(e) => setCheckForm((f) => ({ ...f, nonConformity: e.target.value }))} rows={2} placeholder="Ek açıklama (opsiyonel)" />
               </div>
             )}
+
             <div className="space-y-1.5">
               <Label>Not</Label>
               <Textarea value={checkForm.notes} onChange={(e) => setCheckForm((f) => ({ ...f, notes: e.target.value }))} rows={2} />
@@ -442,6 +690,7 @@ export default function CCPPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Uygunsuzluk Onayı</DialogTitle>
+            <DialogDescription>Uygunsuz kontrol kaydını inceleyip onaylayın.</DialogDescription>
           </DialogHeader>
           {selectedChecklist && (
             <div className="space-y-4">
@@ -453,12 +702,50 @@ export default function CCPPage() {
                 )}
                 <p className="text-gray-500">Kaydeden: {selectedChecklist.checkedBy.name} {selectedChecklist.checkedBy.surname}</p>
               </div>
-              <p className="text-sm text-gray-600">Bu uygunsuz CCP kaydını onaylıyor musunuz? Onaylama işlemi kayıt sahibini bilgilendirir.</p>
+              <p className="text-sm text-gray-600">Bu uygunsuz CCP kaydını onaylıyor musunuz?</p>
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setApproveDialogOpen(false)}>İptal</Button>
             <Button onClick={() => selectedChecklist && approveChecklist(selectedChecklist.id)}>Onayla</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Alan Yönetimi Dialog */}
+      <Dialog open={areaDialogOpen} onOpenChange={setAreaDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ölçüm Alanları Yönetimi</DialogTitle>
+            <DialogDescription>Kontrol girişlerinde kullanılacak alanları ekleyin veya kaldırın.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                value={newAreaName}
+                onChange={(e) => setNewAreaName(e.target.value)}
+                placeholder="ör: Soğuk Depo, Üretim Alanı..."
+                onKeyDown={(e) => e.key === 'Enter' && saveArea()}
+              />
+              <Button onClick={saveArea} disabled={savingArea}>Ekle</Button>
+            </div>
+            <div className="space-y-1 max-h-64 overflow-y-auto">
+              {areas.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-4">Henüz alan eklenmedi</p>
+              ) : (
+                areas.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-gray-50">
+                    <span className="text-sm">{a.name}</span>
+                    <Button size="sm" variant="ghost" className="text-red-500 h-6 px-2" onClick={() => deleteArea(a.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAreaDialogOpen(false)}>Kapat</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

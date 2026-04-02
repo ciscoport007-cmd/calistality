@@ -53,6 +53,7 @@ export async function POST(request: Request) {
     const {
       name, process, description,
       criticalLimitMin, criticalLimitMax, criticalLimitUnit, criticalLimitDesc,
+      criticalTimeLimitValue, criticalTimeLimitUnit,
       monitoringMethod, monitoringFrequency,
       responsibleId, correctiveProcedure,
     } = body;
@@ -69,7 +70,8 @@ export async function POST(request: Request) {
     const nextNumber = lastCCP ? parseInt(lastCCP.code.split('-')[2]) + 1 : 1;
     const code = `CCP-${year}-${String(nextNumber).padStart(4, '0')}`;
 
-    const ccp = await prisma.hACCPCCP.create({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ccp = await (prisma.hACCPCCP.create as any)({
       data: {
         code,
         name,
@@ -79,6 +81,8 @@ export async function POST(request: Request) {
         criticalLimitMax: criticalLimitMax !== '' && criticalLimitMax !== undefined ? parseFloat(criticalLimitMax) : null,
         criticalLimitUnit: criticalLimitUnit || null,
         criticalLimitDesc: criticalLimitDesc || null,
+        criticalTimeLimitValue: criticalTimeLimitValue !== '' && criticalTimeLimitValue !== undefined ? parseFloat(criticalTimeLimitValue) : null,
+        criticalTimeLimitUnit: criticalTimeLimitUnit || null,
         monitoringMethod: monitoringMethod || null,
         monitoringFrequency: monitoringFrequency || null,
         responsibleId: responsibleId || null,

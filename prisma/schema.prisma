@@ -6198,12 +6198,14 @@ enum HACCPMeasurementFrequency {
 }
 
 enum HACCPCCPProcess {
-  PISIRME   // Pişirme
-  SOGUTMA   // Soğutma
-  SAKLAMA   // Saklama
-  SERVIS    // Servis
-  HAZIRLIK  // Hazırlık
-  TESLIM    // Teslim alma
+  PISIRME        // Pişirme
+  SOGUTMA        // Soğutma
+  SAKLAMA        // Saklama
+  SERVIS         // Servis
+  HAZIRLIK       // Hazırlık
+  TESLIM         // Teslim alma
+  COZUNDURME     // Çözündürme
+  YENIDEN_ISITMA // Yeniden Isıtma
 }
 
 enum HACCPChecklistStatus {
@@ -6317,6 +6319,10 @@ model HACCPCCP {
   monitoringMethod    String?
   monitoringFrequency String?
 
+  // Çift birimli kritik limit (sıcaklık + süre)
+  criticalTimeLimitValue Float?   // ör: 2
+  criticalTimeLimitUnit  String?  // ör: "saat", "dakika"
+
   responsibleId       String?
   responsible         User?   @relation("CCPResponsible", fields: [responsibleId], references: [id])
 
@@ -6342,10 +6348,12 @@ model HACCPCCPChecklist {
   ccpId          String
   ccp            HACCPCCP             @relation(fields: [ccpId], references: [id])
 
-  checkDate      DateTime
-  status         HACCPChecklistStatus
-  measuredValue  Float?
-  notes          String?
+  checkDate        DateTime
+  status           HACCPChecklistStatus
+  measuredValue    Float?
+  measuredDuration Float?   // Ölçülen süre (çift birim için)
+  measurementArea  String?  // Ölçüm yapılan alan
+  notes            String?
 
   photoFileName  String?
   photoFileSize  Int?
@@ -6367,6 +6375,17 @@ model HACCPCCPChecklist {
   createdAt      DateTime @default(now())
 
   @@map("haccp_ccp_checklists")
+}
+
+// HACCP Ölçüm Alanları (Yönetici tarafından özelleştirilebilir)
+model HACCPMeasurementArea {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@map("haccp_measurement_areas")
 }
 
 // HACCP Haşere Kontrol İstasyonları

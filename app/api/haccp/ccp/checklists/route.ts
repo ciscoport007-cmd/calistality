@@ -54,20 +54,57 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { ccpId, checkDate, status, measuredValue, notes, nonConformity } = body;
+    const { ccpId, checkDate, measuredValue, measuredDuration, measurementArea, notes, nonConformity } = body;
 
-    if (!ccpId || !checkDate || !status) {
-      return NextResponse.json({ error: 'CCP, tarih ve durum zorunludur' }, { status: 400 });
+    if (!ccpId || !checkDate) {
+      return NextResponse.json({ error: 'CCP ve tarih zorunludur' }, { status: 400 });
     }
 
-    const checklist = await prisma.hACCPCCPChecklist.create({
+    // CCP limitlerini çek — otomatik uygunluk değerlendirmesi için
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ccp: any = await prisma.hACCPCCP.findUnique({
+      where: { id: ccpId },
+      select: { criticalLimitMin: true, criticalLimitMax: true, criticalTimeLimitValue: true, criticalTimeLimitUnit: true } as never,
+    });
+
+    const parsedValue = measuredValue !== '' && measuredValue !== undefined ? parseFloat(measuredValue) : null;
+    const parsedDuration = measuredDuration !== '' && measuredDuration !== undefined ? parseFloat(measuredDuration) : null;
+
+    // Otomatik uygunluk: limit varsa ve ölçüm değeri dışarıdaysa → UYGUNSUZ
+    let autoStatus = 'YAPILDI';
+    let autoNonConformity = nonConformity || null;
+
+    if (parsedValue !== null && ccp) {
+      const belowMin = ccp.criticalLimitMin !== null && parsedValue < ccp.criticalLimitMin;
+      const aboveMax = ccp.criticalLimitMax !== null && parsedValue > ccp.criticalLimitMax;
+      const exceedsDuration = ccp.criticalTimeLimitValue !== null && parsedDuration !== null && parsedDuration > ccp.criticalTimeLimitValue;
+
+      if (belowMin || aboveMax || exceedsDuration) {
+        autoStatus = 'UYGUNSUZ';
+        if (!autoNonConformity) {
+          const reasons: string[] = [];
+          if (belowMin) reasons.push(`Sıcaklık min limitin (${ccp.criticalLimitMin}) altında: ${parsedValue}`);
+          if (aboveMax) reasons.push(`Sıcaklık max limitin (${ccp.criticalLimitMax}) üzerinde: ${parsedValue}`);
+          if (exceedsDuration) reasons.push(`Süre limitini (${ccp.criticalTimeLimitValue} ${ccp.criticalTimeLimitUnit ?? ''}) aştı: ${parsedDuration}`);
+          autoNonConformity = reasons.join('; ');
+        }
+      }
+    }
+
+    // Eğer ölçüm yapılmadıysa (değer girilmemişse) ve kullanıcı YAPILMADI seçtiyse
+    const finalStatus = parsedValue === null ? (body.status ?? 'YAPILMADI') : autoStatus;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const checklist = await (prisma.hACCPCCPChecklist.create as any)({
       data: {
         ccpId,
         checkDate: new Date(checkDate),
-        status,
-        measuredValue: measuredValue !== '' && measuredValue !== undefined ? parseFloat(measuredValue) : null,
+        status: finalStatus,
+        measuredValue: parsedValue,
+        measuredDuration: parsedDuration,
+        measurementArea: measurementArea || null,
         notes: notes || null,
-        nonConformity: nonConformity || null,
+        nonConformity: autoNonConformity,
         capaCreated: false,
         checkedById: session.user.id,
       },

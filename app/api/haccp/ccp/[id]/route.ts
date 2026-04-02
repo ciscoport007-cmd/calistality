@@ -48,7 +48,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     const body = await request.json();
 
-    const ccp = await prisma.hACCPCCP.update({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ccp = await (prisma.hACCPCCP.update as any)({
       where: { id: params.id },
       data: {
         ...(body.name !== undefined && { name: body.name }),
@@ -58,6 +59,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         ...(body.criticalLimitMax !== undefined && { criticalLimitMax: body.criticalLimitMax !== '' ? parseFloat(body.criticalLimitMax) : null }),
         ...(body.criticalLimitUnit !== undefined && { criticalLimitUnit: body.criticalLimitUnit || null }),
         ...(body.criticalLimitDesc !== undefined && { criticalLimitDesc: body.criticalLimitDesc || null }),
+        ...(body.criticalTimeLimitValue !== undefined && { criticalTimeLimitValue: body.criticalTimeLimitValue !== '' ? parseFloat(body.criticalTimeLimitValue) : null }),
+        ...(body.criticalTimeLimitUnit !== undefined && { criticalTimeLimitUnit: body.criticalTimeLimitUnit || null }),
         ...(body.monitoringMethod !== undefined && { monitoringMethod: body.monitoringMethod || null }),
         ...(body.monitoringFrequency !== undefined && { monitoringFrequency: body.monitoringFrequency || null }),
         ...(body.responsibleId !== undefined && { responsibleId: body.responsibleId || null }),
