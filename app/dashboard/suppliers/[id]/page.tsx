@@ -525,6 +525,7 @@ export default function SupplierDetailPage() {
         setDocForm({ name: '', documentType: 'SERTIFIKA', description: '', expiryDate: '' });
         setDocFile(null);
         fetchSupplierDocuments();
+        fetchSupplier();
       } else {
         const error = await response.json();
         toast.error(error.error || 'Belge yüklenemedi');
@@ -549,6 +550,7 @@ export default function SupplierDetailPage() {
       if (response.ok) {
         toast.success('Belge silindi');
         fetchSupplierDocuments();
+        fetchSupplier();
       } else {
         toast.error('Belge silinemedi');
       }
