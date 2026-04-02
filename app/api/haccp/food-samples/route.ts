@@ -90,7 +90,8 @@ export async function POST(request: Request) {
     const nextNumber = lastSample ? parseInt(lastSample.code.split('-')[2]) + 1 : 1;
     const code = `NMN-${year}-${String(nextNumber).padStart(4, '0')}`;
 
-    const sampleDateTime = new Date(sampleDate);
+    const dateTimeStr = sampleTime ? `${sampleDate}T${sampleTime}:00` : `${sampleDate}T00:00:00`;
+    const sampleDateTime = new Date(dateTimeStr);
     const hours = parseInt(retentionHours) || 72;
     const expiryDateTime = new Date(sampleDateTime.getTime() + hours * 60 * 60 * 1000);
 
