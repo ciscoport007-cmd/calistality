@@ -6238,6 +6238,12 @@ enum HACCPPestStationStatus {
   DEGISTIRILDI   // Değiştirildi
 }
 
+enum HACCPPestActionStatus {
+  SUREC_DEVAM    // Süreç Devam Ediyor
+  TAMAMLANDI     // Tamamlandı
+  AKSIYON_ALINDI // Aksiyon Alındı
+}
+
 enum HACCPPestControlFrequency {
   HAFTALIK   // Haftalık
   AYLIK      // Aylık
@@ -6441,6 +6447,7 @@ model HACCPPestLog {
 
   actionRequired  Boolean @default(false)
   actionTaken     String?
+  actionStatus    HACCPPestActionStatus?
 
   inspectedById   String
   inspectedBy     User    @relation("HACCPPestInspector", fields: [inspectedById], references: [id])

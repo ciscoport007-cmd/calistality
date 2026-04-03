@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
@@ -38,6 +38,7 @@ interface PestLog {
   externalCompany: string | null;
   actionRequired: boolean;
   actionTaken: string | null;
+  actionStatus: string | null;
   inspectedBy: { name: string; surname: string };
 }
 
@@ -61,6 +62,18 @@ const frequencyLabels: Record<string, string> = {
   HAFTALIK: 'Haftalık', AYLIK: 'Aylık', IKI_AYLIK: '2 Aylık', UC_AYLIK: '3 Aylık',
 };
 
+const actionStatusLabels: Record<string, string> = {
+  SUREC_DEVAM: 'Süreç Devam Ediyor',
+  TAMAMLANDI: 'Tamamlandı',
+  AKSIYON_ALINDI: 'Aksiyon Alındı',
+};
+
+const actionStatusColors: Record<string, string> = {
+  SUREC_DEVAM: 'bg-yellow-100 text-yellow-700',
+  TAMAMLANDI: 'bg-green-100 text-green-700',
+  AKSIYON_ALINDI: 'bg-blue-100 text-blue-700',
+};
+
 export default function PestPage() {
   const [stations, setStations] = useState<Station[]>([]);
   const [logs, setLogs] = useState<PestLog[]>([]);
@@ -74,6 +87,11 @@ export default function PestPage() {
   const [logDialogOpen, setLogDialogOpen] = useState(false);
   const [logForm, setLogForm] = useState({ stationId: '', controlDate: '', status: '', findings: '', externalCompany: '', actionRequired: false, actionTaken: '' });
   const [savingLog, setSavingLog] = useState(false);
+
+  const [editLogDialogOpen, setEditLogDialogOpen] = useState(false);
+  const [editingLog, setEditingLog] = useState<PestLog | null>(null);
+  const [editLogForm, setEditLogForm] = useState({ actionStatus: '', actionTaken: '' });
+  const [savingEditLog, setSavingEditLog] = useState(false);
 
   const fetchStations = useCallback(async () => {
     const res = await fetch('/api/haccp/pest/stations');
@@ -135,9 +153,38 @@ export default function PestPage() {
     finally { setSavingLog(false); }
   };
 
+  const openEditLogDialog = (log: PestLog) => {
+    setEditingLog(log);
+    setEditLogForm({
+      actionStatus: log.actionStatus ?? '',
+      actionTaken: log.actionTaken ?? '',
+    });
+    setEditLogDialogOpen(true);
+  };
+
+  const saveEditLog = async () => {
+    if (!editingLog) return;
+    setSavingEditLog(true);
+    try {
+      const res = await fetch(`/api/haccp/pest/logs/${editingLog.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionStatus: editLogForm.actionStatus || null,
+          actionTaken: editLogForm.actionTaken,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Kayıt güncellendi');
+      setEditLogDialogOpen(false);
+      fetchLogs();
+    } catch { toast.error('Güncelleme başarısız'); }
+    finally { setSavingEditLog(false); }
+  };
+
   if (loading) return <div className="p-6"><div className="h-8 w-64 bg-gray-200 rounded animate-pulse" /></div>;
 
-  const activeIssues = logs.filter((l) => l.status === 'AKTIVITE_VAR' && l.actionRequired && !l.actionTaken);
+  const activeIssues = logs.filter((l) => l.status === 'AKTIVITE_VAR' && l.actionRequired && (!l.actionStatus || l.actionStatus === 'SUREC_DEVAM'));
 
   return (
     <div className="p-6 space-y-6">
@@ -198,7 +245,7 @@ export default function PestPage() {
                   <TableHead>Bulgular</TableHead>
                   <TableHead>Dış Firma</TableHead>
                   <TableHead>Yapan</TableHead>
-                  <TableHead>Aksiyon</TableHead>
+                  <TableHead>Aksiyon Durumu</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -206,7 +253,11 @@ export default function PestPage() {
                   <TableRow><TableCell colSpan={8} className="text-center text-gray-400 py-8">Henüz kayıt yok</TableCell></TableRow>
                 ) : (
                   logs.map((log) => (
-                    <TableRow key={log.id} className={log.status === 'AKTIVITE_VAR' ? 'bg-red-50' : undefined}>
+                    <TableRow
+                      key={log.id}
+                      className={`${log.status === 'AKTIVITE_VAR' ? 'bg-red-50' : ''} ${log.actionRequired ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                      onClick={() => log.actionRequired && openEditLogDialog(log)}
+                    >
                       <TableCell className="font-medium">
                         <div>{log.station.name}</div>
                         <div className="text-xs text-gray-400">{log.station.code}</div>
@@ -222,11 +273,16 @@ export default function PestPage() {
                       <TableCell className="text-sm">{log.externalCompany ?? '—'}</TableCell>
                       <TableCell className="text-sm">{log.inspectedBy.name} {log.inspectedBy.surname}</TableCell>
                       <TableCell>
-                        {log.actionRequired && !log.actionTaken ? (
-                          <Badge variant="destructive" className="text-xs">Aksiyon Gerekli</Badge>
-                        ) : log.actionTaken ? (
-                          <Badge className="bg-green-100 text-green-700 text-xs">Alındı</Badge>
+                        {log.actionRequired && !log.actionStatus ? (
+                          <Badge variant="destructive" className="text-xs">Bekliyor</Badge>
+                        ) : log.actionStatus ? (
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${actionStatusColors[log.actionStatus]}`}>
+                            {actionStatusLabels[log.actionStatus]}
+                          </span>
                         ) : null}
+                        {log.actionRequired && (
+                          <span className="text-xs text-gray-400 ml-1">✏️</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
@@ -278,7 +334,10 @@ export default function PestPage() {
       {/* İstasyon Dialog */}
       <Dialog open={stationDialogOpen} onOpenChange={setStationDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editStation ? 'İstasyon Düzenle' : 'Yeni İstasyon Ekle'}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editStation ? 'İstasyon Düzenle' : 'Yeni İstasyon Ekle'}</DialogTitle>
+            <DialogDescription>İstasyon bilgilerini doldurun</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>İstasyon Adı *</Label>
@@ -323,7 +382,10 @@ export default function PestPage() {
       {/* Kontrol Kayıt Dialog */}
       <Dialog open={logDialogOpen} onOpenChange={setLogDialogOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Haşere Kontrol Kaydı</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Haşere Kontrol Kaydı</DialogTitle>
+            <DialogDescription>Kontrol bilgilerini doldurun</DialogDescription>
+          </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label>İstasyon *</Label>
@@ -359,14 +421,62 @@ export default function PestPage() {
             </div>
             {logForm.actionRequired && (
               <div className="space-y-1.5">
-                <Label>Alınan Aksiyon</Label>
-                <Textarea value={logForm.actionTaken} onChange={(e) => setLogForm((f) => ({ ...f, actionTaken: e.target.value }))} rows={2} placeholder="Alınan önlemi açıklayın..." />
+                <Label>Alınması Gereken Aksiyon</Label>
+                <Textarea value={logForm.actionTaken} onChange={(e) => setLogForm((f) => ({ ...f, actionTaken: e.target.value }))} rows={2} placeholder="Alınması gereken önlemi açıklayın..." />
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setLogDialogOpen(false)}>İptal</Button>
             <Button onClick={saveLog} disabled={savingLog}>{savingLog ? 'Kaydediliyor...' : 'Kaydet'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Aksiyon Güncelleme Dialog */}
+      <Dialog open={editLogDialogOpen} onOpenChange={setEditLogDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Aksiyon Güncelle</DialogTitle>
+            <DialogDescription>
+              {editingLog && (
+                <span>
+                  {editingLog.station.name} — {new Date(editingLog.controlDate).toLocaleDateString('tr-TR')}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {editingLog && (
+            <div className="space-y-4">
+              {editingLog.actionTaken && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                  <p className="text-xs font-medium text-orange-700 mb-1">Alınması Gereken Aksiyon</p>
+                  <p className="text-sm text-orange-800">{editingLog.actionTaken}</p>
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label>Süreç Durumu</Label>
+                <Select value={editLogForm.actionStatus} onValueChange={(v) => setEditLogForm((f) => ({ ...f, actionStatus: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Durum seçin" /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(actionStatusLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Aksiyon Notu</Label>
+                <Textarea
+                  value={editLogForm.actionTaken}
+                  onChange={(e) => setEditLogForm((f) => ({ ...f, actionTaken: e.target.value }))}
+                  rows={3}
+                  placeholder="Alınan önlemleri veya süreç notlarını yazın..."
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditLogDialogOpen(false)}>İptal</Button>
+            <Button onClick={saveEditLog} disabled={savingEditLog}>{savingEditLog ? 'Kaydediliyor...' : 'Güncelle'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
