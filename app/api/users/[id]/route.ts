@@ -128,8 +128,10 @@ export async function DELETE(
       );
     }
 
-    await prisma.user.delete({
+    // Soft delete — kullanıcının ilişkili kayıtlarını bozmamak için
+    await prisma.user.update({
       where: { id: params?.id },
+      data: { isActive: false },
     });
 
     return NextResponse.json({ message: 'Kullanıcı başarıyla silindi' });

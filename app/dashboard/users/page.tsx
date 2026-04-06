@@ -215,8 +215,11 @@ export default function UsersPage() {
     try {
       const response = await fetch(`/api/users/${id}`, { method: 'DELETE' });
       if (response?.ok) {
-        toast({ title: 'Başarılı', description: 'Kullanıcı başarıyla silindi' });
+        toast({ title: 'Başarılı', description: 'Kullanıcı pasife alındı' });
         fetchData();
+      } else {
+        const data = await response.json().catch(() => ({}));
+        toast({ title: 'Hata', description: data?.error ?? 'Kullanıcı silinemedi', variant: 'destructive' });
       }
     } catch {
       toast({ title: 'Hata', description: 'Kullanıcı silinirken hata oluştu', variant: 'destructive' });
