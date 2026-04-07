@@ -200,7 +200,7 @@ export async function DELETE(
           auditId,
           userId: session.user.id as string,
           action: 'EKIP_CIKARILDI',
-          newValue: `${member.user.name} ${member.user.surname || ''} ekipten çıkarıldı`,
+          newValue: `${member.user?.name ?? ''} ${member.user?.surname || ''} ekipten çıkarıldı`,
         },
       });
     }
