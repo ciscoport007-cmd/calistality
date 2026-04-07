@@ -31,7 +31,7 @@ export async function GET(
 
     // URL'leri oluştur
     const attachmentsWithUrls = await Promise.all(
-      attachments.map(async (attachment: { cloudStoragePath: string; isPublic: boolean; id: string; fileName: string; fileSize: number; fileType: string; auditId: string; description: string | null; category: string | null; uploadedById: string; createdAt: Date; uploadedBy: { id: string; name: string; surname: string | null } }) => {
+      attachments.map(async (attachment: { cloudStoragePath: string; isPublic: boolean; id: string; fileName: string; fileSize: number; fileType: string; auditId: string; description: string | null; category: string | null; uploadedById: string | null; createdAt: Date; uploadedBy: { id: string; name: string; surname: string | null } | null }) => {
         const url = await getFileUrl(attachment.cloudStoragePath, attachment.isPublic);
         return { ...attachment, url };
       })
