@@ -188,7 +188,7 @@ export async function POST(
           ...(allMemberIds.length > 0
             ? {
                 participants: {
-                  create: allMemberIds.map((userId: string) => ({
+                  create: allMemberIds.filter((id: string | null): id is string => id !== null).map((userId: string) => ({
                     userId,
                     status: ParticipantStatus.DAVET_EDILDI,
                   })),

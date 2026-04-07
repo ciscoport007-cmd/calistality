@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
         description,
         createdById: session.user.id,
         participants: participants?.length > 0 ? {
-          create: participants.map((userId: string) => ({ userId })),
+          create: participants.filter((id: string | null): id is string => id !== null).map((userId: string) => ({ userId })),
         } : undefined,
       },
       include: {

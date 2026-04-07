@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
         recurrenceCount: isRecurring ? recurrenceCount : null,
         createdById: session.user.id,
         participants: participants?.length > 0 ? {
-          create: participants.map((userId: string) => ({
+          create: participants.filter((id: string | null): id is string => id !== null).map((userId: string) => ({
             userId,
             status: ParticipantStatus.DAVET_EDILDI
           }))
@@ -302,7 +302,7 @@ export async function POST(request: NextRequest) {
         for (const child of createdChildren) {
           if (participants?.length > 0) {
             await prisma.meetingParticipant.createMany({
-              data: participants.map((userId: string) => ({
+              data: participants.filter((id: string | null): id is string => id !== null).map((userId: string) => ({
                 meetingId: child.id,
                 userId,
                 status: ParticipantStatus.DAVET_EDILDI

@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
 
     // Üyeleri ekle
     if (memberIds && Array.isArray(memberIds) && memberIds.length > 0) {
-      const memberData = memberIds.map((userId: string) => ({
+      const memberData = memberIds.filter((id: string | null): id is string => id !== null).map((userId: string) => ({
         committeeId: committee.id,
         userId,
         role: 'UYE' as const,
@@ -277,7 +277,7 @@ export async function POST(request: NextRequest) {
                   // Komite üyelerini katılımcı olarak ekle
                   ...(allMemberIds.length > 0 ? {
                     participants: {
-                      create: allMemberIds.map((userId: string) => ({
+                      create: allMemberIds.filter((id: string | null): id is string => id !== null).map((userId: string) => ({
                         userId,
                         status: ParticipantStatus.DAVET_EDILDI,
                       })),

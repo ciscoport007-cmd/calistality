@@ -100,7 +100,7 @@ export async function POST(
         status: 'BEKLEMEDE',
         createdById: session.user.id,
         followers: followers?.length > 0 ? {
-          create: followers.map((userId: string) => ({
+          create: followers.filter((id: string | null): id is string => id !== null).map((userId: string) => ({
             userId
           }))
         } : undefined
