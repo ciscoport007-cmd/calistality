@@ -253,7 +253,7 @@ async function calculateScorecard(scorecardId: string, userId: string) {
 
   // 6. Departman Karne Puanı
   let departmentScore = 70; // Placeholder
-  if (scorecard.user.departmentId) {
+  if (scorecard.user?.departmentId) {
     // Departmanın ortalama performansını hesapla
     const deptScorecards = await prisma.individualScorecard.findMany({
       where: {
