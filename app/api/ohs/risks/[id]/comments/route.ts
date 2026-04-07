@@ -117,12 +117,12 @@ export async function POST(
     const notifyUserIds = new Set<string>();
     
     // Risk sahibi
-    if (risk.ownerId !== session.user.id) {
+    if (risk.ownerId && risk.ownerId !== session.user.id) {
       notifyUserIds.add(risk.ownerId);
     }
-    
+
     // Risk oluşturan
-    if (risk.createdById !== session.user.id) {
+    if (risk.createdById && risk.createdById !== session.user.id) {
       notifyUserIds.add(risk.createdById);
     }
 
