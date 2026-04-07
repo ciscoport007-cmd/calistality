@@ -482,7 +482,7 @@ model Group {
 
 model UserGroup {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String?
   groupId   String
   createdAt DateTime @default(now())
   
@@ -514,7 +514,7 @@ model Permission {
 // NextAuth models
 model Account {
   id                String  @id @default(cuid())
-  userId            String
+  userId            String?
   type              String
   provider          String
   providerAccountId String
@@ -535,7 +535,7 @@ model Account {
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
-  userId       String
+  userId       String?
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -676,8 +676,8 @@ model Document {
   departmentId      String?
   department        Department?    @relation(fields: [departmentId], references: [id])
   
-  createdById       String
-  createdBy         User           @relation("DocumentCreator", fields: [createdById], references: [id])
+  createdById       String?
+  createdBy         User? @relation("DocumentCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   preparedById      String?
   preparedBy        User?          @relation("DocumentPreparer", fields: [preparedById], references: [id])
@@ -771,8 +771,8 @@ model DocumentPermission {
   // Geçerlilik
   expiresAt     DateTime? // İzin bitiş tarihi (opsiyonel)
   
-  createdById   String
-  createdBy     User     @relation("DocumentPermissionCreator", fields: [createdById], references: [id])
+  createdById   String?
+  createdBy     User? @relation("DocumentPermissionCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -789,8 +789,8 @@ model DocumentAcknowledgment {
   documentId    String
   document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   
-  userId        String
-  user          User     @relation("DocumentAcknowledger", fields: [userId], references: [id])
+  userId        String?
+  user          User? @relation("DocumentAcknowledger", fields: [userId], references: [id], onDelete: SetNull)
   
   versionNumber Int      // Hangi versiyonu okudu
   status        String   @default("BEKLIYOR") // BEKLIYOR, ONAYLANDI, REDDEDILDI
@@ -810,8 +810,8 @@ model DocumentReview {
   documentId    String
   document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   
-  reviewerId    String
-  reviewer      User     @relation("DocumentReviewerMulti", fields: [reviewerId], references: [id])
+  reviewerId    String?
+  reviewer      User? @relation("DocumentReviewerMulti", fields: [reviewerId], references: [id], onDelete: SetNull)
   
   versionNumber Int      // Hangi versiyonu inceledi
   status        String   @default("BEKLIYOR") // BEKLIYOR, ONAYLANDI, REDDEDILDI
@@ -883,8 +883,8 @@ model Approval {
   documentId    String
   document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   
-  approverId    String
-  approver      User     @relation("ApprovalApprover", fields: [approverId], references: [id])
+  approverId    String?
+  approver      User? @relation("ApprovalApprover", fields: [approverId], references: [id], onDelete: SetNull)
   
   status        String   @default("BEKLIYOR") // BEKLIYOR, ONAYLANDI, REDDEDILDI
   order         Int      @default(1)
@@ -904,8 +904,8 @@ model ApprovalHistory {
   approvalId  String
   approval    Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
   
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  userId      String?
+  user        User? @relation(fields: [userId], references: [id], onDelete: SetNull)
   
   action      String   // ONAYLANDI, REDDEDİLDİ, YORUM_EKLENDI
   comments    String?
@@ -919,8 +919,8 @@ model ReadLog {
   documentId  String
   document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  userId      String?
+  user        User? @relation(fields: [userId], references: [id], onDelete: SetNull)
   
   readAt      DateTime @default(now())
   duration    Int?     // Saniye cinsinden
@@ -936,11 +936,11 @@ model Task {
   priority    String   @default("ORTA") // DÜŞÜK, ORTA, YÜKSEK, ACİL
   dueDate     DateTime?
   
-  assigneeId  String
-  assignee    User     @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assigneeId  String?
+  assignee    User? @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   
-  createdById String
-  createdBy   User     @relation("TaskCreator", fields: [createdById], references: [id])
+  createdById String?
+  createdBy   User? @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   documentId  String?
   document    Document? @relation(fields: [documentId], references: [id])
@@ -954,7 +954,7 @@ model Task {
 
 model Notification {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String?
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   title     String
@@ -1080,8 +1080,8 @@ model Complaint {
   resolvedAt          DateTime?
   
   // Kayıt Bilgileri
-  createdById         String
-  createdBy           User              @relation("ComplaintCreator", fields: [createdById], references: [id])
+  createdById         String?
+  createdBy           User? @relation("ComplaintCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   dueDate             DateTime?
   closedAt            DateTime?
@@ -1118,8 +1118,8 @@ model ComplaintHistory {
   complaintId  String
   complaint    Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
   
-  userId       String
-  user         User     @relation("ComplaintHistoryUser", fields: [userId], references: [id])
+  userId       String?
+  user         User? @relation("ComplaintHistoryUser", fields: [userId], references: [id], onDelete: SetNull)
   
   action       String   // OLUŞTURULDU, ATANDI, DURUM_DEĞİŞTİ, RAPOR_EKLENDİ, YORUM_EKLENDI, KAPATILDI
   oldValue     String?
@@ -1142,11 +1142,11 @@ model ComplaintTask {
   priority     String   @default("ORTA") // DUSUK, ORTA, YUKSEK, ACIL
   dueDate      DateTime?
   
-  assigneeId   String
-  assignee     User     @relation("ComplaintTaskAssignee", fields: [assigneeId], references: [id])
+  assigneeId   String?
+  assignee     User? @relation("ComplaintTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   
-  createdById  String
-  createdBy    User     @relation("ComplaintTaskCreator", fields: [createdById], references: [id])
+  createdById  String?
+  createdBy    User? @relation("ComplaintTaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   completedAt  DateTime?
   createdAt    DateTime @default(now())
@@ -1167,8 +1167,8 @@ model ComplaintAttachment {
   isPublic         Boolean  @default(false)
   description      String?
   
-  uploadedById     String
-  uploadedBy       User     @relation("ComplaintAttachmentUploader", fields: [uploadedById], references: [id])
+  uploadedById     String?
+  uploadedBy       User? @relation("ComplaintAttachmentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   
   createdAt        DateTime @default(now())
   
@@ -1265,8 +1265,8 @@ model CAPA {
   department          Department?   @relation(fields: [departmentId], references: [id])
   
   // Kayıt Bilgileri
-  createdById         String
-  createdBy           User          @relation("CAPACreator", fields: [createdById], references: [id])
+  createdById         String?
+  createdBy           User? @relation("CAPACreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   dueDate             DateTime?
   closedAt            DateTime?
@@ -1295,11 +1295,11 @@ model CAPAAction {
   status          String   @default("ACIK") // ACIK, DEVAM_EDIYOR, TAMAMLANDI, IPTAL
   priority        String   @default("ORTA") // DUSUK, ORTA, YUKSEK, ACIL
   
-  assigneeId      String
-  assignee        User     @relation("CAPAActionAssignee", fields: [assigneeId], references: [id])
+  assigneeId      String?
+  assignee        User? @relation("CAPAActionAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   
-  createdById     String
-  createdBy       User     @relation("CAPAActionCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("CAPAActionCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   dueDate         DateTime?
   completedAt     DateTime?
@@ -1316,8 +1316,8 @@ model CAPAHistory {
   capaId    String
   capa      CAPA     @relation(fields: [capaId], references: [id], onDelete: Cascade)
   
-  userId    String
-  user      User     @relation("CAPAHistoryUser", fields: [userId], references: [id])
+  userId    String?
+  user      User? @relation("CAPAHistoryUser", fields: [userId], references: [id], onDelete: SetNull)
   
   action    String   // OLUSTURULDU, DURUM_DEGISTI, ATANDI, KOK_NEDEN_EKLENDI, AKSIYON_EKLENDI, ETKINLIK_DEGERLENDI, KAPATILDI
   oldValue  String?
@@ -1342,8 +1342,8 @@ model CAPAAttachment {
   description      String?
   attachmentType   String   @default("GENEL") // GENEL, KANIT, RAPOR, KOK_NEDEN, AKSIYON
   
-  uploadedById     String
-  uploadedBy       User     @relation("CAPAAttachmentUploader", fields: [uploadedById], references: [id])
+  uploadedById     String?
+  uploadedBy       User? @relation("CAPAAttachmentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   
   createdAt        DateTime @default(now())
   
@@ -1442,8 +1442,8 @@ model Audit {
   recommendations     String?       // Tavsiyeler
   
   // Kayıt Bilgileri
-  createdById         String
-  createdBy           User          @relation("AuditCreator", fields: [createdById], references: [id])
+  createdById         String?
+  createdBy           User? @relation("AuditCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   isActive            Boolean       @default(true)
   createdAt           DateTime      @default(now())
@@ -1464,8 +1464,8 @@ model AuditTeamMember {
   auditId   String
   audit     Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
   
-  userId    String
-  user      User     @relation("AuditTeamMember", fields: [userId], references: [id])
+  userId    String?
+  user      User? @relation("AuditTeamMember", fields: [userId], references: [id], onDelete: SetNull)
   
   role      String   @default("DENETCI") // BAS_DENETCI, DENETCI, GOZLEMCI, UZMAN
   
@@ -1531,8 +1531,8 @@ model AuditFinding {
   assigneeId      String?
   assignee        User?           @relation("AuditFindingAssignee", fields: [assigneeId], references: [id])
   
-  createdById     String
-  createdBy       User            @relation("AuditFindingCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("AuditFindingCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   closedAt        DateTime?
   createdAt       DateTime        @default(now())
@@ -1556,8 +1556,8 @@ model FindingAttachment {
   description      String?
   category         String?  // KANIT, FOTOGRAF, RAPOR, DIGER
   
-  uploadedById     String
-  uploadedBy       User     @relation("FindingAttachmentUploader", fields: [uploadedById], references: [id])
+  uploadedById     String?
+  uploadedBy       User? @relation("FindingAttachmentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   
   createdAt        DateTime @default(now())
   
@@ -1569,8 +1569,8 @@ model AuditHistory {
   auditId   String
   audit     Audit    @relation(fields: [auditId], references: [id], onDelete: Cascade)
   
-  userId    String
-  user      User     @relation("AuditHistoryUser", fields: [userId], references: [id])
+  userId    String?
+  user      User? @relation("AuditHistoryUser", fields: [userId], references: [id], onDelete: SetNull)
   
   action    String   // OLUSTURULDU, PLANLANDI, BASLADI, BULGU_EKLENDI, RAPORLANDI, KAPATILDI
   oldValue  String?
@@ -1595,8 +1595,8 @@ model AuditAttachment {
   description      String?
   category         String?  // PLAN, CHECKLIST, RAPOR, KANIT, DIGER
   
-  uploadedById     String
-  uploadedBy       User     @relation("AuditAttachmentUploader", fields: [uploadedById], references: [id])
+  uploadedById     String?
+  uploadedBy       User? @relation("AuditAttachmentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   
   createdAt        DateTime @default(now())
   
@@ -1669,8 +1669,8 @@ model Risk {
   ownerId       String?
   owner         User?          @relation("RiskOwner", fields: [ownerId], references: [id])
   
-  createdById   String
-  createdBy     User           @relation("RiskCreator", fields: [createdById], references: [id])
+  createdById   String?
+  createdBy     User? @relation("RiskCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   // İlişkili kayıtlar
   relatedComplaintId String?
@@ -1720,8 +1720,8 @@ model RiskAttachment {
   cloud_storage_path String
   isPublic        Boolean  @default(false)
   
-  uploadedById    String
-  uploadedBy      User     @relation("RiskAttachmentUploader", fields: [uploadedById], references: [id])
+  uploadedById    String?
+  uploadedBy      User? @relation("RiskAttachmentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime @default(now())
   
@@ -1765,8 +1765,8 @@ model RiskAssessment {
   recommendations String?
   
   // Değerlendiren
-  assessedById  String
-  assessedBy    User     @relation("RiskAssessmentCreator", fields: [assessedById], references: [id])
+  assessedById  String?
+  assessedBy    User? @relation("RiskAssessmentCreator", fields: [assessedById], references: [id], onDelete: SetNull)
   
   // Onay
   isApproved    Boolean  @default(false)
@@ -1829,8 +1829,8 @@ model RiskAction {
   assigneeId    String?
   assignee      User?    @relation("RiskActionAssignee", fields: [assigneeId], references: [id])
   
-  createdById   String
-  createdBy     User     @relation("RiskActionCreator", fields: [createdById], references: [id])
+  createdById   String?
+  createdBy     User? @relation("RiskActionCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   // Sonuç
   completionNotes String?
@@ -1848,8 +1848,8 @@ model RiskHistory {
   riskId    String
   risk      Risk     @relation(fields: [riskId], references: [id], onDelete: Cascade)
   
-  userId    String
-  user      User     @relation("RiskHistoryUser", fields: [userId], references: [id])
+  userId    String?
+  user      User? @relation("RiskHistoryUser", fields: [userId], references: [id], onDelete: SetNull)
   
   action    String   // OLUSTURULDU, GUNCELLENDI, DEGERLENDIRME_YAPILDI, AKSIYON_EKLENDI, AKSIYON_TAMAMLANDI, SEVIYE_DEGISTI, KAPATILDI
   oldValue  String?
@@ -1943,8 +1943,8 @@ model Equipment {
   owner           User?    @relation("EquipmentOwner", fields: [ownerId], references: [id])
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("EquipmentCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("EquipmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   // Aktiflik
   isActive        Boolean  @default(true)
@@ -2011,8 +2011,8 @@ model EquipmentMaintenance {
   externalCompany String?
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("MaintenanceCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("MaintenanceCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -2077,8 +2077,8 @@ model EquipmentCalibration {
   calibrator      User?    @relation("CalibrationCalibrator", fields: [calibratorId], references: [id])
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("CalibrationCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("CalibrationCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -2091,8 +2091,8 @@ model EquipmentHistory {
   equipmentId String
   equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
   
-  userId      String
-  user        User     @relation("EquipmentHistoryUser", fields: [userId], references: [id])
+  userId      String?
+  user        User? @relation("EquipmentHistoryUser", fields: [userId], references: [id], onDelete: SetNull)
   
   action      String   // OLUSTURULDU, GUNCELLENDI, BAKIM_PLANLANDI, BAKIM_TAMAMLANDI, KALIBRASYON_YAPILDI, DURUM_DEGISTI, DEVRE_DISI_BIRAKILDI, AKTIF_EDILDI
   oldValue    String?
@@ -2281,8 +2281,8 @@ model Supplier {
   supplierAudits  SupplierAudit[]
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("SupplierCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("SupplierCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   // Meta
   isActive        Boolean  @default(true)
@@ -2326,8 +2326,8 @@ model SupplierAudit {
   auditDate       DateTime
   auditType       SupplierAuditType
   
-  auditorId       String
-  auditor         User                @relation("SupplierAuditAuditor", fields: [auditorId], references: [id])
+  auditorId       String?
+  auditor         User? @relation("SupplierAuditAuditor", fields: [auditorId], references: [id], onDelete: SetNull)
   
   notes           String?             // Genel notlar
   findings        String?             // Genel bulgular
@@ -2346,8 +2346,8 @@ model SupplierAudit {
   
   answers         SupplierAuditAnswer[]
   
-  createdById     String
-  createdBy       User                @relation("SupplierAuditCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("SupplierAuditCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
@@ -2456,8 +2456,8 @@ model SupplierEvaluation {
   actionDescription String?
   
   // Değerlendiren
-  evaluatedById   String
-  evaluatedBy     User     @relation("SupplierEvaluator", fields: [evaluatedById], references: [id])
+  evaluatedById   String?
+  evaluatedBy     User? @relation("SupplierEvaluator", fields: [evaluatedById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -2488,8 +2488,8 @@ model SupplierDocument {
   isExpired   Boolean  @default(false)
   
   // Yükleyen
-  uploadedById String
-  uploadedBy   User    @relation("SupplierDocumentUploader", fields: [uploadedById], references: [id])
+  uploadedById String?
+  uploadedBy   User? @relation("SupplierDocumentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -2502,8 +2502,8 @@ model SupplierHistory {
   supplierId  String
   supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   
-  userId      String
-  user        User     @relation("SupplierHistoryUser", fields: [userId], references: [id])
+  userId      String?
+  user        User? @relation("SupplierHistoryUser", fields: [userId], references: [id], onDelete: SetNull)
   
   action      String   // OLUSTURULDU, GUNCELLENDI, ONAYLANDI, ASKIYA_ALINDI, KARA_LISTEYE_ALINDI, DEGERLENDIRME_YAPILDI, BELGE_YUKLENDI
   oldValue    String?
@@ -2526,8 +2526,8 @@ model SupplierExpense {
   description String?
   invoiceNo   String?
   
-  createdById String
-  createdBy   User     @relation("SupplierExpenseCreator", fields: [createdById], references: [id])
+  createdById String?
+  createdBy   User? @relation("SupplierExpenseCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -2640,8 +2640,8 @@ model KPI {
   owner           User?    @relation("KPIOwner", fields: [ownerId], references: [id])
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("KPICreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("KPICreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   // İlişkiler
   measurements    KPIMeasurement[]
@@ -2700,8 +2700,8 @@ model KPIMeasurement {
   verifiedAt      DateTime?
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("KPIMeasurementCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("KPIMeasurementCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -2837,8 +2837,8 @@ model StrategyPeriod {
   pestelStudies   PESTELStudy[]
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("StrategyPeriodCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("StrategyPeriodCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
@@ -2857,8 +2857,8 @@ model Mission {
   strategyPeriod  StrategyPeriod?
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("MissionCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("MissionCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -2877,8 +2877,8 @@ model Vision {
   strategyPeriod  StrategyPeriod?
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("VisionCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("VisionCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -2947,8 +2947,8 @@ model StrategicObjective {
   goals           StrategicGoal[]
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("ObjectiveCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("ObjectiveCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   sortOrder       Int      @default(0)
   isActive        Boolean  @default(true)
@@ -3014,8 +3014,8 @@ model StrategicGoal {
   progressEntries GoalProgressEntry[] @relation("GoalProgressEntries")
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("GoalCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("GoalCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   sortOrder       Int      @default(0)
   isActive        Boolean  @default(true)
@@ -3078,8 +3078,8 @@ model StrategicSubGoal {
   progressEntries GoalProgressEntry[] @relation("SubGoalProgressEntries")
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("SubGoalCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("SubGoalCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   sortOrder       Int      @default(0)
   isActive        Boolean  @default(true)
@@ -3187,8 +3187,8 @@ model StrategicAction {
   notifications   ActionNotification[]
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("ActionCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("ActionCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
@@ -3203,8 +3203,8 @@ model StrategicActionHistory {
   actionId    String
   action      StrategicAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
   
-  userId      String
-  user        User     @relation("ActionHistoryUser", fields: [userId], references: [id])
+  userId      String?
+  user        User? @relation("ActionHistoryUser", fields: [userId], references: [id], onDelete: SetNull)
   
   actionType  String   // OLUSTURULDU, DURUM_DEGISTI, ILERLEME_GUNCELLENDI, ATANDI, TAMAMLANDI
   oldValue    String?
@@ -3222,8 +3222,8 @@ model ActionConsulted {
   actionId    String
   action      StrategicAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
   
-  userId      String
-  user        User     @relation("UserConsultedActions", fields: [userId], references: [id])
+  userId      String?
+  user        User? @relation("UserConsultedActions", fields: [userId], references: [id], onDelete: SetNull)
   
   notes       String?  // Danışma notu/gerekçesi
   addedAt     DateTime @default(now())
@@ -3238,8 +3238,8 @@ model ActionInformed {
   actionId    String
   action      StrategicAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
   
-  userId      String
-  user        User     @relation("UserInformedActions", fields: [userId], references: [id])
+  userId      String?
+  user        User? @relation("UserInformedActions", fields: [userId], references: [id], onDelete: SetNull)
   
   notifyOnProgress  Boolean @default(true)   // İlerleme güncellemelerinde bilgilendir
   notifyOnComplete  Boolean @default(true)   // Tamamlandığında bilgilendir
@@ -3304,8 +3304,8 @@ model MilestoneProgress {
   measurementDate DateTime
   notes           String?
 
-  createdById     String
-  createdBy       User     @relation("MilestoneProgressCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("MilestoneProgressCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   createdAt       DateTime @default(now())
 
@@ -3424,8 +3424,8 @@ model SWOTStudy {
   analysisDate    DateTime @default(now())
   status          String   @default("TASLAK") // TASLAK, AKTIF, TAMAMLANDI, ARSIV
   
-  createdById     String
-  createdBy       User     @relation("SWOTStudyCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("SWOTStudyCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -3575,8 +3575,8 @@ model PESTELStudy {
   analysisDate    DateTime @default(now())
   status          String   @default("TASLAK") // TASLAK, AKTIF, TAMAMLANDI, ARSIV
   
-  createdById     String
-  createdBy       User     @relation("PESTELStudyCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("PESTELStudyCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -3751,8 +3751,8 @@ model Training {
   
   isActive        Boolean         @default(true)
   
-  createdById     String
-  createdBy       User            @relation("TrainingCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("TrainingCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -3810,8 +3810,8 @@ model TrainingPlan {
   
   notes           String?
   
-  createdById     String
-  createdBy       User            @relation("TrainingPlanCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("TrainingPlanCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -3829,8 +3829,8 @@ model TrainingRecord {
   planId          String
   plan            TrainingPlan          @relation(fields: [planId], references: [id], onDelete: Cascade)
   
-  participantId   String
-  participant     User                  @relation("TrainingParticipant", fields: [participantId], references: [id])
+  participantId   String?
+  participant     User? @relation("TrainingParticipant", fields: [participantId], references: [id], onDelete: SetNull)
   
   status          TrainingRecordStatus  @default(KAYITLI)
   
@@ -3920,8 +3920,8 @@ model ActionAttachment {
   // Kapanış kanıtı mı?
   isClosingEvidence Boolean      @default(false)
   
-  uploadedById    String
-  uploadedBy      User           @relation("ActionAttachmentUploader", fields: [uploadedById], references: [id])
+  uploadedById    String?
+  uploadedBy      User? @relation("ActionAttachmentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -3940,8 +3940,8 @@ model ActionComment {
   // Mention (etiketlenen kullanıcılar)
   mentionedUsers  ActionCommentMention[]
   
-  authorId        String
-  author          User           @relation("ActionCommentAuthor", fields: [authorId], references: [id])
+  authorId        String?
+  author          User? @relation("ActionCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
   
   // Yanıt olarak
   parentId        String?
@@ -3962,8 +3962,8 @@ model ActionCommentMention {
   commentId       String
   comment         ActionComment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
   
-  userId          String
-  user            User           @relation("MentionedInComment", fields: [userId], references: [id])
+  userId          String?
+  user            User? @relation("MentionedInComment", fields: [userId], references: [id], onDelete: SetNull)
   
   createdAt       DateTime       @default(now())
   
@@ -3991,8 +3991,8 @@ model ActionApproval {
   fromStatus      WorkflowStatus
   toStatus        WorkflowStatus
   
-  requestedById   String
-  requestedBy     User           @relation("ApprovalRequester", fields: [requestedById], references: [id])
+  requestedById   String?
+  requestedBy     User? @relation("ApprovalRequester", fields: [requestedById], references: [id], onDelete: SetNull)
   
   approverId      String?
   approver        User?          @relation("ApprovalApproverAction", fields: [approverId], references: [id])
@@ -4023,8 +4023,8 @@ enum NotificationType {
 model ActionNotification {
   id              String           @id @default(cuid())
   
-  userId          String
-  user            User             @relation("ActionNotificationRecipient", fields: [userId], references: [id])
+  userId          String?
+  user            User? @relation("ActionNotificationRecipient", fields: [userId], references: [id], onDelete: SetNull)
   
   type            NotificationType
   title           String
@@ -4072,8 +4072,8 @@ model ScoreScale {
   scorecardFormulas ScorecardFormula[]
   competencyEvaluations PersonnelCompetencyEvaluation[]
   
-  createdById     String
-  createdBy       User             @relation("ScoreScaleCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("ScoreScaleCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -4116,8 +4116,8 @@ model PersonnelKPI {
   kpi             KPI              @relation(fields: [kpiId], references: [id], onDelete: Cascade)
   
   // Personel bilgisi
-  userId          String
-  user            User             @relation("PersonnelKPIs", fields: [userId], references: [id])
+  userId          String?
+  user            User? @relation("PersonnelKPIs", fields: [userId], references: [id], onDelete: SetNull)
   
   // Dönem
   year            Int
@@ -4141,8 +4141,8 @@ model PersonnelKPI {
   
   notes           String?
   
-  createdById     String
-  createdBy       User             @relation("PersonnelKPICreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("PersonnelKPICreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -4181,8 +4181,8 @@ model PersonnelKPIMeasurement {
   verifiedBy        User?            @relation("PersonnelKPIMeasurementVerifier", fields: [verifiedById], references: [id])
   verifiedAt        DateTime?
   
-  createdById       String
-  createdBy         User             @relation("PersonnelKPIMeasurementCreator", fields: [createdById], references: [id])
+  createdById       String?
+  createdBy         User? @relation("PersonnelKPIMeasurementCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
@@ -4236,8 +4236,8 @@ model Competency {
   sortOrder       Int              @default(0)
   isActive        Boolean          @default(true)
   
-  createdById     String
-  createdBy       User             @relation("CompetencyCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("CompetencyCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -4272,8 +4272,8 @@ model CompetencyPositionRequirement {
 model PersonnelCompetencyEvaluation {
   id              String           @id @default(cuid())
   
-  userId          String
-  user            User             @relation("PersonnelCompetencyEvaluations", fields: [userId], references: [id])
+  userId          String?
+  user            User? @relation("PersonnelCompetencyEvaluations", fields: [userId], references: [id], onDelete: SetNull)
   
   competencyId    String
   competency      Competency       @relation(fields: [competencyId], references: [id])
@@ -4295,8 +4295,8 @@ model PersonnelCompetencyEvaluation {
   weight          Float            @default(1.0) // Bu yetkinliğin toplam yetkinlik puanındaki ağırlığı
   
   // Değerlendiren
-  evaluatorId     String
-  evaluator       User             @relation("CompetencyEvaluator", fields: [evaluatorId], references: [id])
+  evaluatorId     String?
+  evaluator       User? @relation("CompetencyEvaluator", fields: [evaluatorId], references: [id], onDelete: SetNull)
   
   evaluationDate  DateTime
   
@@ -4377,8 +4377,8 @@ model Initiative {
   
   status          InitiativeStatus @default(AKTIF)
   
-  createdById     String
-  createdBy       User             @relation("InitiativeCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("InitiativeCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -4400,8 +4400,8 @@ model PersonnelInitiative {
   initiativeId    String
   initiative      Initiative       @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
   
-  userId          String
-  user            User             @relation("PersonnelInitiatives", fields: [userId], references: [id])
+  userId          String?
+  user            User? @relation("PersonnelInitiatives", fields: [userId], references: [id], onDelete: SetNull)
   
   // Rol (lider, üye, destekçi)
   role            String           @default("UYE") // LIDER, UYE, DESTEKCI
@@ -4478,8 +4478,8 @@ model ScorecardFormula {
   // Bu formülü kullanan bireysel karneler
   scorecards      IndividualScorecard[]
   
-  createdById     String
-  createdBy       User             @relation("ScorecardFormulaCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("ScorecardFormulaCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -4496,8 +4496,8 @@ model IndividualScorecard {
   code            String           @unique
   
   // Personel
-  userId          String
-  user            User             @relation("IndividualScorecards", fields: [userId], references: [id])
+  userId          String?
+  user            User? @relation("IndividualScorecards", fields: [userId], references: [id], onDelete: SetNull)
   
   // Dönem
   year            Int
@@ -4559,8 +4559,8 @@ model IndividualScorecard {
   
   notes           String?
   
-  createdById     String
-  createdBy       User             @relation("IndividualScorecardCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("IndividualScorecardCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -4602,8 +4602,8 @@ model DocumentWorkflow {
   departmentId  String?
   department    Department? @relation("WorkflowDepartment", fields: [departmentId], references: [id])
   
-  createdById   String
-  createdBy     User     @relation("WorkflowCreator", fields: [createdById], references: [id])
+  createdById   String?
+  createdBy     User? @relation("WorkflowCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -4691,8 +4691,8 @@ model WorkflowInstance {
   completedAt   DateTime?
   
   // İş akışını başlatan kullanıcı
-  startedById   String
-  startedBy     User     @relation("WorkflowInstanceStarter", fields: [startedById], references: [id])
+  startedById   String?
+  startedBy     User? @relation("WorkflowInstanceStarter", fields: [startedById], references: [id], onDelete: SetNull)
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -4790,8 +4790,8 @@ model MeetingTemplate {
   name        String
   description String?
   
-  createdById String
-  createdBy   User     @relation("MeetingTemplateCreator", fields: [createdById], references: [id])
+  createdById String?
+  createdBy   User? @relation("MeetingTemplateCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -4806,7 +4806,7 @@ model MeetingTemplateParticipant {
   templateId  String
   template    MeetingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   
-  userId      String
+  userId      String?
   
   createdAt   DateTime @default(now())
   
@@ -4863,8 +4863,8 @@ model Meeting {
   committee    Committee? @relation("CommitteeMeetings", fields: [committeeId], references: [id], onDelete: SetNull)
   
   // Oluşturan
-  createdById String
-  createdBy   User     @relation("MeetingCreator", fields: [createdById], references: [id])
+  createdById String?
+  createdBy   User? @relation("MeetingCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -4909,8 +4909,8 @@ model MeetingParticipant {
   meetingId   String
   meeting     Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   
-  userId      String
-  user        User     @relation("MeetingParticipantUser", fields: [userId], references: [id])
+  userId      String?
+  user        User? @relation("MeetingParticipantUser", fields: [userId], references: [id], onDelete: SetNull)
   
   // Katılım durumu
   status      ParticipantStatus @default(DAVET_EDILDI)
@@ -4975,8 +4975,8 @@ model MeetingAction {
   description String?  // İçerik
   
   // Atama
-  assigneeId  String
-  assignee    User     @relation("MeetingActionAssignee", fields: [assigneeId], references: [id])
+  assigneeId  String?
+  assignee    User? @relation("MeetingActionAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   
   // Tarihler
   dueDate     DateTime // Hedeflenen bitiş tarihi
@@ -4994,8 +4994,8 @@ model MeetingAction {
   inPool      Boolean  @default(false)
   
   // Oluşturan
-  createdById String
-  createdBy   User     @relation("MeetingActionCreator", fields: [createdById], references: [id])
+  createdById String?
+  createdBy   User? @relation("MeetingActionCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -5023,8 +5023,8 @@ model MeetingActionFollower {
   actionId    String
   action      MeetingAction @relation(fields: [actionId], references: [id], onDelete: Cascade)
   
-  userId      String
-  user        User     @relation("MeetingActionFollowerUser", fields: [userId], references: [id])
+  userId      String?
+  user        User? @relation("MeetingActionFollowerUser", fields: [userId], references: [id], onDelete: SetNull)
   
   createdAt   DateTime @default(now())
   
@@ -5046,8 +5046,8 @@ model MeetingDecision {
   dueDate     DateTime?
   status      String   @default("BEKLEMEDE") // BEKLEMEDE, DEVAM_EDIYOR, TAMAMLANDI, IPTAL
   
-  createdById String
-  createdBy   User     @relation("MeetingDecisionCreator", fields: [createdById], references: [id])
+  createdById String?
+  createdBy   User? @relation("MeetingDecisionCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -5069,8 +5069,8 @@ model MeetingDocument {
   cloud_storage_path String
   isPublic    Boolean  @default(false)
   
-  uploadedById String
-  uploadedBy   User    @relation("MeetingDocumentUploader", fields: [uploadedById], references: [id])
+  uploadedById String?
+  uploadedBy   User? @relation("MeetingDocumentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   
   createdAt   DateTime @default(now())
   
@@ -5173,8 +5173,8 @@ model Committee {
   endDate         DateTime?
   
   // Oluşturan
-  createdById     String
-  createdBy       User        @relation("CommitteeCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("CommitteeCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -5213,8 +5213,8 @@ model CommitteeMember {
   committeeId     String
   committee       Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
   
-  userId          String
-  user            User     @relation("CommitteeMemberUser", fields: [userId], references: [id])
+  userId          String?
+  user            User? @relation("CommitteeMemberUser", fields: [userId], references: [id], onDelete: SetNull)
   
   // Rol
   role            CommitteeMemberRole @default(UYE)
@@ -5277,8 +5277,8 @@ model CommitteeMeeting {
   status          String    @default("PLANLANMIS") // PLANLANMIS, TAMAMLANDI, IPTAL
   
   // Oluşturan
-  createdById     String
-  createdBy       User      @relation("CommitteeMeetingCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("CommitteeMeetingCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -5325,8 +5325,8 @@ model CommitteeDecision {
   completionNotes String?
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("CommitteeDecisionCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("CommitteeDecisionCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -5350,8 +5350,8 @@ model CommitteeDocument {
   cloud_storage_path String
   isPublic        Boolean  @default(false)
   
-  uploadedById    String
-  uploadedBy      User     @relation("CommitteeDocUploader", fields: [uploadedById], references: [id])
+  uploadedById    String?
+  uploadedBy      User? @relation("CommitteeDocUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime @default(now())
   
@@ -5375,8 +5375,8 @@ model GoalProgressEntry {
   note            String?                     // Açıklama
   
   // Kim ekledi
-  createdById     String
-  createdBy       User     @relation("GoalProgressEntryCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("GoalProgressEntryCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime @default(now())
   
@@ -5440,8 +5440,8 @@ model SubcontractorDocument {
   reminderSent    Boolean  @default(false)
   
   // Yükleyen
-  uploadedById    String
-  uploadedBy      User     @relation("SubcontractorDocUploader", fields: [uploadedById], references: [id])
+  uploadedById    String?
+  uploadedBy      User? @relation("SubcontractorDocUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
@@ -5488,8 +5488,8 @@ model OHSRisk {
   departmentId    String
   department      Department @relation(fields: [departmentId], references: [id])
   
-  ownerId         String
-  owner           User     @relation("OHSRiskOwner", fields: [ownerId], references: [id])
+  ownerId         String?
+  owner           User? @relation("OHSRiskOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   
   // Risk Değerlendirmesi
   likelihood      Int                // Olasılık (1-5)
@@ -5508,8 +5508,8 @@ model OHSRisk {
   evidenceIsPublic     Boolean  @default(false)
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("OHSRiskCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("OHSRiskCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   // Meta
   isActive        Boolean  @default(true)
@@ -5568,8 +5568,8 @@ model OHSRiskAction {
   completedAt     DateTime?
   
   // Sorumlu
-  assigneeId      String
-  assignee        User     @relation("OHSRiskActionAssignee", fields: [assigneeId], references: [id])
+  assigneeId      String?
+  assignee        User? @relation("OHSRiskActionAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   
   // Bütçe
   plannedBudget   Float?   @default(0)
@@ -5590,8 +5590,8 @@ model OHSRiskAction {
   completedBy     User?    @relation("OHSRiskActionCompletedBy", fields: [completedById], references: [id])
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("OHSRiskActionCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("OHSRiskActionCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -5638,8 +5638,8 @@ model OHSRiskAssessment {
   previousScore   Int?
   
   // Değerlendiren
-  createdById     String
-  createdBy       User     @relation("OHSRiskAssessmentCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("OHSRiskAssessmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   createdAt       DateTime @default(now())
   
@@ -5657,8 +5657,8 @@ model OHSRiskComment {
   content         String
   
   // Yazar
-  authorId        String
-  author          User     @relation("OHSRiskCommentAuthor", fields: [authorId], references: [id])
+  authorId        String?
+  author          User? @relation("OHSRiskCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -5721,8 +5721,8 @@ model OHSAccident {
   trainingCompletedAt     DateTime?
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("OHSAccidentCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("OHSAccidentCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   // Meta
   isActive        Boolean  @default(true)
@@ -5823,8 +5823,8 @@ model OHSNearMiss {
   completedAt     DateTime?
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("OHSNearMissCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("OHSNearMissCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   // Meta
   isActive        Boolean  @default(true)
@@ -5889,8 +5889,8 @@ model OHSHealthRecord {
   reportIsPublic      Boolean  @default(false)
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("OHSHealthRecordCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("OHSHealthRecordCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   // Meta
   isActive        Boolean  @default(true)
@@ -5916,8 +5916,8 @@ model OHSVaccination {
   id              String   @id @default(cuid())
   
   // Personel
-  userId          String
-  user            User     @relation("OHSVaccinationUser", fields: [userId], references: [id])
+  userId          String?
+  user            User? @relation("OHSVaccinationUser", fields: [userId], references: [id], onDelete: SetNull)
   
   // Aşı Bilgileri
   vaccineType     OHSVaccineType
@@ -5934,8 +5934,8 @@ model OHSVaccination {
   notes           String?
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("OHSVaccinationCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("OHSVaccinationCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   // Meta
   isActive        Boolean  @default(true)
@@ -5995,8 +5995,8 @@ model OHSPPE {
   department      Department? @relation("OHSPPEDept", fields: [departmentId], references: [id])
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("OHSPPECreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("OHSPPECreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   // Meta
   isActive        Boolean  @default(true)
@@ -6047,8 +6047,8 @@ model OHSPPEDistribution {
   departmentManagerName String?       // Manuel giriş: Departman müdürü adı
   
   // Dağıtan (Teslim Eden)
-  distributedById String
-  distributedBy   User     @relation("OHSPPEDistributor", fields: [distributedById], references: [id])
+  distributedById String?
+  distributedBy   User? @relation("OHSPPEDistributor", fields: [distributedById], references: [id], onDelete: SetNull)
   
   // Meta
   createdAt       DateTime @default(now())
@@ -6112,8 +6112,8 @@ model OHSEmergencyPlan {
   validUntil      DateTime?
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("OHSEmergencyPlanCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("OHSEmergencyPlanCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   // Meta
   isActive        Boolean  @default(true)
@@ -6163,8 +6163,8 @@ model OHSEmergencyDrill {
   reportIsPublic      Boolean  @default(false)
   
   // Oluşturan
-  createdById     String
-  createdBy       User     @relation("OHSEmergencyDrillCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("OHSEmergencyDrillCreator", fields: [createdById], references: [id], onDelete: SetNull)
   
   // Meta
   isActive        Boolean  @default(true)
@@ -6279,8 +6279,8 @@ model HACCPEquipment {
 
   temperatureLogs  HACCPTemperatureLog[]
 
-  createdById      String
-  createdBy        User     @relation("HACCPEquipmentCreator", fields: [createdById], references: [id])
+  createdById      String?
+  createdBy        User? @relation("HACCPEquipmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())
@@ -6308,8 +6308,8 @@ model HACCPTemperatureLog {
   correctiveActionById String?
   correctiveActionBy   User?   @relation("HACCPCorrectiveActionBy", fields: [correctiveActionById], references: [id])
 
-  measuredById     String
-  measuredBy       User    @relation("HACCPTemperatureMeasurer", fields: [measuredById], references: [id])
+  measuredById     String?
+  measuredBy       User? @relation("HACCPTemperatureMeasurer", fields: [measuredById], references: [id], onDelete: SetNull)
 
   createdAt        DateTime @default(now())
 
@@ -6345,8 +6345,8 @@ model HACCPCCP {
 
   checklists          HACCPCCPChecklist[]
 
-  createdById         String
-  createdBy           User    @relation("HACCPCCPCreator", fields: [createdById], references: [id])
+  createdById         String?
+  createdBy           User? @relation("HACCPCCPCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -6382,8 +6382,8 @@ model HACCPCCPChecklist {
   approvedBy     User?    @relation("CCPChecklistApprover", fields: [approvedById], references: [id])
   approvedAt     DateTime?
 
-  checkedById    String
-  checkedBy      User     @relation("CCPChecklistChecker", fields: [checkedById], references: [id])
+  checkedById    String?
+  checkedBy      User? @relation("CCPChecklistChecker", fields: [checkedById], references: [id], onDelete: SetNull)
 
   createdAt      DateTime @default(now())
 
@@ -6418,8 +6418,8 @@ model HACCPPestStation {
 
   pestLogs         HACCPPestLog[]
 
-  createdById      String
-  createdBy        User    @relation("HACCPPestStationCreator", fields: [createdById], references: [id])
+  createdById      String?
+  createdBy        User? @relation("HACCPPestStationCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -6449,8 +6449,8 @@ model HACCPPestLog {
   actionTaken     String?
   actionStatus    HACCPPestActionStatus?
 
-  inspectedById   String
-  inspectedBy     User    @relation("HACCPPestInspector", fields: [inspectedById], references: [id])
+  inspectedById   String?
+  inspectedBy     User? @relation("HACCPPestInspector", fields: [inspectedById], references: [id], onDelete: SetNull)
 
   createdAt       DateTime @default(now())
 
@@ -6484,8 +6484,8 @@ model HACCPFoodSample {
 
   notes          String?
 
-  createdById    String
-  createdBy      User      @relation("HACCPFoodSampleCreator", fields: [createdById], references: [id])
+  createdById    String?
+  createdBy      User? @relation("HACCPFoodSampleCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   isActive       Boolean   @default(true)
   createdAt      DateTime  @default(now())
@@ -6509,8 +6509,8 @@ model HACCPCleaningArea {
 
   cleaningLogs   HACCPCleaningLog[]
 
-  createdById    String
-  createdBy      User      @relation("HACCPCleaningAreaCreator", fields: [createdById], references: [id])
+  createdById    String?
+  createdBy      User? @relation("HACCPCleaningAreaCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -6541,8 +6541,8 @@ model HACCPCleaningLog {
   signedOffBy      User?     @relation("HACCPCleaningSignOff", fields: [signedOffById], references: [id])
   signedOffAt      DateTime?
 
-  performedById    String
-  performedBy      User      @relation("HACCPCleaningPerformer", fields: [performedById], references: [id])
+  performedById    String?
+  performedBy      User? @relation("HACCPCleaningPerformer", fields: [performedById], references: [id], onDelete: SetNull)
 
   createdAt        DateTime  @default(now())
 
@@ -6573,8 +6573,8 @@ model SustainabilityMeter {
 
   readings     SustainabilityReading[]
 
-  createdById  String
-  createdBy    User     @relation("SustMeterCreator", fields: [createdById], references: [id])
+  createdById  String?
+  createdBy    User? @relation("SustMeterCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -6595,8 +6595,8 @@ model SustainabilityReading {
   isAnomalous  Boolean  @default(false)
   alertSent    Boolean  @default(false)
 
-  createdById  String
-  createdBy    User     @relation("SustReadingCreator", fields: [createdById], references: [id])
+  createdById  String?
+  createdBy    User? @relation("SustReadingCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
 
   @@map("sustainability_readings")
@@ -6620,8 +6620,8 @@ model SustainabilityWasteRecord {
   attachmentFileType  String?
   attachmentCloudPath String?
 
-  createdById  String
-  createdBy    User     @relation("SustWasteCreator", fields: [createdById], references: [id])
+  createdById  String?
+  createdBy    User? @relation("SustWasteCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -6653,8 +6653,8 @@ model SustainabilityCarbonEntry {
   year        Int
   month       Int
 
-  createdById String
-  createdBy   User     @relation("SustCarbonCreator", fields: [createdById], references: [id])
+  createdById String?
+  createdBy   User? @relation("SustCarbonCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -6678,8 +6678,8 @@ model SustainabilityTarget {
 
   actions      SustainabilityAction[]
 
-  createdById  String
-  createdBy    User     @relation("SustTargetCreator", fields: [createdById], references: [id])
+  createdById  String?
+  createdBy    User? @relation("SustTargetCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -6700,8 +6700,8 @@ model SustainabilityAction {
   completedAt  DateTime?
   notes        String?
 
-  createdById  String
-  createdBy    User     @relation("SustActionCreator", fields: [createdById], references: [id])
+  createdById  String?
+  createdBy    User? @relation("SustActionCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -6816,8 +6816,8 @@ model LQAAudit {
   items               LQAAuditItem[]
   scores              LQAAuditScore[]
 
-  createdById         String
-  createdBy           User            @relation("LQAAuditCreator", fields: [createdById], references: [id])
+  createdById         String?
+  createdBy           User? @relation("LQAAuditCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
@@ -6873,8 +6873,8 @@ model LQATarget {
   period      String       @default("YILLIK")
   year        Int
 
-  createdById String
-  createdBy   User         @relation("LQATargetCreator", fields: [createdById], references: [id])
+  createdById String?
+  createdBy   User? @relation("LQATargetCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -6964,8 +6964,8 @@ model InnovationIdea {
   strategicGoalId String?
   strategicGoal   StrategicGoal? @relation("InnovationIdeaGoal", fields: [strategicGoalId], references: [id])
 
-  createdById     String
-  createdBy       User     @relation("InnovationIdeaCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("InnovationIdeaCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   upVotes         Int      @default(0)
   downVotes       Int      @default(0)
@@ -6995,8 +6995,8 @@ model InnovationIdeaVote {
   ideaId    String
   idea      InnovationIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
 
-  userId    String
-  user      User     @relation("InnovationIdeaVoter", fields: [userId], references: [id])
+  userId    String?
+  user      User? @relation("InnovationIdeaVoter", fields: [userId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
@@ -7011,8 +7011,8 @@ model InnovationIdeaComment {
   ideaId    String
   idea      InnovationIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
 
-  authorId  String
-  author    User     @relation("InnovationIdeaCommentAuthor", fields: [authorId], references: [id])
+  authorId  String?
+  author    User? @relation("InnovationIdeaCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -7031,8 +7031,8 @@ model InnovationIdeaAttachment {
   ideaId       String
   idea         InnovationIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
 
-  uploadedById String
-  uploadedBy   User   @relation("InnovationIdeaAttachmentUploader", fields: [uploadedById], references: [id])
+  uploadedById String?
+  uploadedBy   User? @relation("InnovationIdeaAttachmentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
 
   createdAt    DateTime @default(now())
 
@@ -7059,8 +7059,8 @@ model InnovationProject {
   managerId       String?
   manager         User?    @relation("InnovationProjectManager", fields: [managerId], references: [id])
 
-  createdById     String
-  createdBy       User     @relation("InnovationProjectCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdBy       User? @relation("InnovationProjectCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   startDate       DateTime?
   endDate         DateTime?
@@ -7101,8 +7101,8 @@ model InnovationTask {
   assigneeId  String?
   assignee    User?    @relation("InnovationTaskAssignee", fields: [assigneeId], references: [id])
 
-  createdById String
-  createdBy   User     @relation("InnovationTaskCreator", fields: [createdById], references: [id])
+  createdById String?
+  createdBy   User? @relation("InnovationTaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   startDate   DateTime?
   dueDate     DateTime?
@@ -7142,8 +7142,8 @@ model InnovationProjectStakeholder {
   projectId String
   project   InnovationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  userId    String
-  user      User     @relation("InnovationProjectStakeholder", fields: [userId], references: [id])
+  userId    String?
+  user      User? @relation("InnovationProjectStakeholder", fields: [userId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
@@ -7172,8 +7172,8 @@ model FoodWarehouse {
   description String?
   isActive    Boolean           @default(true)
 
-  createdById String
-  createdBy   User              @relation("FoodWarehouseCreator", fields: [createdById], references: [id])
+  createdById String?
+  createdBy   User? @relation("FoodWarehouseCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   sourceMovements FoodWarehouseMovement[]  @relation("MovementSource")
   targetMovements FoodWarehouseMovement[]  @relation("MovementTarget")
@@ -7199,10 +7199,10 @@ model FoodProductionRecord {
   notes             String?
   isActive          Boolean   @default(true)
 
-  staffId     String
-  staff       User     @relation("FoodProductionStaff", fields: [staffId], references: [id])
-  createdById String
-  createdBy   User     @relation("FoodProductionCreator", fields: [createdById], references: [id])
+  staffId     String?
+  staff       User? @relation("FoodProductionStaff", fields: [staffId], references: [id], onDelete: SetNull)
+  createdById String?
+  createdBy   User? @relation("FoodProductionCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   ingredients FoodProductionIngredient[]
 
@@ -7246,8 +7246,8 @@ model FoodWarehouseMovement {
   isAutoCreated   Boolean   @default(false)
   isActive        Boolean   @default(true)
 
-  staffId           String
-  staff             User          @relation("FoodMovementStaff", fields: [staffId], references: [id])
+  staffId           String?
+  staff             User? @relation("FoodMovementStaff", fields: [staffId], references: [id], onDelete: SetNull)
 
   sourceWarehouseId String
   sourceWarehouse   FoodWarehouse @relation("MovementSource", fields: [sourceWarehouseId], references: [id])
@@ -7258,8 +7258,8 @@ model FoodWarehouseMovement {
   ingredientId String?                   @unique
   ingredient   FoodProductionIngredient? @relation("IngredientMovement", fields: [ingredientId], references: [id])
 
-  createdById String
-  createdBy   User          @relation("FoodMovementCreator", fields: [createdById], references: [id])
+  createdById String?
+  createdBy   User? @relation("FoodMovementCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt

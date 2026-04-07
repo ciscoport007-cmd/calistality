@@ -215,7 +215,7 @@ export default function UsersPage() {
     try {
       const response = await fetch(`/api/users/${id}`, { method: 'DELETE' });
       if (response?.ok) {
-        toast({ title: 'Başarılı', description: 'Kullanıcı pasife alındı' });
+        toast({ title: 'Başarılı', description: 'Kullanıcı silindi' });
         fetchData();
       } else {
         const data = await response.json().catch(() => ({}));
