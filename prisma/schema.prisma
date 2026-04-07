@@ -482,10 +482,10 @@ model Group {
 
 model UserGroup {
   id        String   @id @default(cuid())
-  userId    String?
+  userId    String
   groupId   String
   createdAt DateTime @default(now())
-  
+
   user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   group     Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
   
@@ -514,7 +514,7 @@ model Permission {
 // NextAuth models
 model Account {
   id                String  @id @default(cuid())
-  userId            String?
+  userId            String
   type              String
   provider          String
   providerAccountId String
@@ -535,7 +535,7 @@ model Account {
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
-  userId       String?
+  userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -954,7 +954,7 @@ model Task {
 
 model Notification {
   id        String   @id @default(cuid())
-  userId    String?
+  userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   title     String
