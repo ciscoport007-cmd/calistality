@@ -36,7 +36,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         where: {
           isActive: true,
           OR: [
-            { id: (log as any).equipment.createdById },
+            ...((log as any).equipment.createdById ? [{ id: (log as any).equipment.createdById }] : []),
             { role: { name: { contains: 'Admin', mode: 'insensitive' } } },
             { role: { name: { contains: 'Kalite', mode: 'insensitive' } } },
             { role: { name: { contains: 'HACCP', mode: 'insensitive' } } },

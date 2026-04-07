@@ -94,7 +94,7 @@ export async function POST(request: Request) {
         where: {
           isActive: true,
           OR: [
-            { id: log.equipment.createdById },
+            ...(log.equipment.createdById ? [{ id: log.equipment.createdById }] : []),
             { role: { name: { contains: 'Admin', mode: 'insensitive' } } },
             { role: { name: { contains: 'Kalite', mode: 'insensitive' } } },
             { role: { name: { contains: 'HACCP', mode: 'insensitive' } } },
