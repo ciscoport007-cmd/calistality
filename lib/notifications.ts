@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 export type NotificationType = 'BILGI' | 'UYARI' | 'HATA' | 'BASARI';
 
 interface CreateNotificationParams {
-  userId: string;
+  userId: string | null | undefined;
   title: string;
   message: string;
   type?: NotificationType;
@@ -13,6 +13,8 @@ interface CreateNotificationParams {
 // Tekil bildirim oluştur
 export async function createNotification(params: CreateNotificationParams) {
   const { userId, title, message, type = 'BILGI', link } = params;
+
+  if (!userId) return null;
 
   try {
     const notification = await prisma.notification.create({
