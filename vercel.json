@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/capa-reminders",
+      "schedule": "0 8 * * *"
+    }
+  ]
+}
