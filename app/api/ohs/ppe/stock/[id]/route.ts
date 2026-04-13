@@ -102,6 +102,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
     }
 
+    if (session.user.role !== 'Admin') {
+      return NextResponse.json(
+        { error: 'KKD silme işlemi yalnızca Admin yetkisiyle yapılabilir.' },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
 
     await prisma.oHSPPE.update({

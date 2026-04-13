@@ -20,9 +20,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useSession } from 'next-auth/react';
 import {
   Select,
   SelectContent,
@@ -52,6 +54,7 @@ import {
   FileText,
   Loader2,
   Building,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/export-utils';
@@ -130,17 +133,21 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function OHSPPEPage() {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === 'Admin';
   const [ppeItems, setPPEItems] = useState<PPEItem[]>([]);
   const [distributions, setDistributions] = useState<Distribution[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('stock');
-  
+
   // Dialog states
   const [ppeDialogOpen, setPPEDialogOpen] = useState(false);
   const [distributionDialogOpen, setDistributionDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PPEItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
   
   // Filters
   const [search, setSearch] = useState('');
@@ -318,6 +325,26 @@ export default function OHSPPEPage() {
       toast.error('Hata oluştu');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/ohs/ppe/stock/${deleteTarget.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`"${deleteTarget.name}" silindi.`);
+        setDeleteTarget(null);
+        fetchPPEItems();
+      } else {
+        toast.error(data.error || 'Silinemedi.');
+      }
+    } catch {
+      toast.error('Bir hata oluştu.');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -505,6 +532,7 @@ export default function OHSPPEPage() {
                     <TableHead>Min. Seviye</TableHead>
                     <TableHead>Durum</TableHead>
                     <TableHead>Konum</TableHead>
+                    {isAdmin && <TableHead className="w-10"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -549,6 +577,19 @@ export default function OHSPPEPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>{item.location || '-'}</TableCell>
+                        {isAdmin && (
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => setDeleteTarget(item)}
+                              title="KKD'yi sil"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}
@@ -757,6 +798,31 @@ export default function OHSPPEPage() {
               {creating ? 'Kaydediliyor...' : 'Kaydet'}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* KKD Silme Onay Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-5 h-5" />
+              KKD Sil
+            </DialogTitle>
+            <DialogDescription>
+              <span className="font-semibold text-gray-900">&quot;{deleteTarget?.name}&quot;</span> adlı KKD kaydını silmek istediğinizden emin misiniz?
+              <br />
+              <span className="text-red-500 text-sm mt-1 block">Bu işlem geri alınamaz.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Vazgeç
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting ? 'Siliniyor...' : 'Evet, Sil'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
