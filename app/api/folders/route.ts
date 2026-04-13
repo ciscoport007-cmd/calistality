@@ -15,7 +15,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
     }
 
+    const isAdmin = session.user?.role === 'Admin';
+    const userDepartmentId = session.user?.departmentId;
+
+    // Admin tüm klasörleri görür; diğer kullanıcılar yalnızca
+    // kendi departmanına ait veya departmansız (genel) klasörleri görür.
+    const whereClause = isAdmin
+      ? { isActive: true }
+      : {
+          isActive: true,
+          OR: [
+            { departmentId: null },
+            { departmentId: userDepartmentId ?? undefined },
+          ],
+        };
+
     const folders = await prisma.folder.findMany({
+      where: whereClause,
       include: {
         department: true,
         documentType: true,
