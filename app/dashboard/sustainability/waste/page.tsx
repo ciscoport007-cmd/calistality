@@ -348,6 +348,7 @@ export default function WastePage() {
                   <SelectContent>
                     <SelectItem value="GUNLUK">Günlük</SelectItem>
                     <SelectItem value="HAFTALIK">Haftalık</SelectItem>
+                    <SelectItem value="AYLIK">Aylık</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

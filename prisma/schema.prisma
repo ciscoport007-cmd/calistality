@@ -6637,7 +6637,7 @@ model SustainabilityWasteRecord {
   id           String   @id @default(cuid())
   code         String   @unique
   recordDate   DateTime
-  period       String   @default("GUNLUK")  // GUNLUK | HAFTALIK
+  period       String   @default("GUNLUK")  // GUNLUK | HAFTALIK | AYLIK
   wasteType    String   // ORGANIK | PLASTIK | CAM | KAGIT | TEHLIKELI | DIGER
   area         String   // mutfak, bar, housekeeping vb.
   quantity     Float    // kg
