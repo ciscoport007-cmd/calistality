@@ -40,7 +40,8 @@ export async function GET(
     }
 
     const { path: parts } = await params;
-    const filePath = decodeURIComponent(parts.join('/'));
+    // Next.js already decodes path params; join directly without extra decode
+    const filePath = parts.join('/');
 
     // Security: prevent path traversal
     const resolved = path.resolve(process.cwd(), filePath);

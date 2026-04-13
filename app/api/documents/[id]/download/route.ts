@@ -4,14 +4,39 @@ import { authOptions } from '@/lib/auth-options';
 import { PrismaClient } from '@prisma/client';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { isAdmin } from '@/lib/audit';
+import fs from 'fs';
+import path from 'path';
 
 const prisma = new PrismaClient();
 
 export const dynamic = 'force-dynamic';
 
+function getMimeType(fileName: string, fallback?: string): string {
+  const ext = path.extname(fileName).toLowerCase();
+  const map: Record<string, string> = {
+    '.pdf': 'application/pdf',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.svg': 'image/svg+xml',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.zip': 'application/zip',
+    '.txt': 'text/plain',
+    '.csv': 'text/csv',
+  };
+  return map[ext] || fallback || 'application/octet-stream';
+}
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -19,14 +44,15 @@ export async function GET(
       return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
     }
 
+    const { id } = await params;
     const { searchParams } = new URL(request.url);
     const versionId = searchParams.get('versionId');
 
     // Dokümanı ve versiyonu al
     const document = await prisma.document.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
-        versions: versionId 
+        versions: versionId
           ? { where: { id: versionId } }
           : { orderBy: { versionNumber: 'desc' }, take: 1 },
       },
@@ -41,31 +67,22 @@ export async function GET(
       return NextResponse.json({ error: 'Dosya bulunamadı' }, { status: 404 });
     }
 
-    // S3'ten dosyayı al
-    const { createS3Client, getBucketConfig } = await import('@/lib/aws-config');
-    const { GetObjectCommand } = await import('@aws-sdk/client-s3');
-    
-    const s3Client = createS3Client();
-    const { bucketName } = getBucketConfig();
-
-    const getCommand = new GetObjectCommand({
-      Bucket: bucketName,
-      Key: version.cloudStoragePath,
-    });
-
-    const s3Response = await s3Client.send(getCommand);
-    const bodyStream = s3Response.Body as any;
-    
-    // Stream'i buffer'a çevir
-    const chunks: Uint8Array[] = [];
-    for await (const chunk of bodyStream) {
-      chunks.push(chunk);
+    // Yerel dosya sisteminden oku
+    const resolved = path.resolve(process.cwd(), version.cloudStoragePath);
+    const uploadsRoot = path.resolve(process.cwd(), 'uploads');
+    if (!resolved.startsWith(uploadsRoot)) {
+      return NextResponse.json({ error: 'Geçersiz dosya yolu' }, { status: 400 });
     }
-    let fileBuffer = Buffer.concat(chunks);
+
+    if (!fs.existsSync(resolved)) {
+      return NextResponse.json({ error: 'Dosya bulunamadı' }, { status: 404 });
+    }
+
+    let fileBuffer = fs.readFileSync(resolved);
 
     const fileName = version.fileName || 'document';
-    const isPdf = fileName.toLowerCase().endsWith('.pdf') || 
-                  version.fileType?.includes('pdf');
+    const mimeType = getMimeType(fileName, version.fileType || undefined);
+    const isPdf = mimeType === 'application/pdf';
     const userIsAdmin = isAdmin(session.user.role);
 
     // Admin değilse ve PDF ise filigran ekle
@@ -102,14 +119,11 @@ export async function GET(
 
     // Dosyayı döndür
     const headers = new Headers();
-    headers.set('Content-Type', version.fileType || 'application/octet-stream');
-    headers.set('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+    headers.set('Content-Type', mimeType);
+    headers.set('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
     headers.set('Content-Length', fileBuffer.length.toString());
 
-    return new NextResponse(fileBuffer, {
-      status: 200,
-      headers,
-    });
+    return new NextResponse(fileBuffer, { status: 200, headers });
   } catch (error) {
     console.error('Download error:', error);
     return NextResponse.json({ error: 'Dosya indirilemedi' }, { status: 500 });
@@ -141,11 +155,9 @@ async function addWatermarkToPdf(
   for (const page of pages) {
     const { width, height } = page.getSize();
 
-    // Ana filigran - çapraz (diagonal) - yarı saydam
     const fontSize = 60;
     const textWidth = boldFont.widthOfTextAtSize(watermarkText, fontSize);
-    
-    // Merkeze çapraz filigran
+
     page.drawText(watermarkText, {
       x: (width - textWidth) / 2,
       y: height / 2,
@@ -156,11 +168,9 @@ async function addWatermarkToPdf(
       rotate: { angle: 45, type: 'degrees' as any },
     });
 
-    // Alt bilgi bandı
     const footerHeight = 25;
     const footerY = 10;
-    
-    // Alt bilgi arka planı
+
     page.drawRectangle({
       x: 0,
       y: footerY,
@@ -170,17 +180,14 @@ async function addWatermarkToPdf(
       opacity: 0.9,
     });
 
-    // Alt bilgi metni
-    const infoFontSize = 8;
     page.drawText(`KONTROLLU KOPYA - ${infoText}`, {
       x: 10,
       y: footerY + 8,
-      size: infoFontSize,
+      size: 8,
       font: font,
       color: rgb(0.3, 0.3, 0.3),
     });
 
-    // Üst köşe damgası
     page.drawText('KONTROLLU', {
       x: width - 80,
       y: height - 20,

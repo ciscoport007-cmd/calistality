@@ -57,11 +57,18 @@ export async function getFileUrl(
     return rel.startsWith('/') ? rel : `/${rel}`;
   }
 
+  // Encode each path segment separately so "/" separators are preserved
+  // and special characters (spaces, Turkish chars) are safely encoded.
+  const encodedPath = cloudStoragePath
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+
   const namePart = downloadFileName
     ? `&filename=${encodeURIComponent(downloadFileName)}`
     : '';
   const previewPart = forPreview ? '&preview=1' : '';
-  return `/api/files/${encodeURIComponent(cloudStoragePath)}?dl=1${namePart}${previewPart}`;
+  return `/api/files/${encodedPath}?dl=1${namePart}${previewPart}`;
 }
 
 export async function deleteFile(cloudStoragePath: string): Promise<void> {
