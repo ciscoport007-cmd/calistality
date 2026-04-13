@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { FileCheck, Mail, Lock } from 'lucide-react';
+import { Mail, Lock } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -56,15 +56,32 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-2xl">
-        <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center">
-            <FileCheck className="w-10 h-10 text-white" />
-          </div>
-          <div>
-            <CardTitle className="text-3xl font-bold">QDMS</CardTitle>
-            <CardDescription className="text-lg mt-2">
-              Kalite Doküman Yönetim Sistemi
-            </CardDescription>
+        <CardHeader className="space-y-6 text-center pb-2">
+          {/* Logo */}
+          <div className="flex flex-col items-center gap-3">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="64" height="64" rx="16" fill="#1D4ED8"/>
+              <rect x="16" y="12" width="22" height="28" rx="3" fill="white" fillOpacity="0.2"/>
+              <rect x="18" y="14" width="22" height="28" rx="3" fill="white"/>
+              <line x1="23" y1="21" x2="35" y2="21" stroke="#1D4ED8" strokeWidth="2" strokeLinecap="round"/>
+              <line x1="23" y1="26" x2="35" y2="26" stroke="#1D4ED8" strokeWidth="2" strokeLinecap="round"/>
+              <line x1="23" y1="31" x2="30" y2="31" stroke="#1D4ED8" strokeWidth="2" strokeLinecap="round"/>
+              <circle cx="43" cy="43" r="10" fill="#2563EB" stroke="white" strokeWidth="2"/>
+              <path d="M39 43.5L42 46.5L47.5 40" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            {/* Wordmark */}
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-2xl font-black tracking-widest text-gray-900 leading-none">
+                CALISTA
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="h-px w-6 bg-blue-600" />
+                <span className="text-[10px] font-semibold tracking-[0.25em] text-blue-600 uppercase">
+                  Document Management System
+                </span>
+                <span className="h-px w-6 bg-blue-600" />
+              </div>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -110,7 +127,6 @@ export default function LoginPage() {
             </Button>
           </form>
           <div className="mt-6 text-center text-sm text-gray-600 space-y-2">
-            <p>Test Hesabı: john@doe.com / johndoe123</p>
             <p>
               Hesabınız yok mu?{' '}
               <a href="/signup" className="text-blue-600 hover:underline font-medium">
