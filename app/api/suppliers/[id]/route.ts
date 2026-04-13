@@ -250,6 +250,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
     }
 
+    if (session.user.role !== 'Admin') {
+      return NextResponse.json(
+        { error: 'Tedarikçi silme işlemi yalnızca Admin yetkisiyle yapılabilir.' },
+        { status: 403 }
+      );
+    }
+
     const supplier = await prisma.supplier.findUnique({
       where: { id: params.id }
     });

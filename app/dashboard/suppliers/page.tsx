@@ -37,10 +37,13 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger
 } from '@/components/ui/dialog';
+import { Trash2 } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -148,11 +151,14 @@ const CONTRACT_STATUS_LABELS: Record<string, { label: string; color: string }> =
 
 export default function SuppliersPage() {
   const { data: session } = useSession() || {};
+  const isAdmin = session?.user?.role === 'Admin';
   const router = useRouter();
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
   
   // Filters
   const [search, setSearch] = useState('');
@@ -375,7 +381,29 @@ export default function SuppliersPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/suppliers/${deleteTarget.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success(`"${deleteTarget.name}" tedarikçisi silindi.`);
+        setDeleteTarget(null);
+        fetchSuppliers();
+        fetchStats();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'Silinemedi.');
+      }
+    } catch {
+      toast.error('Bir hata oluştu.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
+    <>
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -950,6 +978,7 @@ export default function SuppliersPage() {
                 <TableHead className="text-right">İşlem Hacmi</TableHead>
                 <TableHead className="text-center">Sözleşme</TableHead>
                 <TableHead></TableHead>
+                {isAdmin && <TableHead className="w-10"></TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1035,6 +1064,21 @@ export default function SuppliersPage() {
                     <TableCell>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </TableCell>
+                    {isAdmin && (
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget({ id: supplier.id, name: supplier.name });
+                          }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}
@@ -1073,5 +1117,31 @@ export default function SuppliersPage() {
         </div>
       )}
     </div>
+
+      {/* Tedarikçi Silme Onay Dialog'u */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-5 h-5" />
+              Tedarikçiyi Sil
+            </DialogTitle>
+            <DialogDescription>
+              <span className="font-semibold text-gray-900">&quot;{deleteTarget?.name}&quot;</span> tedarikçisini silmek istediğinizden emin misiniz?
+              <br />
+              <span className="text-red-500 text-sm mt-1 block">Bu işlem geri alınamaz. Tedarikçiye ait tüm kayıtlar pasife alınacaktır.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Vazgeç
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting ? 'Siliniyor...' : 'Evet, Sil'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
