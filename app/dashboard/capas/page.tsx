@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Filter, FileText, AlertTriangle, CheckCircle, Clock, RefreshCw, Calendar, Trash2 } from 'lucide-react';
+import { Plus, Search, Filter, FileText, AlertTriangle, CheckCircle, Clock, RefreshCw, Calendar, Trash2, Bell } from 'lucide-react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { ExportButton } from '@/components/ui/export-button';
@@ -90,8 +90,12 @@ export default function CAPAsPage() {
   const [sourceFilter, setSourceFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
+  const [responsibleUserFilter, setResponsibleUserFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [dueDateStart, setDueDateStart] = useState('');
+  const [dueDateEnd, setDueDateEnd] = useState('');
+  const [reminderSending, setReminderSending] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
@@ -107,7 +111,7 @@ export default function CAPAsPage() {
     complaintId: '',
     sourceReference: '',
     sourceDetails: '',
-    responsibleUserId: '',
+    responsibleUserIds: [] as string[],
     teamId: '',
     departmentId: '',
     dueDate: '',
@@ -122,8 +126,11 @@ export default function CAPAsPage() {
       if (sourceFilter) params.append('source', sourceFilter);
       if (priorityFilter) params.append('priority', priorityFilter);
       if (departmentFilter) params.append('departmentId', departmentFilter);
+      if (responsibleUserFilter) params.append('responsibleUserId', responsibleUserFilter);
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
+      if (dueDateStart) params.append('dueDateStart', dueDateStart);
+      if (dueDateEnd) params.append('dueDateEnd', dueDateEnd);
 
       const res = await fetch(`/api/capas?${params.toString()}`);
       const data = await res.json();
@@ -162,7 +169,7 @@ export default function CAPAsPage() {
   useEffect(() => {
     fetchCAPAs();
     fetchFormData();
-  }, [search, statusFilter, typeFilter, sourceFilter, priorityFilter, departmentFilter, startDate, endDate]);
+  }, [search, statusFilter, typeFilter, sourceFilter, priorityFilter, departmentFilter, responsibleUserFilter, startDate, endDate, dueDateStart, dueDateEnd]);
 
   const handleCreate = async () => {
     try {
@@ -184,7 +191,7 @@ export default function CAPAsPage() {
           complaintId: '',
           sourceReference: '',
           sourceDetails: '',
-          responsibleUserId: '',
+          responsibleUserIds: [],
           teamId: '',
           departmentId: '',
           dueDate: '',
@@ -193,6 +200,19 @@ export default function CAPAsPage() {
       }
     } catch (error) {
       console.error('CAPA oluşturma hatası:', error);
+    }
+  };
+
+  const handleSendReminders = async () => {
+    setReminderSending(true);
+    try {
+      const res = await fetch('/api/cron/capa-reminders');
+      const data = await res.json();
+      alert(data.message || 'Bildirimler gönderildi.');
+    } catch {
+      alert('Bildirim gönderilemedi.');
+    } finally {
+      setReminderSending(false);
     }
   };
 
@@ -223,6 +243,12 @@ export default function CAPAsPage() {
           <p className="text-sm text-gray-500 mt-1">Düzeltici, önleyici ve iyileştirme faaliyetlerini yönetin</p>
         </div>
         <div className="flex gap-2">
+          {isAdmin && (
+            <Button variant="outline" onClick={handleSendReminders} disabled={reminderSending}>
+              <Bell className="h-4 w-4 mr-2" />
+              {reminderSending ? 'Gönderiliyor...' : 'Termin Hatırlat'}
+            </Button>
+          )}
           <ExportButton
             data={capas.map((c: any) => ({
               code: c.code,
@@ -372,17 +398,45 @@ export default function CAPAsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Sorumlu Kişi</Label>
-                  <Select value={formData.responsibleUserId} onValueChange={(v) => setFormData({ ...formData, responsibleUserId: v })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Kişi seçin" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {users.map((u: any) => (
-                        <SelectItem key={u.id} value={u.id}>{u.name} {u.surname}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Sorumlu Kişi(ler) <span className="text-gray-400 font-normal">(max 3)</span></Label>
+                  <div className="border rounded-md p-2 space-y-1 max-h-40 overflow-y-auto bg-white">
+                    {users.map((u: any) => {
+                      const selected = formData.responsibleUserIds.includes(u.id);
+                      const disabled = !selected && formData.responsibleUserIds.length >= 3;
+                      return (
+                        <label key={u.id} className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer text-sm ${disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-50'}`}>
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            disabled={disabled}
+                            onChange={() => {
+                              const ids = formData.responsibleUserIds;
+                              setFormData({
+                                ...formData,
+                                responsibleUserIds: selected ? ids.filter((id) => id !== u.id) : [...ids, u.id],
+                              });
+                            }}
+                            className="rounded"
+                          />
+                          {u.name} {u.surname}
+                          {u.department?.name && <span className="text-gray-400 text-xs">· {u.department.name}</span>}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {formData.responsibleUserIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {formData.responsibleUserIds.map((id) => {
+                        const u = users.find((x: any) => x.id === id);
+                        return u ? (
+                          <span key={id} className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
+                            {u.name} {u.surname}
+                            <button type="button" onClick={() => setFormData({ ...formData, responsibleUserIds: formData.responsibleUserIds.filter((x) => x !== id) })} className="hover:text-blue-600">×</button>
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Ekip</Label>
@@ -488,35 +542,66 @@ export default function CAPAsPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex flex-wrap gap-4 mt-4">
+          <div className="flex flex-wrap gap-4 mt-4 items-center">
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-gray-400" />
-              <span className="text-sm text-gray-500">Tarih Aralığı:</span>
+              <span className="text-sm text-gray-500">Açılış:</span>
             </div>
             <Input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-[160px]"
-              placeholder="Başlangıç"
+              className="w-[150px]"
             />
-            <span className="text-gray-400">-</span>
+            <span className="text-gray-400">–</span>
             <Input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-[160px]"
-              placeholder="Bitiş"
+              className="w-[150px]"
             />
-            <Button variant="outline" onClick={() => { 
-              setSearch(''); 
-              setStatusFilter(''); 
-              setTypeFilter(''); 
-              setSourceFilter(''); 
-              setPriorityFilter(''); 
+          </div>
+          <div className="flex flex-wrap gap-4 mt-3 items-center">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-orange-400" />
+              <span className="text-sm text-gray-500">Termin:</span>
+            </div>
+            <Input
+              type="date"
+              value={dueDateStart}
+              onChange={(e) => setDueDateStart(e.target.value)}
+              className="w-[150px]"
+            />
+            <span className="text-gray-400">–</span>
+            <Input
+              type="date"
+              value={dueDateEnd}
+              onChange={(e) => setDueDateEnd(e.target.value)}
+              className="w-[150px]"
+            />
+            <Select value={responsibleUserFilter || 'all'} onValueChange={(v) => setResponsibleUserFilter(v === 'all' ? '' : v)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Sorumlu Kişi" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tüm Sorumlular</SelectItem>
+                {users.map((u: any) => (
+                  <SelectItem key={u.id} value={u.id}>{u.name} {u.surname}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={() => {
+              setSearch('');
+              setStatusFilter('');
+              setTypeFilter('');
+              setSourceFilter('');
+              setPriorityFilter('');
               setDepartmentFilter('');
+              setResponsibleUserFilter('');
               setStartDate('');
               setEndDate('');
+              setDueDateStart('');
+              setDueDateEnd('');
             }}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Temizle
@@ -547,7 +632,8 @@ export default function CAPAsPage() {
                   <TableHead>Durum</TableHead>
                   <TableHead>Öncelik</TableHead>
                   <TableHead>Sorumlu</TableHead>
-                  <TableHead>Tarih</TableHead>
+                  <TableHead>Açılış</TableHead>
+                  <TableHead>Termin</TableHead>
                   {isAdmin && <TableHead className="text-right">İşlem</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -571,10 +657,37 @@ export default function CAPAsPage() {
                       <Badge className={priorityColors[capa.priority]}>{priorityLabels[capa.priority]}</Badge>
                     </TableCell>
                     <TableCell className="text-sm">
-                      {capa.responsibleUser ? `${capa.responsibleUser.name} ${capa.responsibleUser.surname || ''}` : '-'}
+                      {[capa.responsibleUser, capa.responsibleUser2, capa.responsibleUser3]
+                        .filter(Boolean)
+                        .map((u: any) => `${u.name} ${u.surname || ''}`.trim())
+                        .join(', ') || '-'}
                     </TableCell>
                     <TableCell className="text-sm text-gray-500">
                       {format(new Date(capa.createdAt), 'dd MMM yyyy', { locale: tr })}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {capa.dueDate ? (() => {
+                        const due = new Date(capa.dueDate);
+                        const now = new Date();
+                        const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                        const isClosed = capa.status === 'KAPATILDI' || capa.status === 'IPTAL_EDILDI';
+                        const colorClass = isClosed
+                          ? 'text-gray-400'
+                          : diffDays < 0
+                          ? 'text-red-600 font-semibold'
+                          : diffDays <= 3
+                          ? 'text-red-500 font-medium'
+                          : diffDays <= 7
+                          ? 'text-orange-500 font-medium'
+                          : 'text-gray-600';
+                        return (
+                          <span className={colorClass}>
+                            {format(due, 'dd MMM yyyy', { locale: tr })}
+                            {!isClosed && diffDays < 0 && <span className="ml-1 text-xs">(Geçti)</span>}
+                            {!isClosed && diffDays >= 0 && diffDays <= 7 && <span className="ml-1 text-xs">({diffDays}g)</span>}
+                          </span>
+                        );
+                      })() : <span className="text-gray-300">—</span>}
                     </TableCell>
                     {isAdmin && (
                       <TableCell className="text-right">

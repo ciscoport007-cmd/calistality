@@ -22,8 +22,11 @@ export async function GET(request: NextRequest) {
     const priority = searchParams.get('priority');
     const search = searchParams.get('search');
     const departmentId = searchParams.get('departmentId');
+    const responsibleUserId = searchParams.get('responsibleUserId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const dueDateStart = searchParams.get('dueDateStart');
+    const dueDateEnd = searchParams.get('dueDateEnd');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
 
@@ -35,26 +38,53 @@ export async function GET(request: NextRequest) {
     if (priority) where.priority = priority;
     if (departmentId) where.departmentId = departmentId;
 
-    // Tarih filtresi
+    // Açılış tarihi filtresi
     if (startDate || endDate) {
       where.createdAt = {};
-      if (startDate) {
-        where.createdAt.gte = new Date(startDate);
-      }
+      if (startDate) where.createdAt.gte = new Date(startDate);
       if (endDate) {
-        // End date'e günün sonunu ekle
         const end = new Date(endDate);
         end.setHours(23, 59, 59, 999);
         where.createdAt.lte = end;
       }
     }
 
+    // Termin tarihi filtresi
+    if (dueDateStart || dueDateEnd) {
+      where.dueDate = {};
+      if (dueDateStart) where.dueDate.gte = new Date(dueDateStart);
+      if (dueDateEnd) {
+        const end = new Date(dueDateEnd);
+        end.setHours(23, 59, 59, 999);
+        where.dueDate.lte = end;
+      }
+    }
+
+    // AND ile hem metin hem sorumlu kişi filtrelerini birleştir
+    const andClauses: any[] = [];
+
     if (search) {
-      where.OR = [
-        { code: { contains: search, mode: 'insensitive' } },
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-      ];
+      andClauses.push({
+        OR: [
+          { code: { contains: search, mode: 'insensitive' } },
+          { title: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    if (responsibleUserId) {
+      andClauses.push({
+        OR: [
+          { responsibleUserId },
+          { responsibleUserId2: responsibleUserId },
+          { responsibleUserId3: responsibleUserId },
+        ],
+      });
+    }
+
+    if (andClauses.length > 0) {
+      where.AND = andClauses;
     }
 
     const [capas, total] = await Promise.all([
@@ -63,6 +93,8 @@ export async function GET(request: NextRequest) {
         include: {
           createdBy: { select: { id: true, name: true, surname: true } },
           responsibleUser: { select: { id: true, name: true, surname: true } },
+          responsibleUser2: { select: { id: true, name: true, surname: true } },
+          responsibleUser3: { select: { id: true, name: true, surname: true } },
           department: { select: { id: true, name: true } },
           team: { select: { id: true, name: true } },
           complaint: { select: { id: true, code: true, subject: true } },
@@ -113,11 +145,16 @@ export async function POST(request: NextRequest) {
       complaintId,
       sourceReference,
       sourceDetails,
-      responsibleUserId,
+      responsibleUserIds,
       teamId,
       departmentId,
       dueDate,
     } = body;
+
+    // max 3 sorumlu — ilk 3 elemanı al
+    const [responsibleUserId, responsibleUserId2, responsibleUserId3] = (
+      Array.isArray(responsibleUserIds) ? responsibleUserIds : responsibleUserIds ? [responsibleUserIds] : []
+    ).slice(0, 3);
 
     // Kod oluştur: DOF-YYYY-NNNN
     const year = new Date().getFullYear();
@@ -145,6 +182,8 @@ export async function POST(request: NextRequest) {
         sourceReference,
         sourceDetails,
         responsibleUserId: responsibleUserId || undefined,
+        responsibleUserId2: responsibleUserId2 || undefined,
+        responsibleUserId3: responsibleUserId3 || undefined,
         teamId: teamId || undefined,
         departmentId: departmentId || undefined,
         dueDate: dueDate ? new Date(dueDate) : undefined,
@@ -154,6 +193,8 @@ export async function POST(request: NextRequest) {
       include: {
         createdBy: { select: { id: true, name: true, surname: true } },
         responsibleUser: { select: { id: true, name: true, surname: true } },
+        responsibleUser2: { select: { id: true, name: true, surname: true } },
+        responsibleUser3: { select: { id: true, name: true, surname: true } },
         department: { select: { id: true, name: true } },
         team: { select: { id: true, name: true } },
         complaint: { select: { id: true, code: true, subject: true } },
@@ -171,16 +212,19 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Sorumlu kişiye bildirim gönder
-    if (responsibleUserId && responsibleUserId !== session.user.id) {
-      const template = NotificationTemplates.capaAssigned(code);
-      await createNotification({
-        userId: responsibleUserId,
-        title: template.title,
-        message: `${code} kodlu "${title}" başlıklı ${type === 'DUZELTICI' ? 'Düzeltici' : 'Önleyici'} Faaliyet size atandı.`,
-        type: template.type,
-        link: `/dashboard/capas/${capa.id}`,
-      });
+    // Tüm sorumlu kişilere bildirim gönder
+    const allResponsibleIds = [responsibleUserId, responsibleUserId2, responsibleUserId3].filter(Boolean) as string[];
+    for (const uid of allResponsibleIds) {
+      if (uid !== session.user.id) {
+        const template = NotificationTemplates.capaAssigned(code);
+        await createNotification({
+          userId: uid,
+          title: template.title,
+          message: `${code} kodlu "${title}" başlıklı ${type === 'DUZELTICI' ? 'Düzeltici' : 'Önleyici'} Faaliyet size atandı.`,
+          type: template.type,
+          link: `/dashboard/capas/${capa.id}`,
+        });
+      }
     }
 
     return NextResponse.json(capa, { status: 201 });
