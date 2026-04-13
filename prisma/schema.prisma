@@ -80,6 +80,8 @@ model User {
   // CAPA ilişkileri
   createdCAPAs           CAPA[]               @relation("CAPACreator")
   responsibleCAPAs       CAPA[]               @relation("CAPAResponsible")
+  responsibleCAPAs2      CAPA[]               @relation("CAPAResponsible2")
+  responsibleCAPAs3      CAPA[]               @relation("CAPAResponsible3")
   reviewedCAPAs          CAPA[]               @relation("CAPAReviewer")
   closedCAPAs            CAPA[]               @relation("CAPACloser")
   capaHistories          CAPAHistory[]        @relation("CAPAHistoryUser")
@@ -242,6 +244,7 @@ model User {
   uploadedSubcontractorDocs   SubcontractorDocument[] @relation("SubcontractorDocUploader")
   createdOHSAccidents         OHSAccident[]        @relation("OHSAccidentCreator")
   involvedOHSAccidents        OHSAccidentPerson[]  @relation("OHSAccidentPersonUser")
+  ohsAccidentWitnesses        OHSAccidentWitness[] @relation("OHSAccidentWitnessUser")
   createdOHSNearMisses        OHSNearMiss[]        @relation("OHSNearMissCreator")
   reportedOHSNearMisses       OHSNearMiss[]        @relation("OHSNearMissReporter")
   
@@ -1253,9 +1256,13 @@ model CAPA {
   reviewedById        String?
   reviewedBy          User?         @relation("CAPAReviewer", fields: [reviewedById], references: [id])
   
-  // Atama
+  // Atama (max 3 sorumlu)
   responsibleUserId   String?
   responsibleUser     User?         @relation("CAPAResponsible", fields: [responsibleUserId], references: [id])
+  responsibleUserId2  String?
+  responsibleUser2    User?         @relation("CAPAResponsible2", fields: [responsibleUserId2], references: [id])
+  responsibleUserId3  String?
+  responsibleUser3    User?         @relation("CAPAResponsible3", fields: [responsibleUserId3], references: [id])
   
   teamId              String?
   team                Group?        @relation("CAPATeam", fields: [teamId], references: [id])
@@ -5731,7 +5738,8 @@ model OHSAccident {
   
   // İlişkiler
   involvedPersons OHSAccidentPerson[]
-  
+  witnesses       OHSAccidentWitness[]
+
   @@map("ohs_accidents")
 }
 
@@ -5780,6 +5788,29 @@ model OHSAccidentPerson {
   createdAt       DateTime @default(now())
   
   @@map("ohs_accident_persons")
+}
+
+// Kaza Tanıkları
+model OHSAccidentWitness {
+  id          String   @id @default(cuid())
+
+  accidentId  String
+  accident    OHSAccident @relation(fields: [accidentId], references: [id], onDelete: Cascade)
+
+  // Sistemdeki kullanıcı (opsiyonel)
+  userId      String?
+  user        User?    @relation("OHSAccidentWitnessUser", fields: [userId], references: [id])
+
+  // Harici kişi (sistemde olmayan)
+  externalName  String?
+  contactInfo   String?  // Telefon veya e-posta
+
+  // Tanık ifadesi
+  statement   String?
+
+  createdAt   DateTime @default(now())
+
+  @@map("ohs_accident_witnesses")
 }
 
 // Ramak Kala
