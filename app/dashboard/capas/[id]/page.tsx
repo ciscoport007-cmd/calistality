@@ -135,7 +135,7 @@ export default function CAPADetailPage() {
         source: data.source,
         priority: data.priority,
         status: data.status,
-        responsibleUserId: data.responsibleUserId || '',
+        responsibleUserIds: [data.responsibleUserId, data.responsibleUserId2, data.responsibleUserId3].filter(Boolean),
         teamId: data.teamId || '',
         departmentId: data.departmentId || '',
         rootCauseAnalysis: data.rootCauseAnalysis || '',
@@ -327,6 +327,8 @@ export default function CAPADetailPage() {
     return <div className="p-6 text-center">CAPA bulunamadı</div>;
   }
 
+  const isCreator = session?.user?.id === capa?.createdBy?.id;
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -376,14 +378,48 @@ export default function CAPADetailPage() {
                     variant={capa.status === value ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => handleStatusChange(value)}
-                    disabled={capa.status === 'KAPATILDI' || capa.status === 'IPTAL_EDILDI'}
+                    disabled={
+                      capa.status === 'KAPATILDI' ||
+                      capa.status === 'IPTAL_EDILDI' ||
+                      (value === 'KAPATILDI' && !isCreator)
+                    }
+                    title={value === 'KAPATILDI' && !isCreator ? 'Yalnızca açan kişi kapatabilir' : undefined}
                   >
                     {label}
                   </Button>
                 ))}
               </div>
               <p className="text-xs text-gray-500">
-                İleri veya geri herhangi bir duruma geçiş yapabilirsiniz.
+                İleri veya geri herhangi bir duruma geçiş yapabilirsiniz. Kapatma işlemi yalnızca kaydı açan kişi tarafından yapılabilir.
+              </p>
+            </div>
+          ) : isCreator ? (
+            <div className="space-y-3">
+              <div className="flex gap-2 flex-wrap">
+                {Object.entries(statusLabels).filter(([key]) => key !== 'IPTAL_EDILDI').map(([value, label]) => (
+                  value === 'KAPATILDI' ? (
+                    <Button
+                      key={value}
+                      variant={capa.status === value ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => handleStatusChange(value)}
+                      disabled={capa.status === 'KAPATILDI' || capa.status === 'IPTAL_EDILDI'}
+                    >
+                      {label}
+                    </Button>
+                  ) : (
+                    <Badge
+                      key={value}
+                      variant={capa.status === value ? 'default' : 'outline'}
+                      className={capa.status === value ? statusColors[value] : 'bg-gray-50 text-gray-400'}
+                    >
+                      {label}
+                    </Badge>
+                  )
+                ))}
+              </div>
+              <p className="text-xs text-blue-600">
+                Bu kaydı açan kişi olarak yalnızca kapatma işlemi yapabilirsiniz.
               </p>
             </div>
           ) : (
@@ -475,19 +511,53 @@ export default function CAPADetailPage() {
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-sm text-gray-500">Sorumlu Kişi</Label>
+                    <Label className="text-sm text-gray-500">Sorumlu Kişi(ler) <span className="font-normal">(max 3)</span></Label>
                     {editMode ? (
-                      <Select value={formData.responsibleUserId} onValueChange={(v) => setFormData({ ...formData, responsibleUserId: v })}>
-                        <SelectTrigger><SelectValue placeholder="Seçin" /></SelectTrigger>
-                        <SelectContent>
-                          {users.map((u) => (
-                            <SelectItem key={u.id} value={u.id}>{u.name} {u.surname}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="space-y-1">
+                        <div className="border rounded-md p-2 max-h-36 overflow-y-auto bg-white">
+                          {users.map((u: any) => {
+                            const selected = (formData.responsibleUserIds || []).includes(u.id);
+                            const disabled = !selected && (formData.responsibleUserIds || []).length >= 3;
+                            return (
+                              <label key={u.id} className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer text-sm ${disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-50'}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  disabled={disabled}
+                                  onChange={() => {
+                                    const ids: string[] = formData.responsibleUserIds || [];
+                                    setFormData({
+                                      ...formData,
+                                      responsibleUserIds: selected ? ids.filter((id: string) => id !== u.id) : [...ids, u.id],
+                                    });
+                                  }}
+                                  className="rounded"
+                                />
+                                {u.name} {u.surname}
+                              </label>
+                            );
+                          })}
+                        </div>
+                        {(formData.responsibleUserIds || []).length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {(formData.responsibleUserIds || []).map((uid: string) => {
+                              const u = users.find((x: any) => x.id === uid);
+                              return u ? (
+                                <span key={uid} className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
+                                  {u.name} {u.surname}
+                                  <button type="button" onClick={() => setFormData({ ...formData, responsibleUserIds: (formData.responsibleUserIds || []).filter((x: string) => x !== uid) })} className="hover:text-blue-600">×</button>
+                                </span>
+                              ) : null;
+                            })}
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <p className="font-medium">
-                        {capa.responsibleUser ? `${capa.responsibleUser.name} ${capa.responsibleUser.surname || ''}` : '-'}
+                        {[capa.responsibleUser, capa.responsibleUser2, capa.responsibleUser3]
+                          .filter(Boolean)
+                          .map((u: any) => `${u.name} ${u.surname || ''}`.trim())
+                          .join(', ') || '-'}
                       </p>
                     )}
                   </div>

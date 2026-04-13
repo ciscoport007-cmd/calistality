@@ -25,6 +25,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
       include: {
         createdBy: { select: { id: true, name: true, surname: true, email: true } },
         responsibleUser: { select: { id: true, name: true, surname: true, email: true } },
+        responsibleUser2: { select: { id: true, name: true, surname: true, email: true } },
+        responsibleUser3: { select: { id: true, name: true, surname: true, email: true } },
         reviewedBy: { select: { id: true, name: true, surname: true } },
         closedBy: { select: { id: true, name: true, surname: true } },
         department: { select: { id: true, name: true, code: true } },
@@ -98,7 +100,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       source,
       priority,
       status,
-      responsibleUserId,
+      responsibleUserIds,
       teamId,
       departmentId,
       rootCauseAnalysis,
@@ -121,7 +123,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     if (type !== undefined) updateData.type = type;
     if (source !== undefined) updateData.source = source;
     if (priority !== undefined) updateData.priority = priority;
-    if (responsibleUserId !== undefined) updateData.responsibleUserId = responsibleUserId || null;
+    if (responsibleUserIds !== undefined) {
+      const ids = (Array.isArray(responsibleUserIds) ? responsibleUserIds : [responsibleUserIds]).filter(Boolean).slice(0, 3);
+      updateData.responsibleUserId  = ids[0] ?? null;
+      updateData.responsibleUserId2 = ids[1] ?? null;
+      updateData.responsibleUserId3 = ids[2] ?? null;
+    }
     if (teamId !== undefined) updateData.teamId = teamId || null;
     if (departmentId !== undefined) updateData.departmentId = departmentId || null;
     if (rootCauseAnalysis !== undefined) updateData.rootCauseAnalysis = rootCauseAnalysis;
@@ -139,14 +146,24 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     if (reviewDate !== undefined) updateData.reviewDate = reviewDate ? new Date(reviewDate) : null;
     if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
 
-    // Durum değişikliği - Sadece Admin veya Yönetici yapabilir
+    // Durum değişikliği
     if (status !== undefined && status !== existingCapa.status) {
-      // Yetki kontrolü
-      if (!isAdmin(session.user.role)) {
-        return NextResponse.json(
-          { error: 'Durum değişikliği yapma yetkiniz bulunmamaktadır. Sadece Admin veya Yönetici bu işlemi yapabilir.' },
-          { status: 403 }
-        );
+      if (status === 'KAPATILDI') {
+        // Kapatma işlemi yalnızca açan kişi tarafından yapılabilir
+        if (existingCapa.createdById !== session.user.id) {
+          return NextResponse.json(
+            { error: 'Bu kaydı yalnızca açan kişi kapatabilir.' },
+            { status: 403 }
+          );
+        }
+      } else {
+        // Diğer durum değişiklikleri için Admin veya Yönetici yetkisi gereklidir
+        if (!isAdmin(session.user.role)) {
+          return NextResponse.json(
+            { error: 'Durum değişikliği yapma yetkiniz bulunmamaktadır. Sadece Admin veya Yönetici bu işlemi yapabilir.' },
+            { status: 403 }
+          );
+        }
       }
 
       updateData.status = status;
@@ -203,16 +220,21 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       },
     });
 
-    // Sorumlu kişi değişti ise bildirim gönder
-    if (responsibleUserId && responsibleUserId !== existingCapa.responsibleUserId && responsibleUserId !== session.user.id) {
-      const template = NotificationTemplates.capaAssigned(existingCapa.code);
-      await createNotification({
-        userId: responsibleUserId,
-        title: template.title,
-        message: `${existingCapa.code} kodlu "${capa.title}" başlıklı ${capa.type === 'DUZELTICI' ? 'Düzeltici' : 'Önleyici'} Faaliyet size atandı.`,
-        type: template.type,
-        link: `/dashboard/capas/${id}`,
-      });
+    // Yeni eklenen sorumlu kişilere bildirim gönder
+    if (responsibleUserIds !== undefined) {
+      const newIds = (Array.isArray(responsibleUserIds) ? responsibleUserIds : [responsibleUserIds]).filter(Boolean) as string[];
+      const oldIds = [existingCapa.responsibleUserId, (existingCapa as any).responsibleUserId2, (existingCapa as any).responsibleUserId3].filter(Boolean) as string[];
+      const addedIds = newIds.filter((uid) => !oldIds.includes(uid) && uid !== session.user.id);
+      for (const uid of addedIds) {
+        const template = NotificationTemplates.capaAssigned(existingCapa.code);
+        await createNotification({
+          userId: uid,
+          title: template.title,
+          message: `${existingCapa.code} kodlu "${capa.title}" başlıklı ${capa.type === 'DUZELTICI' ? 'Düzeltici' : 'Önleyici'} Faaliyet size atandı.`,
+          type: template.type,
+          link: `/dashboard/capas/${id}`,
+        });
+      }
     }
 
     // Durum değişikliğinde oluşturan kişiye bildirim gönder
