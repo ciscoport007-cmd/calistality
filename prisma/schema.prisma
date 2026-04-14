@@ -316,6 +316,11 @@ model User {
   // Modül Erişimi
   moduleAccess                  ModuleAccess[]               @relation("UserModuleAccess")
 
+  // Zimmet ilişkileri
+  zimmetIssued       ZimmetForm[]        @relation("ZimmetIssued")
+  zimmetReceived     ZimmetForm[]        @relation("ZimmetReceived")
+  documentSignatures DocumentSignature[] @relation("DocumentSigner")
+
   @@map("users")
 }
 
@@ -743,7 +748,8 @@ model Document {
   tags              DocumentTag[]    // Etiket ilişkisi (Phase 3)
   permissions       DocumentPermission[] // Granüler erişim kontrolü
   workflowInstances WorkflowInstance[] // İş Akışı örnekleri
-  
+  signatures        DocumentSignature[]
+
   @@map("documents")
 }
 
@@ -7296,4 +7302,84 @@ model FoodWarehouseMovement {
   updatedAt   DateTime      @updatedAt
 
   @@map("food_warehouse_movements")
+}
+
+// =============================================
+// ZİMMET & DOKÜMAN İMZA MODELLERİ
+// =============================================
+
+enum ZimmetStatus {
+  DRAFT
+  SIGNED
+  CANCELLED
+}
+
+enum ZimmetCategory {
+  EKIPMAN
+  UNIFORM
+  ANAHTAR
+  DIGER
+}
+
+enum ItemCondition {
+  IYI
+  HASARLI
+  KULLANILMIS
+}
+
+enum SignaturePurpose {
+  ONAY
+  BILGILENDIRME
+  ZIMMET
+}
+
+model ZimmetForm {
+  id                 String       @id @default(cuid())
+  formNo             String       @unique
+  title              String
+  description        String?
+  issuedById         String
+  issuedBy           User         @relation("ZimmetIssued", fields: [issuedById], references: [id])
+  receivedById       String?
+  receivedBy         User?        @relation("ZimmetReceived", fields: [receivedById], references: [id])
+  receiverName       String?
+  items              ZimmetItem[]
+  signatureImagePath String?
+  fileHash           String?
+  signedAt           DateTime?
+  status             ZimmetStatus @default(DRAFT)
+  isActive           Boolean      @default(true)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@map("zimmet_forms")
+}
+
+model ZimmetItem {
+  id           String          @id @default(cuid())
+  zimmetFormId String
+  zimmetForm   ZimmetForm      @relation(fields: [zimmetFormId], references: [id], onDelete: Cascade)
+  category     ZimmetCategory
+  name         String
+  quantity     Int             @default(1)
+  condition    ItemCondition   @default(IYI)
+  note         String?
+  createdAt    DateTime        @default(now())
+
+  @@map("zimmet_items")
+}
+
+model DocumentSignature {
+  id                 String          @id @default(cuid())
+  documentId         String
+  document           Document        @relation(fields: [documentId], references: [id])
+  versionId          String?
+  signedById         String
+  signedBy           User            @relation("DocumentSigner", fields: [signedById], references: [id])
+  signatureImagePath String
+  fileHash           String
+  purpose            SignaturePurpose @default(ONAY)
+  signedAt           DateTime        @default(now())
+
+  @@map("document_signatures")
 }
