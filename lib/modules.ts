@@ -7,6 +7,7 @@ export interface ModuleDefinition {
 export const ALL_MODULES: ModuleDefinition[] = [
   { key: 'dashboard',      label: 'Ana Sayfa',                   description: 'Dashboard ve genel bakış' },
   { key: 'documents',      label: 'Dokümanlar',                  description: 'Doküman yönetimi ve arşiv' },
+  { key: 'esignature',     label: 'e-İmza & Zimmet',             description: 'Dijital imza ve zimmet formu yönetimi' },
   { key: 'complaints',     label: 'Müşteri Şikayetleri',         description: 'Şikayet takip ve yönetimi' },
   { key: 'capas',          label: 'CAPA / DÖF',                  description: 'Düzeltici ve önleyici faaliyetler' },
   { key: 'meetings',       label: 'Toplantı Yönetimi',           description: 'Toplantı planlama ve takibi' },

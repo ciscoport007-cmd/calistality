@@ -35,6 +35,7 @@ import {
   UtensilsCrossed,
   Leaf,
   Award,
+  PenLine,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { signOut, useSession } from 'next-auth/react';
@@ -65,6 +66,15 @@ const menuItems = [
       { title: 'Tüm Dokümanlar', href: '/dashboard/documents' },
       { title: 'Klasör Yönetimi', href: '/dashboard/documents/folders' },
       { title: 'Onay İş Akışları', href: '/dashboard/documents/workflows' },
+    ],
+  },
+  {
+    moduleKey: 'esignature',
+    title: 'e-İmza & Zimmet',
+    href: '/dashboard/esignature/zimmet',
+    icon: PenLine,
+    subItems: [
+      { title: 'Zimmet Formları', href: '/dashboard/esignature/zimmet' },
     ],
   },
   {
