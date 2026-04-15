@@ -11,7 +11,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useSession } from 'next-auth/react';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { isAdmin } from '@/lib/audit';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -81,7 +80,7 @@ export default function ZimmetListPage() {
     }
   };
 
-  const userIsAdmin = isAdmin(session?.user?.role);
+  const userIsAdmin = session?.user?.role === 'Admin';
 
   return (
     <div className="space-y-6">
