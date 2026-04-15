@@ -13,12 +13,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { 
-  FileText, Download, Calendar, User, Building2, FolderOpen, CheckCircle, XCircle, Clock, 
+import {
+  FileText, Download, Calendar, User, Building2, FolderOpen, CheckCircle, XCircle, Clock,
   Edit, ArrowLeft, Eye, Upload, RefreshCw, Trash2, AlertTriangle, FileImage, File,
   Lock, Unlock, CalendarClock, Bell, Users, BookCheck, Ban, Search, ClipboardCheck, UserCheck, Tag, Plus, X,
-  FileSpreadsheet, Presentation, Shield, UserPlus, Briefcase, Loader2
+  FileSpreadsheet, Presentation, Shield, UserPlus, Briefcase, Loader2, PenLine, ShieldCheck
 } from 'lucide-react';
+import SignatureOverlay from '@/components/esignature/SignatureOverlay';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -106,6 +107,16 @@ interface Document {
   permissions?: any[];
   // İş Akışı Örnekleri
   workflowInstances?: any[];
+  // Dijital İmzalar
+  signatures?: Array<{
+    id: string;
+    signedById: string;
+    signedBy: { id: string; name: string; email: string };
+    signatureImagePath: string;
+    fileHash: string;
+    purpose: string;
+    signedAt: string;
+  }>;
 }
 
 interface DocumentPermission {
@@ -232,6 +243,10 @@ export default function DocumentDetailPage() {
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [savingTags, setSavingTags] = useState(false);
+
+  // Dijital İmza state
+  const [showSignOverlay, setShowSignOverlay] = useState(false);
+  const [signingDoc, setSigningDoc] = useState(false);
 
   useEffect(() => {
     if (params?.id) {
@@ -362,6 +377,29 @@ export default function DocumentDetailPage() {
       console.error('Fetch error:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDocSign = async (dataUrl: string) => {
+    setSigningDoc(true);
+    try {
+      const res = await fetch(`/api/esignature/document/${params?.id}/sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signatureDataUrl: dataUrl, purpose: 'ONAY' }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: 'Hata', description: data.error || 'İmzalanamadı', variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'İmzalandı', description: 'Belge imzanız kaydedildi.' });
+      setShowSignOverlay(false);
+      fetchDocument();
+    } catch {
+      toast({ title: 'Hata', description: 'Bir hata oluştu', variant: 'destructive' });
+    } finally {
+      setSigningDoc(false);
     }
   };
 
@@ -1231,6 +1269,9 @@ export default function DocumentDetailPage() {
           <TabsTrigger value="review">Revizyon Planı</TabsTrigger>
           <TabsTrigger value="acknowledgments" onClick={() => fetchAcknowledgments()}>Okundu Onayları</TabsTrigger>
           <TabsTrigger value="permissions">Erişim İzinleri</TabsTrigger>
+          <TabsTrigger value="signatures">
+            İmzalar {document?.signatures?.length ? `(${document.signatures.length})` : ''}
+          </TabsTrigger>
         </TabsList>
 
         {/* Temel Bilgiler */}
@@ -2069,6 +2110,71 @@ export default function DocumentDetailPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Dijital İmzalar */}
+        <TabsContent value="signatures" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="font-semibold text-gray-700">Dijital İmzalar</h3>
+            {!document?.signatures?.find((s) => s.signedById === session?.user?.id) && (
+              <Button
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => setShowSignOverlay(true)}
+              >
+                <PenLine className="w-4 h-4 mr-2" /> Belgeyi İmzala
+              </Button>
+            )}
+          </div>
+          {!document?.signatures?.length ? (
+            <div className="text-center py-8 text-gray-400">Henüz imza yok.</div>
+          ) : (
+            <div className="space-y-3">
+              {document.signatures.map((sig) => (
+                <div key={sig.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                  <div className="flex items-center gap-3">
+                    <ShieldCheck className="w-5 h-5 text-green-500" />
+                    <div>
+                      <p className="font-medium text-sm">{sig.signedBy.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {format(new Date(sig.signedAt), 'dd.MM.yyyy HH:mm', { locale: tr })}
+                        {' · '}{sig.purpose}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const encoded = sig.signatureImagePath
+                        .split('/')
+                        .map((s: string) => encodeURIComponent(s))
+                        .join('/');
+                      window.open(`/api/files/${encoded}?dl=1`, '_blank');
+                    }}
+                  >
+                    <Download className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {showSignOverlay && (
+            <SignatureOverlay
+              title="Belgeyi İmzala"
+              summary={
+                <div className="space-y-2 text-sm">
+                  <p><span className="font-semibold">Belge:</span> {document?.title}</p>
+                  <hr className="my-2" />
+                  <p className="text-xs text-gray-500">Bu belgeyi okuduğumu ve onayladığımı beyan ederim.</p>
+                </div>
+              }
+              onSave={handleDocSign}
+              onClose={() => setShowSignOverlay(false)}
+              loading={signingDoc}
+            />
+          )}
         </TabsContent>
       </Tabs>
 

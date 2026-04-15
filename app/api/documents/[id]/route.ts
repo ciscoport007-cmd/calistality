@@ -132,6 +132,12 @@ export async function GET(
           },
           orderBy: { startedAt: 'desc' },
         },
+        signatures: {
+          include: {
+            signedBy: { select: { id: true, name: true, email: true } },
+          },
+          orderBy: { signedAt: 'desc' },
+        },
       },
     });
 
