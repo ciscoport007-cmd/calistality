@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Package, Wrench, Gauge, History, Edit2, Save, X, Plus, Play, CheckCircle, Calendar, FastForward, FileText } from 'lucide-react';
+import { ArrowLeft, Package, Wrench, Gauge, History, Edit2, Save, X, Plus, Play, CheckCircle, Calendar, FastForward, FileText, ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -120,6 +120,7 @@ export default function EquipmentDetailPage() {
     certificateNumber: '',
     performedByType: 'INTERNAL' as 'INTERNAL' | 'EXTERNAL',
   });
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [earlyCalibrationDialogOpen, setEarlyCalibrationDialogOpen] = useState(false);
   const [completeCalibrationDialogOpen, setCompleteCalibrationDialogOpen] = useState(false);
   const [selectedCalibration, setSelectedCalibration] = useState<any>(null);
@@ -195,6 +196,35 @@ export default function EquipmentDetailPage() {
       }
     } catch (error) {
       toast.error('Güncelleme sırasında hata oluştu');
+    }
+  };
+
+  const handlePhotoUpload = async (file: File) => {
+    setPhotoUploading(true);
+    try {
+      const presignedRes = await fetch('/api/upload/presigned', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name, contentType: file.type, isPublic: true }),
+      });
+      if (!presignedRes.ok) throw new Error('Presigned URL alınamadı');
+      const { uploadUrl, cloud_storage_path } = await presignedRes.json();
+      const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: file });
+      if (!uploadRes.ok) throw new Error('Dosya yüklenemedi');
+
+      const patchRes = await fetch(`/api/equipment/${params.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: cloud_storage_path }),
+      });
+      if (!patchRes.ok) throw new Error('Kayıt güncellenemedi');
+
+      toast.success('Fotoğraf güncellendi');
+      fetchEquipment();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Fotoğraf yüklenemedi');
+    } finally {
+      setPhotoUploading(false);
     }
   };
 
@@ -476,6 +506,39 @@ export default function EquipmentDetailPage() {
               )}
             </CardHeader>
             <CardContent>
+              {/* Fotoğraf */}
+              <div className="mb-6 flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  {equipment.imageUrl ? (
+                    <img
+                      src={`/${equipment.imageUrl.replace('public/', '')}`}
+                      alt={equipment.name}
+                      className="h-40 w-40 rounded-lg border object-cover shadow-sm"
+                    />
+                  ) : (
+                    <div className="h-40 w-40 rounded-lg border bg-gray-50 flex flex-col items-center justify-center gap-2 text-gray-400">
+                      <ImageIcon className="w-10 h-10" />
+                      <span className="text-xs">Fotoğraf yok</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2 justify-end mt-auto">
+                  <label className={`cursor-pointer inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-md hover:bg-gray-50 transition-colors ${photoUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <ImageIcon className="w-4 h-4" />
+                    {photoUploading ? 'Yükleniyor...' : equipment.imageUrl ? 'Fotoğrafı Değiştir' : 'Fotoğraf Ekle'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      disabled={photoUploading}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handlePhotoUpload(file);
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <Label className="text-gray-500">Ad</Label>

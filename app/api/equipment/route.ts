@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { canCreate } from '@/lib/audit';
+import { canCreate, isAdmin } from '@/lib/audit';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -26,6 +26,17 @@ export async function GET(request: Request) {
       isActive: true,
     };
 
+    // Admin değilse sadece kendi departmanının ekipmanlarını görebilir
+    if (!isAdmin(session.user?.role)) {
+      const userDepartmentId = session.user?.departmentId;
+      if (userDepartmentId) {
+        where.departmentId = userDepartmentId;
+      }
+    } else {
+      // Admin ise departman filtresi URL param'dan alınır
+      if (departmentId) where.departmentId = departmentId;
+    }
+
     if (search) {
       where.OR = [
         { code: { contains: search, mode: 'insensitive' } },
@@ -37,7 +48,6 @@ export async function GET(request: Request) {
 
     if (status) where.status = status;
     if (categoryId) where.categoryId = categoryId;
-    if (departmentId) where.departmentId = departmentId;
     if (condition) where.condition = condition;
 
     const [equipment, total] = await Promise.all([
@@ -127,6 +137,7 @@ export async function POST(request: Request) {
       maintenanceResponsibleId,
       calibrationResponsibleId,
       lastCalibrationDate,
+      imageUrl,
     } = body;
 
     if (!name) {
@@ -180,6 +191,7 @@ export async function POST(request: Request) {
         ownerId: ownerId || null,
         maintenanceResponsibleId: maintenanceResponsibleId || null,
         calibrationResponsibleId: calibrationResponsibleId || null,
+        imageUrl: imageUrl || null,
         createdById: session.user.id,
       },
       include: {

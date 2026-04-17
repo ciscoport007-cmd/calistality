@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
+import { isAdmin } from '@/lib/audit';
 import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -53,6 +54,14 @@ export async function GET(
       return NextResponse.json({ error: 'Equipment not found' }, { status: 404 });
     }
 
+    // Admin değilse sadece kendi departmanının ekipmanına erişebilir
+    if (!isAdmin(session.user?.role)) {
+      const userDepartmentId = session.user?.departmentId;
+      if (userDepartmentId && equipment.departmentId !== userDepartmentId) {
+        return NextResponse.json({ error: 'Bu ekipmanı görüntüleme yetkiniz yok' }, { status: 403 });
+      }
+    }
+
     return NextResponse.json(equipment);
   } catch (error) {
     console.error('Error fetching equipment:', error);
@@ -92,6 +101,7 @@ export async function PATCH(
       'maintenanceFrequency', 'requiresCalibration', 'calibrationFrequency',
       'purchaseCost', 'currentValue', 'specifications', 'operatingInstructions',
       'safetyInstructions', 'ownerId', 'maintenanceResponsibleId', 'calibrationResponsibleId',
+      'imageUrl',
     ];
 
     for (const field of fields) {

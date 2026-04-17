@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Plus, Package, AlertTriangle, Wrench, Gauge, ChevronLeft, ChevronRight, Building2, Filter, Calendar } from 'lucide-react';
+import { Search, Plus, Package, AlertTriangle, Wrench, Gauge, ChevronLeft, ChevronRight, Building2, Filter, Calendar, ImageIcon, X } from 'lucide-react';
 import { ExportButton } from '@/components/ui/export-button';
 import { formatDate } from '@/lib/export-utils';
 import { toast } from 'sonner';
@@ -46,13 +47,18 @@ const conditionLabels: Record<string, string> = {
   KULLANIM_DISI: 'Kullanım Dışı',
 };
 
+const adminRoles = ['Admin', 'Yönetici', 'admin', 'Strateji Ofisi'];
+
 export default function EquipmentPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const isAdmin = adminRoles.some(r => r.toLowerCase() === (session?.user?.role || '').toLowerCase());
   const [equipment, setEquipment] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -66,6 +72,8 @@ export default function EquipmentPage() {
     faulty: 0,
   });
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -88,8 +96,9 @@ export default function EquipmentPage() {
         page: page.toString(),
         pageSize: '10',
         ...(search && { search }),
-        ...(statusFilter && { status: statusFilter }),
-        ...(categoryFilter && { categoryId: categoryFilter }),
+        ...(statusFilter && statusFilter !== 'all' && { status: statusFilter }),
+        ...(categoryFilter && categoryFilter !== 'all' && { categoryId: categoryFilter }),
+        ...(departmentFilter && departmentFilter !== 'all' && { departmentId: departmentFilter }),
       });
 
       const res = await fetch(`/api/equipment?${params}`);
@@ -157,7 +166,24 @@ export default function EquipmentPage() {
     fetchCategories();
     fetchDepartments();
     fetchUsers();
-  }, [page, search, statusFilter, categoryFilter]);
+  }, [page, search, statusFilter, categoryFilter, departmentFilter]);
+
+  const uploadPhoto = async (file: File): Promise<string | null> => {
+    try {
+      const presignedRes = await fetch('/api/upload/presigned', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name, contentType: file.type, isPublic: true }),
+      });
+      if (!presignedRes.ok) return null;
+      const { uploadUrl, cloud_storage_path } = await presignedRes.json();
+      const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: file });
+      if (!uploadRes.ok) return null;
+      return cloud_storage_path;
+    } catch {
+      return null;
+    }
+  };
 
   const handleCreate = async () => {
     if (!formData.name) {
@@ -166,6 +192,15 @@ export default function EquipmentPage() {
     }
 
     try {
+      let imageUrl: string | null = null;
+      if (photoFile) {
+        imageUrl = await uploadPhoto(photoFile);
+        if (!imageUrl) {
+          toast.error('Fotoğraf yüklenemedi');
+          return;
+        }
+      }
+
       const res = await fetch('/api/equipment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -174,12 +209,15 @@ export default function EquipmentPage() {
           maintenanceFrequency: formData.maintenanceFrequency ? parseInt(formData.maintenanceFrequency) : null,
           calibrationFrequency: formData.calibrationFrequency ? parseInt(formData.calibrationFrequency) : null,
           lastCalibrationDate: formData.lastCalibrationDate || null,
+          imageUrl,
         }),
       });
 
       if (res.ok) {
         toast.success('Ekipman oluşturuldu');
         setDialogOpen(false);
+        setPhotoFile(null);
+        setPhotoPreview(null);
         setFormData({
           name: '',
           description: '',
@@ -278,6 +316,38 @@ export default function EquipmentPage() {
                   placeholder="Ekipman açıklaması"
                   rows={2}
                 />
+              </div>
+              <div className="col-span-2">
+                <Label>Fotoğraf</Label>
+                {photoPreview ? (
+                  <div className="relative mt-1 inline-block">
+                    <img src={photoPreview} alt="Önizleme" className="h-32 w-auto rounded border object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => { setPhotoFile(null); setPhotoPreview(null); }}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="mt-1 flex items-center gap-2 cursor-pointer border border-dashed border-gray-300 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <ImageIcon className="w-5 h-5 text-gray-400" />
+                    <span className="text-sm text-gray-500">Fotoğraf seçmek için tıklayın (JPG, PNG)</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setPhotoFile(file);
+                          setPhotoPreview(URL.createObjectURL(file));
+                        }
+                      }}
+                    />
+                  </label>
+                )}
               </div>
               <div>
                 <Label>Kategori</Label>
@@ -495,6 +565,19 @@ export default function EquipmentPage() {
                 ))}
               </SelectContent>
             </Select>
+            {isAdmin && (
+              <Select value={departmentFilter} onValueChange={(v) => { setDepartmentFilter(v); setPage(1); }}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Tüm Departmanlar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tüm Departmanlar</SelectItem>
+                  {departments.map((dep) => (
+                    <SelectItem key={dep.id} value={dep.id}>{dep.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </CardContent>
       </Card>
