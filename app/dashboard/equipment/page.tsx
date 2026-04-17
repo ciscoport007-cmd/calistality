@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, Plus, Package, AlertTriangle, Wrench, Gauge, ChevronLeft, ChevronRight, Building2, Filter, Calendar, ImageIcon, X } from 'lucide-react';
+import { Search, Plus, Package, AlertTriangle, Wrench, Gauge, ChevronLeft, ChevronRight, Building2, Filter, Calendar, ImageIcon, X, Copy } from 'lucide-react';
 import { ExportButton } from '@/components/ui/export-button';
 import { formatDate } from '@/lib/export-utils';
 import { toast } from 'sonner';
@@ -72,6 +72,9 @@ export default function EquipmentPage() {
     faulty: 0,
   });
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [duplicateTarget, setDuplicateTarget] = useState<any>(null);
+  const [duplicateForm, setDuplicateForm] = useState({ location: '', serialNumber: '' });
+  const [duplicating, setDuplicating] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -241,6 +244,56 @@ export default function EquipmentPage() {
     } catch (error) {
       console.error('Error creating equipment:', error);
       toast.error('Ekipman oluşturulurken hata oluştu');
+    }
+  };
+
+  const handleDuplicate = async () => {
+    if (!duplicateForm.location.trim() || !duplicateForm.serialNumber.trim()) {
+      toast.error('Konum ve seri numarası zorunludur');
+      return;
+    }
+    setDuplicating(true);
+    try {
+      const src = duplicateTarget;
+      const res = await fetch('/api/equipment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: src.name,
+          description: src.description,
+          categoryId: src.categoryId,
+          departmentId: src.departmentId,
+          location: duplicateForm.location.trim(),
+          serialNumber: duplicateForm.serialNumber.trim(),
+          model: src.model,
+          manufacturer: src.manufacturer,
+          maintenanceFrequency: src.maintenanceFrequency,
+          requiresCalibration: src.requiresCalibration,
+          calibrationFrequency: src.calibrationFrequency,
+          purchaseCost: src.purchaseCost,
+          currentValue: src.currentValue,
+          specifications: src.specifications,
+          operatingInstructions: src.operatingInstructions,
+          safetyInstructions: src.safetyInstructions,
+          ownerId: src.ownerId,
+          maintenanceResponsibleId: src.maintenanceResponsibleId,
+          calibrationResponsibleId: src.calibrationResponsibleId,
+          imageUrl: src.imageUrl,
+        }),
+      });
+      if (res.ok) {
+        toast.success('Ekipman çoğaltıldı');
+        setDuplicateTarget(null);
+        setDuplicateForm({ location: '', serialNumber: '' });
+        fetchEquipment();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'Çoğaltılamadı');
+      }
+    } catch {
+      toast.error('Bir hata oluştu');
+    } finally {
+      setDuplicating(false);
     }
   };
 
@@ -597,18 +650,19 @@ export default function EquipmentPage() {
                 <TableHead>Bakım</TableHead>
                 <TableHead>Kalibrasyon</TableHead>
                 <TableHead>Sorumlu</TableHead>
+                <TableHead className="text-right">İşlem</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8">
+                  <TableCell colSpan={10} className="text-center py-8">
                     Yükleniyor...
                   </TableCell>
                 </TableRow>
               ) : equipment.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                     Ekipman bulunamadı
                   </TableCell>
                 </TableRow>
@@ -638,6 +692,20 @@ export default function EquipmentPage() {
                     <TableCell>{eq._count?.maintenances || 0}</TableCell>
                     <TableCell>{eq._count?.calibrations || 0}</TableCell>
                     <TableCell>{eq.owner ? `${eq.owner.name} ${eq.owner.surname || ''}` : '-'}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        title="Çoğalt"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDuplicateTarget(eq);
+                          setDuplicateForm({ location: '', serialNumber: '' });
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -668,6 +736,54 @@ export default function EquipmentPage() {
           </Button>
         </div>
       )}
+      {/* Çoğaltma Dialog */}
+      <Dialog open={!!duplicateTarget} onOpenChange={(open) => !open && setDuplicateTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Copy className="h-5 w-5 text-blue-600" />
+              Ekipmanı Çoğalt
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1 mb-4 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
+            <p><span className="font-medium">Kaynak:</span> {duplicateTarget?.name}</p>
+            <p><span className="font-medium">Model:</span> {duplicateTarget?.model || '-'} / {duplicateTarget?.manufacturer || '-'}</p>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">
+            Aşağıdaki iki bilgiyi doldurun; diğer tüm bilgiler kaynaktan kopyalanacaktır.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <Label>Konum <span className="text-red-500">*</span></Label>
+              <Input
+                placeholder="Ekipmanın bulunduğu konum"
+                value={duplicateForm.location}
+                onChange={(e) => setDuplicateForm({ ...duplicateForm, location: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Seri Numarası <span className="text-red-500">*</span></Label>
+              <Input
+                placeholder="Yeni seri numarası"
+                value={duplicateForm.serialNumber}
+                onChange={(e) => setDuplicateForm({ ...duplicateForm, serialNumber: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-6">
+            <Button variant="outline" onClick={() => setDuplicateTarget(null)} disabled={duplicating}>
+              Vazgeç
+            </Button>
+            <Button
+              onClick={handleDuplicate}
+              disabled={duplicating || !duplicateForm.location.trim() || !duplicateForm.serialNumber.trim()}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              {duplicating ? 'Çoğaltılıyor...' : 'Çoğalt'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
