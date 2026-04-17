@@ -54,8 +54,9 @@ export async function GET(
       return NextResponse.json({ error: 'Equipment not found' }, { status: 404 });
     }
 
-    // Admin değilse sadece kendi departmanının ekipmanına erişebilir
-    if (!isAdmin(session.user?.role)) {
+    // Yalnızca Admin rolü tüm departman ekipmanlarına erişebilir
+    const isSuperAdmin = session.user?.role === 'Admin' || session.user?.role === 'admin';
+    if (!isSuperAdmin) {
       const userDepartmentId = session.user?.departmentId;
       if (userDepartmentId && equipment.departmentId !== userDepartmentId) {
         return NextResponse.json({ error: 'Bu ekipmanı görüntüleme yetkiniz yok' }, { status: 403 });

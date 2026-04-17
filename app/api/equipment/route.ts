@@ -26,8 +26,9 @@ export async function GET(request: Request) {
       isActive: true,
     };
 
-    // Admin değilse sadece kendi departmanının ekipmanlarını görebilir
-    if (!isAdmin(session.user?.role)) {
+    // Yalnızca Admin rolü tüm departmanları görebilir; Yönetici dahil diğerleri sadece kendi departmanını görür
+    const isSuperAdmin = session.user?.role === 'Admin' || session.user?.role === 'admin';
+    if (!isSuperAdmin) {
       const userDepartmentId = session.user?.departmentId;
       if (userDepartmentId) {
         where.departmentId = userDepartmentId;
