@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
         category: { select: { id: true, name: true, code: true, color: true } },
         department: { select: { id: true, name: true, code: true } },
         owner: { select: { id: true, name: true, surname: true } },
+        createdBy: { select: { id: true, name: true, surname: true } },
         _count: { select: { measurements: true } },
       },
     });

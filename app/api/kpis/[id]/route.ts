@@ -175,6 +175,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'KPI bulunamadı' }, { status: 404 });
     }
 
+    const isAdmin = session.user.role === 'Admin' || session.user.role === 'admin';
+    const isCreator = existingKPI.createdById === session.user.id;
+    if (!isAdmin && !isCreator) {
+      return NextResponse.json({ error: 'Bu KPI\'yi silme yetkiniz yok' }, { status: 403 });
+    }
+
     await prisma.kPI.update({
       where: { id },
       data: { isActive: false },

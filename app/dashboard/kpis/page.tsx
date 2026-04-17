@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, BarChart3, Target, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Plus, Search, BarChart3, Target, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Trash2 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { ExportButton } from '@/components/ui/export-button';
 import { formatDate } from '@/lib/export-utils';
 import { format } from 'date-fns';
@@ -66,6 +67,7 @@ const trendLabels: Record<string, string> = {
 
 export default function KPIsPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [kpis, setKpis] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
@@ -192,6 +194,29 @@ export default function KPIsPage() {
     } catch (error) {
       console.error('KPI oluşturma hatası:', error);
     }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, kpiId: string) => {
+    e.stopPropagation();
+    if (!confirm('Bu KPI\'yi silmek istediğinizden emin misiniz?')) return;
+    try {
+      const res = await fetch(`/api/kpis/${kpiId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setKpis((prev) => prev.filter((k) => k.id !== kpiId));
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Silinemedi');
+      }
+    } catch {
+      alert('Silinemedi');
+    }
+  };
+
+  const canDelete = (kpi: any) => {
+    const role = (session?.user as any)?.role;
+    const isAdmin = role === 'Admin' || role === 'admin';
+    const isCreator = kpi.createdBy?.id === (session?.user as any)?.id;
+    return isAdmin || isCreator;
   };
 
   const getPerformanceIcon = (kpi: any) => {
@@ -550,6 +575,7 @@ export default function KPIsPage() {
                 <TableHead>Son Ölçüm</TableHead>
                 <TableHead>Performans</TableHead>
                 <TableHead>Durum</TableHead>
+                <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -592,6 +618,18 @@ export default function KPIsPage() {
                     <Badge className={statusColors[kpi.status]}>
                       {statusLabels[kpi.status] || kpi.status}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {canDelete(kpi) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={(e) => handleDelete(e, kpi.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
