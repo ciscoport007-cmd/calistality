@@ -108,14 +108,25 @@ export default function EquipmentPage() {
         ...(noPhotoFilter && { noPhoto: 'true' }),
       });
 
-      const res = await fetch(`/api/equipment?${params}`);
+      // Sayfalı liste ve istatistikler için aynı filtreleri kullan
+      const statsParams = new URLSearchParams({
+        pageSize: '1000',
+        ...(search && { search }),
+        ...(statusFilter && statusFilter !== 'all' && { status: statusFilter }),
+        ...(categoryFilter && categoryFilter !== 'all' && { categoryId: categoryFilter }),
+        ...(departmentFilter && departmentFilter !== 'all' && { departmentId: departmentFilter }),
+        ...(noPhotoFilter && { noPhoto: 'true' }),
+      });
+
+      const [res, allRes] = await Promise.all([
+        fetch(`/api/equipment?${params}`),
+        fetch(`/api/equipment?${statsParams}`),
+      ]);
       const data = await res.json();
+      const allData = await allRes.json();
       setEquipment(data.equipment || []);
       setTotalPages(data.pagination?.totalPages || 1);
 
-      // İstatistikleri hesapla
-      const allRes = await fetch('/api/equipment?pageSize=1000');
-      const allData = await allRes.json();
       const allEquip = allData.equipment || [];
       setStats({
         total: allEquip.length,
