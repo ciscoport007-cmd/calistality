@@ -200,7 +200,8 @@ export default function EquipmentDetailPage() {
     }
   };
 
-  const handlePhotoUpload = async (file: File) => {
+  const handlePhotoUpload = async (file: File, inputEl?: HTMLInputElement | null) => {
+    const currentId = params.id as string;
     setPhotoUploading(true);
     try {
       const presignedRes = await fetch('/api/upload/presigned', {
@@ -213,15 +214,18 @@ export default function EquipmentDetailPage() {
       const uploadRes = await fetch(uploadUrl, { method: 'PUT', body: file });
       if (!uploadRes.ok) throw new Error('Dosya yüklenemedi');
 
-      const patchRes = await fetch(`/api/equipment/${params.id}`, {
+      const patchRes = await fetch(`/api/equipment/${currentId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageUrl: cloud_storage_path }),
       });
       if (!patchRes.ok) throw new Error('Kayıt güncellenemedi');
 
+      // Doğrudan state güncelle — params.id'yi tekrar kullanan asenkron GET çağrısından kaçın
+      setEquipment((prev: any) => prev ? { ...prev, imageUrl: cloud_storage_path } : prev);
+      setEditData((prev: any) => prev ? { ...prev, imageUrl: cloud_storage_path } : prev);
+      if (inputEl) inputEl.value = '';
       toast.success('Fotoğraf güncellendi');
-      fetchEquipment();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Fotoğraf yüklenemedi');
     } finally {
@@ -531,7 +535,7 @@ export default function EquipmentDetailPage() {
                     e.preventDefault();
                     setPhotoDragOver(false);
                     const file = e.dataTransfer.files?.[0];
-                    if (file && file.type.startsWith('image/')) handlePhotoUpload(file);
+                    if (file && file.type.startsWith('image/')) handlePhotoUpload(file, null);
                   }}
                 >
                   <ImageIcon className={`w-8 h-8 ${photoDragOver ? 'text-blue-400' : 'text-gray-400'}`} />
@@ -550,7 +554,7 @@ export default function EquipmentDetailPage() {
                     disabled={photoUploading}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) handlePhotoUpload(file);
+                      if (file) handlePhotoUpload(file, e.target);
                     }}
                   />
                 </label>
