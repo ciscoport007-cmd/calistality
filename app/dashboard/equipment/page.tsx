@@ -72,6 +72,7 @@ export default function EquipmentPage() {
     faulty: 0,
   });
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [photoDragOver, setPhotoDragOver] = useState(false);
   const [duplicateTarget, setDuplicateTarget] = useState<any>(null);
   const [duplicateForm, setDuplicateForm] = useState({ location: '', serialNumber: '' });
   const [duplicating, setDuplicating] = useState(false);
@@ -384,9 +385,25 @@ export default function EquipmentPage() {
                     </button>
                   </div>
                 ) : (
-                  <label className="mt-1 flex items-center gap-2 cursor-pointer border border-dashed border-gray-300 rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                    <ImageIcon className="w-5 h-5 text-gray-400" />
-                    <span className="text-sm text-gray-500">Fotoğraf seçmek için tıklayın (JPG, PNG)</span>
+                  <label
+                    className={`mt-1 flex flex-col items-center justify-center gap-2 cursor-pointer border-2 border-dashed rounded-lg p-6 transition-colors ${photoDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:bg-gray-50'}`}
+                    onDragOver={(e) => { e.preventDefault(); setPhotoDragOver(true); }}
+                    onDragLeave={() => setPhotoDragOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setPhotoDragOver(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file && file.type.startsWith('image/')) {
+                        setPhotoFile(file);
+                        setPhotoPreview(URL.createObjectURL(file));
+                      }
+                    }}
+                  >
+                    <ImageIcon className={`w-8 h-8 ${photoDragOver ? 'text-blue-400' : 'text-gray-400'}`} />
+                    <span className="text-sm text-gray-500 text-center">
+                      Fotoğrafı buraya sürükleyin<br />
+                      <span className="text-xs text-gray-400">veya tıklayarak seçin (JPG, PNG, WEBP)</span>
+                    </span>
                     <input
                       type="file"
                       accept="image/jpeg,image/png,image/webp"

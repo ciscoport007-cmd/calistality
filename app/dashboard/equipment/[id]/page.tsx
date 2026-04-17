@@ -121,6 +121,7 @@ export default function EquipmentDetailPage() {
     performedByType: 'INTERNAL' as 'INTERNAL' | 'EXTERNAL',
   });
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoDragOver, setPhotoDragOver] = useState(false);
   const [earlyCalibrationDialogOpen, setEarlyCalibrationDialogOpen] = useState(false);
   const [completeCalibrationDialogOpen, setCompleteCalibrationDialogOpen] = useState(false);
   const [selectedCalibration, setSelectedCalibration] = useState<any>(null);
@@ -507,7 +508,7 @@ export default function EquipmentDetailPage() {
             </CardHeader>
             <CardContent>
               {/* Fotoğraf */}
-              <div className="mb-6 flex items-start gap-4">
+              <div className="mb-6 flex items-start gap-6">
                 <div className="flex-shrink-0">
                   {equipment.imageUrl ? (
                     <img
@@ -522,22 +523,37 @@ export default function EquipmentDetailPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex flex-col gap-2 justify-end mt-auto">
-                  <label className={`cursor-pointer inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-md hover:bg-gray-50 transition-colors ${photoUploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                    <ImageIcon className="w-4 h-4" />
-                    {photoUploading ? 'Yükleniyor...' : equipment.imageUrl ? 'Fotoğrafı Değiştir' : 'Fotoğraf Ekle'}
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      className="hidden"
-                      disabled={photoUploading}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handlePhotoUpload(file);
-                      }}
-                    />
-                  </label>
-                </div>
+                <label
+                  className={`flex-1 flex flex-col items-center justify-center gap-2 cursor-pointer border-2 border-dashed rounded-lg p-5 transition-colors min-h-[10rem] ${photoUploading ? 'opacity-50 pointer-events-none' : ''} ${photoDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:bg-gray-50'}`}
+                  onDragOver={(e) => { e.preventDefault(); setPhotoDragOver(true); }}
+                  onDragLeave={() => setPhotoDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setPhotoDragOver(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file && file.type.startsWith('image/')) handlePhotoUpload(file);
+                  }}
+                >
+                  <ImageIcon className={`w-8 h-8 ${photoDragOver ? 'text-blue-400' : 'text-gray-400'}`} />
+                  <span className="text-sm text-gray-500 text-center">
+                    {photoUploading ? 'Yükleniyor...' : (
+                      <>
+                        Fotoğrafı buraya sürükleyin<br />
+                        <span className="text-xs text-gray-400">veya tıklayarak seçin (JPG, PNG, WEBP)</span>
+                      </>
+                    )}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    disabled={photoUploading}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handlePhotoUpload(file);
+                    }}
+                  />
+                </label>
               </div>
               <div className="grid grid-cols-2 gap-6">
                 <div>
