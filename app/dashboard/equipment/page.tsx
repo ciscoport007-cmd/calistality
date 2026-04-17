@@ -62,6 +62,7 @@ export default function EquipmentPage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [noPhotoFilter, setNoPhotoFilter] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [stats, setStats] = useState({
@@ -103,6 +104,7 @@ export default function EquipmentPage() {
         ...(statusFilter && statusFilter !== 'all' && { status: statusFilter }),
         ...(categoryFilter && categoryFilter !== 'all' && { categoryId: categoryFilter }),
         ...(departmentFilter && departmentFilter !== 'all' && { departmentId: departmentFilter }),
+        ...(noPhotoFilter && { noPhoto: 'true' }),
       });
 
       const res = await fetch(`/api/equipment?${params}`);
@@ -170,7 +172,7 @@ export default function EquipmentPage() {
     fetchCategories();
     fetchDepartments();
     fetchUsers();
-  }, [page, search, statusFilter, categoryFilter, departmentFilter]);
+  }, [page, search, statusFilter, categoryFilter, departmentFilter, noPhotoFilter]);
 
   const uploadPhoto = async (file: File): Promise<string | null> => {
     try {
@@ -648,6 +650,15 @@ export default function EquipmentPage() {
                 </SelectContent>
               </Select>
             )}
+            <Button
+              variant={noPhotoFilter ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => { setNoPhotoFilter((v) => !v); setPage(1); }}
+              className="flex items-center gap-2 whitespace-nowrap"
+            >
+              <ImageIcon className="h-4 w-4" />
+              Fotoğrafsızlar
+            </Button>
           </div>
         </CardContent>
       </Card>

@@ -19,6 +19,7 @@ export async function GET(request: Request) {
     const categoryId = searchParams.get('categoryId') || '';
     const departmentId = searchParams.get('departmentId') || '';
     const condition = searchParams.get('condition') || '';
+    const noPhoto = searchParams.get('noPhoto') === 'true';
     const page = parseInt(searchParams.get('page') || '1');
     const pageSize = parseInt(searchParams.get('pageSize') || '10');
 
@@ -50,6 +51,9 @@ export async function GET(request: Request) {
     if (status) where.status = status;
     if (categoryId) where.categoryId = categoryId;
     if (condition) where.condition = condition;
+    if (noPhoto) {
+      where.OR = [{ imageUrl: null }, { imageUrl: '' }];
+    }
 
     const [equipment, total] = await Promise.all([
       prisma.equipment.findMany({
