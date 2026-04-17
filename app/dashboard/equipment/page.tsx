@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,7 @@ const adminRoles = ['Admin', 'Yönetici', 'admin', 'Strateji Ofisi'];
 
 export default function EquipmentPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session } = useSession();
   const isAdmin = adminRoles.some(r => r.toLowerCase() === (session?.user?.role || '').toLowerCase());
   const [equipment, setEquipment] = useState<any[]>([]);
@@ -63,7 +64,7 @@ export default function EquipmentPage() {
   const [departments, setDepartments] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [noPhotoFilter, setNoPhotoFilter] = useState(false);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => parseInt(searchParams.get('page') || '1'));
   const [totalPages, setTotalPages] = useState(1);
   const [stats, setStats] = useState({
     total: 0,
@@ -699,7 +700,7 @@ export default function EquipmentPage() {
                   <TableRow
                     key={eq.id}
                     className="cursor-pointer hover:bg-gray-50"
-                    onClick={() => router.push(`/dashboard/equipment/${eq.id}`)}
+                    onClick={() => router.push(`/dashboard/equipment/${eq.id}?page=${page}`)}
                   >
                     <TableCell className="font-mono text-sm">{eq.code}</TableCell>
                     <TableCell className="font-medium">{eq.name}</TableCell>

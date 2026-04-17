@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,6 +90,8 @@ const actionLabels: Record<string, string> = {
 export default function EquipmentDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromPage = searchParams.get('page') || '1';
   const [equipment, setEquipment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -144,7 +146,7 @@ export default function EquipmentDetailPage() {
         setEditData(data);
       } else {
         toast.error('Ekipman bulunamadı');
-        router.push('/dashboard/equipment');
+        router.push(`/dashboard/equipment?page=${fromPage}`);
       }
     } catch (error) {
       console.error('Error fetching equipment:', error);
@@ -460,7 +462,7 @@ export default function EquipmentDetailPage() {
       {/* Üst Bar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={() => router.push('/dashboard/equipment')}>
+          <Button variant="ghost" onClick={() => router.push(`/dashboard/equipment?page=${fromPage}`)}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Geri
           </Button>
