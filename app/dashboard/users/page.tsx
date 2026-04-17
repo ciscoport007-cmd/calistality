@@ -134,7 +134,7 @@ export default function UsersPage() {
     [roles, formData.roleId]
   );
 
-  const showModuleSelector = formData.roleId && !hasFullAccess(selectedRoleName);
+  const showModuleSelector = true; // Her zaman modül seçici göster
 
   const filteredPositions = useMemo(() => {
     if (!formData.departmentId) return positions;
@@ -175,7 +175,7 @@ export default function UsersPage() {
       const savedUser = await response.json();
       const userId = editingUser?.id ?? savedUser?.id ?? savedUser?.user?.id;
 
-      if (userId && showModuleSelector) {
+      if (userId) {
         await fetch(`/api/users/${userId}/module-access`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -212,10 +212,11 @@ export default function UsersPage() {
       const res = await fetch(`/api/users/${user.id}/module-access`);
       if (res.ok) {
         const data = await res.json();
-        setSelectedModules(data.modules ?? []);
+        // Hiç kayıt yoksa (tam erişim) → tüm modüller seçili göster
+        setSelectedModules(data.modules?.length > 0 ? data.modules : ALL_MODULES.map((m) => m.key));
       }
     } catch {
-      setSelectedModules([]);
+      setSelectedModules(ALL_MODULES.map((m) => m.key));
     }
 
     setDialogOpen(true);
@@ -268,7 +269,7 @@ export default function UsersPage() {
 
   const resetForm = () => {
     setEditingUser(null);
-    setSelectedModules([]);
+    setSelectedModules(ALL_MODULES.map((m) => m.key)); // Yeni kullanıcı: tüm modüller varsayılan seçili
     setFormData({ email: '', password: '', name: '', surname: '', phone: '', roleId: '', departmentId: '', positionId: '' });
   };
 

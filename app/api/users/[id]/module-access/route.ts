@@ -18,7 +18,7 @@ export async function GET(
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Oturum açmanız gerekiyor' }, { status: 401 });
   }
-  if (!isAdmin(session.user.role)) {
+  if (session.user.role !== 'Admin' && session.user.role !== 'admin') {
     return NextResponse.json({ error: 'Bu işlem için yetkiniz yok' }, { status: 403 });
   }
 
@@ -42,7 +42,7 @@ export async function PUT(
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Oturum açmanız gerekiyor' }, { status: 401 });
   }
-  if (!isAdmin(session.user.role)) {
+  if (session.user.role !== 'Admin' && session.user.role !== 'admin') {
     return NextResponse.json({ error: 'Bu işlem için yetkiniz yok' }, { status: 403 });
   }
 
