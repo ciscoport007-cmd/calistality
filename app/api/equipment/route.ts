@@ -108,11 +108,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Yalnızca Admin ve Yönetici rolleri yeni içerik oluşturabilir
-    if (!canCreate(session.user?.role)) {
-      return NextResponse.json({ error: 'Bu işlem için yetkiniz bulunmamaktadır' }, { status: 403 });
-    }
-
     const body = await request.json();
     const {
       name,
@@ -143,6 +138,16 @@ export async function POST(request: Request) {
 
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    }
+
+    // Admin ve Yönetici her departman için oluşturabilir.
+    // Diğer kullanıcılar yalnızca kendi departmanları için oluşturabilir (çoğaltma dahil).
+    const isSuperAdmin = session.user?.role === 'Admin' || session.user?.role === 'admin';
+    const isManagerRole = canCreate(session.user?.role);
+    const userDeptId = session.user?.departmentId;
+    const isCreatingForOwnDept = userDeptId && departmentId && userDeptId === departmentId;
+    if (!isSuperAdmin && !isManagerRole && !isCreatingForOwnDept) {
+      return NextResponse.json({ error: 'Bu işlem için yetkiniz bulunmamaktadır' }, { status: 403 });
     }
 
     const code = await generateEquipmentCode();
