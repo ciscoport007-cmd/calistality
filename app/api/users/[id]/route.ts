@@ -62,9 +62,10 @@ export async function PATCH(
     const body = await request.json();
     const { email, password, name, surname, phone, roleId, departmentId, positionId, isActive } = body ?? {};
 
-    // Admin yetkisi kontrolü - pozisyon, rol, departman ve aktiflik değişiklikleri için
+    // Sadece Admin rolü kullanıcı bilgilerini değiştirebilir
+    const isSuperAdmin = session.user?.role === 'Admin' || session.user?.role === 'admin';
     const adminOnlyFields = roleId !== undefined || departmentId !== undefined || positionId !== undefined || isActive !== undefined;
-    if (adminOnlyFields && !isAdmin(session.user?.role)) {
+    if (adminOnlyFields && !isSuperAdmin) {
       return NextResponse.json(
         { error: 'Bu işlem için yönetici yetkisi gereklidir' },
         { status: 403 }
@@ -120,10 +121,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
     }
 
-    // Sadece admin kullanıcı silebilir
-    if (!isAdmin(session.user?.role)) {
+    // Sadece Admin rolü kullanıcı silebilir
+    if (session.user?.role !== 'Admin' && session.user?.role !== 'admin') {
       return NextResponse.json(
-        { error: 'Bu işlem için yönetici yetkisi gereklidir' },
+        { error: 'Bu işlem için Admin yetkisi gereklidir' },
         { status: 403 }
       );
     }

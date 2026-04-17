@@ -34,6 +34,8 @@ import { Plus, Pencil, Trash2, CheckCircle2, XCircle, Clock } from 'lucide-react
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { ALL_MODULES, hasFullAccess } from '@/lib/modules';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 interface Position {
   id: string;
@@ -68,6 +70,8 @@ interface PendingUser {
 
 export default function UsersPage() {
   const { toast } = useToast();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
@@ -90,8 +94,15 @@ export default function UsersPage() {
   });
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (status === 'unauthenticated') { router.push('/login'); return; }
+    if (status === 'authenticated') {
+      if (session?.user?.role !== 'Admin' && session?.user?.role !== 'admin') {
+        router.push('/dashboard');
+        return;
+      }
+      fetchData();
+    }
+  }, [status, session]);
 
   const fetchData = async () => {
     try {

@@ -14,6 +14,9 @@ export async function GET(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
     }
+    if (session.user?.role !== 'Admin' && session.user?.role !== 'admin') {
+      return NextResponse.json({ error: 'Bu işlem için Admin yetkisi gereklidir' }, { status: 403 });
+    }
 
     const roles = await prisma.role.findMany({
       include: {
@@ -41,9 +44,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
     }
 
-    // Yalnızca Admin ve Yönetici rolleri yeni içerik oluşturabilir
-    if (!canCreate(session.user?.role)) {
-      return NextResponse.json({ error: 'Bu işlem için yetkiniz bulunmamaktadır' }, { status: 403 });
+    if (session.user?.role !== 'Admin' && session.user?.role !== 'admin') {
+      return NextResponse.json({ error: 'Bu işlem için Admin yetkisi gereklidir' }, { status: 403 });
     }
 
     const body = await request.json();

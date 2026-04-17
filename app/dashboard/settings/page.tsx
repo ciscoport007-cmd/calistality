@@ -18,7 +18,7 @@ import Image from 'next/image';
 function isAdmin(role?: string | null): boolean {
   if (!role) return false;
   const r = role.toLowerCase();
-  return r === 'admin' || r === 'yönetici';
+  return r === 'admin';
 }
 
 // Popüler LLM sağlayıcıları

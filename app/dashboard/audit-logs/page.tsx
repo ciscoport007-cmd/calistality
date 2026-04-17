@@ -143,7 +143,7 @@ export default function AuditLogsPage() {
       router.push('/login');
     } else if (status === 'authenticated') {
       // Check if user is admin
-      if (session?.user?.role !== 'Admin' && session?.user?.role !== 'Yönetici' && session?.user?.role !== 'admin') {
+      if (session?.user?.role !== 'Admin' && session?.user?.role !== 'admin') {
         toast.error('Bu sayfaya erişim yetkiniz yok');
         router.push('/dashboard');
         return;

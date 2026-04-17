@@ -69,15 +69,6 @@ const menuItems = [
     ],
   },
   {
-    moduleKey: 'esignature',
-    title: 'e-İmza & Zimmet',
-    href: '/dashboard/esignature/zimmet',
-    icon: PenLine,
-    subItems: [
-      { title: 'Zimmet Formları', href: '/dashboard/esignature/zimmet' },
-    ],
-  },
-  {
     moduleKey: 'complaints',
     title: 'Müşteri Şikayetleri',
     href: '/dashboard/complaints',
@@ -241,6 +232,15 @@ const menuItems = [
       { title: 'Karbon Ayak İzi', href: '/dashboard/sustainability/carbon' },
       { title: 'Hedef & Aksiyon', href: '/dashboard/sustainability/targets' },
       { title: 'Raporlar & Denetim', href: '/dashboard/sustainability/reports' },
+    ],
+  },
+  {
+    moduleKey: 'esignature',
+    title: 'e-İmza & Zimmet',
+    href: '/dashboard/esignature/zimmet',
+    icon: PenLine,
+    subItems: [
+      { title: 'Zimmet Formları', href: '/dashboard/esignature/zimmet' },
     ],
   },
   {
@@ -500,9 +500,12 @@ export function Sidebar() {
           {/* Menu */}
           <nav className="flex-1 p-4 overflow-y-auto">
             <ul className="space-y-2">
-              {(menuItems ?? [])?.filter?.((item: any) =>
-                allowedModules === null || allowedModules.includes(item.moduleKey)
-              )?.map?.((item: any) => {
+              {(menuItems ?? [])?.filter?.((item: any) => {
+                if (item.moduleKey === 'management') {
+                  return session?.user?.role === 'Admin' || session?.user?.role === 'admin';
+                }
+                return allowedModules === null || allowedModules.includes(item.moduleKey);
+              })?.map?.((item: any) => {
                 const isActive = pathname === item?.href || pathname?.startsWith(item?.href + '/');
                 const hasSubItems = item?.subItems && item.subItems.length > 0;
                 const isExpanded = expandedMenus.includes(item.title);
