@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
+import { getDepartmentFilterWithNull, isAdmin } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,9 +31,14 @@ export async function GET(request: NextRequest) {
     const managerId = searchParams.get('managerId');
     const search = searchParams.get('search');
 
-    const where: any = { isActive: true };
+    const userRole = session.user.role;
+    const departmentFilter = getDepartmentFilterWithNull(session.user.departmentId, userRole);
+    const where: any = { isActive: true, ...departmentFilter };
+
+    // Admin ise URL param'dan departman filtresi uygulanabilir
+    if (isAdmin(userRole) && departmentId) where.departmentId = departmentId;
+
     if (status) where.status = status;
-    if (departmentId) where.departmentId = departmentId;
     if (managerId) where.managerId = managerId;
     if (search) {
       where.OR = [

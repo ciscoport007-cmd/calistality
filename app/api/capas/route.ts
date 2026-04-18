@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
-import { canCreate } from '@/lib/audit';
+import { canCreate, getDepartmentFilterWithNull, isAdmin } from '@/lib/audit';
 import { createNotification, NotificationTemplates } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
@@ -30,13 +30,17 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
 
-    const where: any = { isActive: true };
+    const userRole = session.user.role;
+    const departmentFilter = getDepartmentFilterWithNull(session.user.departmentId, userRole);
+    const where: any = { isActive: true, ...departmentFilter };
+
+    // Admin ise URL param'dan departman filtresi uygulanabilir
+    if (isAdmin(userRole) && departmentId) where.departmentId = departmentId;
 
     if (status) where.status = status;
     if (type) where.type = type;
     if (source) where.source = source;
     if (priority) where.priority = priority;
-    if (departmentId) where.departmentId = departmentId;
 
     // Açılış tarihi filtresi
     if (startDate || endDate) {

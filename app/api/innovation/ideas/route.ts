@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/db';
 import { authOptions } from '@/lib/auth-options';
 import { createNotification } from '@/lib/notifications';
+import { getDepartmentFilterWithNull, isAdmin as checkIsAdmin } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,10 +43,15 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const sort = searchParams.get('sort') || 'createdAt';
 
-    const where: any = { isActive: true };
+    const userRole = session.user.role;
+    const departmentFilter = getDepartmentFilterWithNull(session.user.departmentId, userRole);
+    const where: any = { isActive: true, ...departmentFilter };
+
+    // Admin ise URL param'dan departman filtresi uygulanabilir
+    if (checkIsAdmin(userRole) && departmentId) where.departmentId = departmentId;
+
     if (status) where.status = status;
     if (category) where.category = category;
-    if (departmentId) where.departmentId = departmentId;
     if (search) {
       where.OR = [
         { title: { contains: search, mode: 'insensitive' } },

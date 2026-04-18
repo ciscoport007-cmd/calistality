@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { createNotification } from '@/lib/notifications';
+import { getDepartmentFilterWithNull, isAdmin } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,12 @@ export async function GET(request: Request) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    const where: any = { isActive: true };
+    const userRole = session.user.role;
+    const departmentFilter = getDepartmentFilterWithNull(session.user.departmentId, userRole);
+    const where: any = { isActive: true, ...departmentFilter };
+
+    // Admin ise URL param'dan departman filtresi uygulanabilir
+    if (isAdmin(userRole) && departmentId) where.departmentId = departmentId;
 
     if (search) {
       where.OR = [
@@ -30,7 +36,6 @@ export async function GET(request: Request) {
       ];
     }
     if (status) where.status = status;
-    if (departmentId) where.departmentId = departmentId;
     if (startDate) where.accidentDate = { ...where.accidentDate, gte: new Date(startDate) };
     if (endDate) where.accidentDate = { ...where.accidentDate, lte: new Date(endDate) };
 

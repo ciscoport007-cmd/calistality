@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/db';
 import { MeetingType, ParticipantStatus } from '@prisma/client';
+import { getDepartmentFilterWithNull, isAdmin } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,8 +22,14 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate');
     const view = searchParams.get('view'); // daily, weekly, monthly
     const myMeetings = searchParams.get('myMeetings') === 'true';
+    const departmentId = searchParams.get('departmentId');
 
-    const where: any = {};
+    const userRole = session.user.role;
+    const departmentFilter = getDepartmentFilterWithNull(session.user.departmentId, userRole);
+    const where: any = { ...departmentFilter };
+
+    // Admin ise URL param'dan departman filtresi uygulanabilir
+    if (isAdmin(userRole) && departmentId) where.departmentId = departmentId;
 
     if (status) {
       where.status = status;
