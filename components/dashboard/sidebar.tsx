@@ -156,6 +156,10 @@ const menuItems = [
     title: 'Ölçüm Yönetimi (KPI)',
     href: '/dashboard/kpis',
     icon: BarChart3,
+    subItems: [
+      { title: 'KPI Listesi', href: '/dashboard/kpis' },
+      { title: 'KPI Karşılaştırma', href: '/dashboard/kpis/compare' },
+    ],
   },
   {
     moduleKey: 'trainings',
