@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { prisma } from '@/lib/db'
 import { authOptions } from '@/lib/auth-options'
+import { isAdmin } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic';
 
@@ -78,8 +79,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Comment not found' }, { status: 404 })
     }
 
-    // Sadece yazar silebilir
-    if (comment.authorId !== session.user.id) {
+    // Yazar veya admin silebilir
+    if (comment.authorId !== session.user.id && !isAdmin(session.user.role)) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
     }
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
+import { isAdmin } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +28,12 @@ export async function GET(
             user: { select: { id: true, name: true, surname: true, email: true } },
             personDepartment: { select: { id: true, name: true } },
           },
+        },
+        witnesses: {
+          include: {
+            user: { select: { id: true, name: true, surname: true, email: true } },
+          },
+          orderBy: { createdAt: 'asc' },
         },
       },
     });
@@ -110,6 +117,12 @@ export async function PATCH(
             personDepartment: { select: { id: true, name: true } },
           },
         },
+        witnesses: {
+          include: {
+            user: { select: { id: true, name: true, surname: true, email: true } },
+          },
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
 
@@ -132,13 +145,7 @@ export async function DELETE(
 
     const { id } = await params;
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { role: true },
-    });
-
-    const allowedRoles = ['Admin', 'Yönetici'];
-    if (!user?.role || !allowedRoles.some(r => user.role?.name.includes(r))) {
+    if (!isAdmin(session.user.role)) {
       return NextResponse.json({ error: 'Silme yetkisi yalnızca yöneticilere aittir' }, { status: 403 });
     }
 

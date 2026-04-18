@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { createNotification } from '@/lib/notifications';
+import { isAdmin } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -250,7 +251,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
     }
 
-    if (session.user.role !== 'Admin') {
+    if (!isAdmin(session.user.role)) {
       return NextResponse.json(
         { error: 'Tedarikçi silme işlemi yalnızca Admin yetkisiyle yapılabilir.' },
         { status: 403 }

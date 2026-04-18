@@ -271,7 +271,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 });
     }
 
-    if (session.user.role !== 'Admin') {
+    if (!isAdmin(session.user.role)) {
       return NextResponse.json(
         { error: 'Bu işlem için Admin yetkisi gereklidir' },
         { status: 403 }
