@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import {
@@ -20,6 +19,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 
+interface SheetWarning {
+  sheetName: string;
+  warnings: string[];
+}
+
 interface UploadState {
   status: 'idle' | 'loading' | 'preview' | 'success' | 'error';
   message?: string;
@@ -28,24 +32,46 @@ interface UploadState {
   totalParsed?: number;
   savedCount?: number;
   skippedCount?: number;
+  sheetWarnings?: SheetWarning[];
+}
+
+function WarningsPanel({ warnings }: { warnings: SheetWarning[] }) {
+  if (warnings.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      {warnings.map((w) => (
+        <div key={w.sheetName} className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <p className="text-xs font-semibold text-amber-800 mb-1 flex items-center gap-1">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {w.sheetName}
+          </p>
+          <ul className="space-y-0.5">
+            {w.warnings.map((msg, i) => (
+              <li key={i} className="text-xs text-amber-700">
+                • {msg}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function YuklemePage() {
-  const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
   const [state, setState] = useState<UploadState>({ status: 'idle' });
-  const [overwriteMode, setOverwriteMode] = useState(false);
 
   const handleFile = useCallback((f: File) => {
-    if (!f.name.endsWith('.xlsx') && !f.name.endsWith('.xls')) {
-      setState({ status: 'error', message: 'Sadece .xlsx veya .xls dosyası kabul edilir' });
+    const name = f.name.toLowerCase();
+    if (!name.endsWith('.xlsx') && !name.endsWith('.xls') && !name.endsWith('.csv')) {
+      setState({ status: 'error', message: 'Sadece .xlsx, .xls veya .csv dosyası kabul edilir' });
       return;
     }
     setFile(f);
     setState({ status: 'idle' });
-    setOverwriteMode(false);
   }, []);
 
   const onDrop = useCallback(
@@ -83,6 +109,7 @@ export default function YuklemePage() {
             newDays: json.newDays,
             duplicateDays: json.duplicateDays,
             totalParsed: json.totalParsed,
+            sheetWarnings: json.sheetWarnings ?? [],
           });
           return;
         }
@@ -92,6 +119,7 @@ export default function YuklemePage() {
           savedCount: json.savedCount,
           skippedCount: json.skippedCount,
           message: json.message,
+          sheetWarnings: json.sheetWarnings ?? [],
         });
       } catch {
         setState({ status: 'error', message: 'Sunucu ile bağlantı kurulamadı' });
@@ -103,23 +131,30 @@ export default function YuklemePage() {
   const reset = () => {
     setFile(null);
     setState({ status: 'idle' });
-    setOverwriteMode(false);
     if (fileRef.current) fileRef.current.value = '';
   };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href="/dashboard/finance/gelirler">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard/finance/gelirler">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Geri
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Günlük Rapor Yükle</h1>
+            <p className="text-sm text-gray-500">Daily Report dosyasını sisteme aktarın</p>
+          </div>
+        </div>
+        <Link href="/dashboard/finance/gelirler/gecmis">
           <Button variant="outline" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Geri
+            <History className="h-4 w-4 mr-1" />
+            Geçmiş
           </Button>
         </Link>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Günlük Rapor Yükle</h1>
-          <p className="text-sm text-gray-500">Daily Report XLSX dosyasını sisteme aktarın</p>
-        </div>
       </div>
 
       {/* Yükleme Alanı */}
@@ -128,8 +163,8 @@ export default function YuklemePage() {
           <CardHeader>
             <CardTitle className="text-base">Dosya Seç</CardTitle>
             <CardDescription>
-              Her gün için oluşturulan &quot;Daily Report&quot; Excel dosyasını yükleyin. Birden fazla günü içeren
-              dosyalar da kabul edilir.
+              Her gün için oluşturulan &quot;Daily Report&quot; Excel dosyasını yükleyin. Birden
+              fazla günü içeren dosyalar da kabul edilir.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -152,7 +187,7 @@ export default function YuklemePage() {
               <input
                 ref={fileRef}
                 type="file"
-                accept=".xlsx,.xls"
+                accept=".xlsx,.xls,.csv"
                 className="hidden"
                 onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
               />
@@ -175,7 +210,7 @@ export default function YuklemePage() {
                 <div className="flex flex-col items-center gap-3 text-gray-500">
                   <Upload className="h-12 w-12 text-gray-300" />
                   <p className="font-medium">Dosyayı sürükle bırak veya tıkla</p>
-                  <p className="text-sm">.xlsx veya .xls formatı</p>
+                  <p className="text-sm">.xlsx, .xls veya .csv formatı</p>
                 </div>
               )}
             </div>
@@ -211,6 +246,10 @@ export default function YuklemePage() {
             <CardDescription>{state.message}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {(state.sheetWarnings?.length ?? 0) > 0 && (
+              <WarningsPanel warnings={state.sheetWarnings!} />
+            )}
+
             {(state.newDays?.length ?? 0) > 0 && (
               <div>
                 <p className="text-sm font-medium text-green-700 mb-2 flex items-center gap-1">
@@ -272,31 +311,40 @@ export default function YuklemePage() {
 
       {/* Başarı */}
       {state.status === 'success' && (
-        <Card className="border-green-300 bg-green-50">
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center gap-4 text-center">
-              <CheckCircle className="h-14 w-14 text-green-500" />
-              <div>
-                <p className="text-lg font-semibold text-green-800">{state.message}</p>
-                <p className="text-sm text-green-600 mt-1">
-                  {state.savedCount} gün kaydedildi
-                  {(state.skippedCount ?? 0) > 0 && `, ${state.skippedCount} gün atlandı`}
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <Button onClick={reset} variant="outline">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Başka Dosya Yükle
-                </Button>
-                <Link href="/dashboard/finance/gelirler">
-                  <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                    Gelirlere Dön
+        <div className="space-y-4">
+          <Card className="border-green-300 bg-green-50">
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center gap-4 text-center">
+                <CheckCircle className="h-14 w-14 text-green-500" />
+                <div>
+                  <p className="text-lg font-semibold text-green-800">{state.message}</p>
+                  <p className="text-sm text-green-600 mt-1">
+                    {state.savedCount} gün kaydedildi
+                    {(state.skippedCount ?? 0) > 0 && `, ${state.skippedCount} gün atlandı`}
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <Button onClick={reset} variant="outline">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Başka Dosya Yükle
                   </Button>
-                </Link>
+                  <Link href="/dashboard/finance/gelirler">
+                    <Button className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                      Gelirlere Dön
+                    </Button>
+                  </Link>
+                </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {(state.sheetWarnings?.length ?? 0) > 0 && (
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-2">Veri Uyarıları</p>
+              <WarningsPanel warnings={state.sheetWarnings!} />
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       )}
 
       {/* Hata */}
@@ -310,22 +358,40 @@ export default function YuklemePage() {
         </div>
       )}
 
-      {/* Bilgi Kartı */}
-      <Card className="bg-gray-50 border-gray-200">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm text-gray-600 flex items-center gap-2">
-            <Info className="h-4 w-4" />
-            Beklenen Dosya Formatı
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-xs text-gray-500 space-y-1">
-          <p>• Her günlük sheet adı <strong>DD.MM.YYYY</strong> formatında olmalıdır</p>
-          <p>• KAPAK sayfaları otomatik atlanır</p>
-          <p>• B sütununda kategori adları, C-J sütunlarında gelir verileri olmalıdır</p>
-          <p>• Tek bir dosyada birden fazla gün bulunabilir</p>
-          <p>• Aynı gün tekrar yüklenirse sistem uyarı verir</p>
-        </CardContent>
-      </Card>
+      {/* Bilgi Kartları */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card className="bg-gray-50 border-gray-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm text-gray-600 flex items-center gap-2">
+              <Info className="h-4 w-4" />
+              Excel Formatı
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-gray-500 space-y-1">
+            <p>• Sheet adı <strong>DD.MM.YYYY</strong> formatında olmalıdır</p>
+            <p>• KAPAK sayfaları otomatik atlanır</p>
+            <p>• B sütununda kategori, C-J sütunlarında gelir verileri</p>
+            <p>• K-M sütunlarında LY (Geçen Yıl) verileri</p>
+            <p>• Tek dosyada birden fazla gün desteklenir</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gray-50 border-gray-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm text-gray-600 flex items-center gap-2">
+              <Info className="h-4 w-4" />
+              CSV Formatı
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-xs text-gray-500 space-y-1">
+            <p>• Dosya adında <strong>DD.MM.YYYY</strong> tarihi olmalıdır</p>
+            <p>• İlk satır başlık (atlanır), virgül veya noktalı virgül ayraç</p>
+            <p>• Sütun sırası: Kategori, DailyTL, DailyEUR, MonthlyTL,</p>
+            <p>• &nbsp;&nbsp;MonthlyEUR, BudgetTL, BudgetEUR, YearlyEUR, YearlyBudget</p>
+            <p>• Tek dosya = tek gün</p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
