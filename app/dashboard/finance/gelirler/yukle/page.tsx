@@ -59,12 +59,13 @@ export default function YuklemePage() {
   );
 
   const upload = useCallback(
-    async (force = false) => {
+    async (mode: 'analyze' | 'newOnly' | 'overwrite' = 'analyze') => {
       if (!file) return;
       setState({ status: 'loading' });
       const fd = new FormData();
       fd.append('file', file);
-      if (force) fd.append('forceOverwrite', 'true');
+      if (mode === 'overwrite') fd.append('forceOverwrite', 'true');
+      if (mode === 'newOnly') fd.append('saveNewOnly', 'true');
 
       try {
         const res = await fetch('/api/finance/revenue/upload', { method: 'POST', body: fd });
@@ -182,7 +183,7 @@ export default function YuklemePage() {
             {file && state.status === 'idle' && (
               <Button
                 className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white"
-                onClick={() => upload(false)}
+                onClick={() => upload('analyze')}
               >
                 <Upload className="h-4 w-4 mr-2" />
                 Dosyayı Analiz Et ve Yükle
@@ -246,7 +247,7 @@ export default function YuklemePage() {
               {(state.newDays?.length ?? 0) > 0 && (
                 <Button
                   className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                  onClick={() => upload(false)}
+                  onClick={() => upload('newOnly')}
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Sadece Yenileri Kaydet ({state.newDays!.length} gün)
@@ -256,7 +257,7 @@ export default function YuklemePage() {
                 <Button
                   variant="outline"
                   className="border-red-300 text-red-600 hover:bg-red-50"
-                  onClick={() => upload(true)}
+                  onClick={() => upload('overwrite')}
                 >
                   Tüm Günleri Üzerine Yaz
                 </Button>

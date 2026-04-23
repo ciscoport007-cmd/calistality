@@ -164,6 +164,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
     const forceOverwrite = formData.get('forceOverwrite') === 'true';
+    const saveNewOnly = formData.get('saveNewOnly') === 'true';
 
     if (!file) {
       return NextResponse.json({ error: 'Dosya bulunamadı' }, { status: 400 });
@@ -199,7 +200,7 @@ export async function POST(request: NextRequest) {
     const newDays = parsedDays.filter((d) => !existingSet.has(d.date.toISOString().split('T')[0]));
     const duplicateDays = parsedDays.filter((d) => existingSet.has(d.date.toISOString().split('T')[0]));
 
-    if (!forceOverwrite && duplicateDays.length > 0 && newDays.length === 0) {
+    if (!forceOverwrite && !saveNewOnly && duplicateDays.length > 0 && newDays.length === 0) {
       return NextResponse.json(
         {
           preview: true,
@@ -212,7 +213,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!forceOverwrite && duplicateDays.length > 0) {
+    if (!forceOverwrite && !saveNewOnly && duplicateDays.length > 0) {
       return NextResponse.json(
         {
           preview: true,
