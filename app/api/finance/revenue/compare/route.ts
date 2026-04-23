@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
         prisma.revenueEntry.groupBy({
           by: ['reportDate'],
           where: { reportDate: { gte: startOfMonth(d2), lte: endOfMonth(d2) }, isTotal: true },
-          _sum: { dailyActualTL: true, dailyActualEUR: true },
+          _sum: { dailyActualTL: true, dailyActualEUR: true, lyDailyEUR: true },
           orderBy: { reportDate: 'asc' },
         }),
       ]);
@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
         prisma.revenueEntry.groupBy({
           by: ['reportDate'],
           where: { reportDate: { gte: ytdStart2, lte: ytdEnd2 }, isTotal: true },
-          _sum: { dailyActualTL: true, dailyActualEUR: true },
+          _sum: { dailyActualTL: true, dailyActualEUR: true, lyDailyEUR: true },
           orderBy: { reportDate: 'asc' },
         }),
       ]);
