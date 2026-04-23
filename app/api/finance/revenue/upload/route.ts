@@ -21,6 +21,9 @@ interface ParsedDayData {
     monthlyBudgetEUR: number;
     yearlyActualEUR: number;
     yearlyBudgetEUR: number;
+    lyDailyEUR: number;
+    lyMonthlyEUR: number;
+    lyYearlyEUR: number;
   }[];
 }
 
@@ -139,6 +142,9 @@ function parseSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedDayData | null
       monthlyBudgetEUR: safeNum(row[7]),
       yearlyActualEUR: safeNum(row[8]),
       yearlyBudgetEUR: safeNum(row[9]),
+      lyDailyEUR: safeNum(row[10]),
+      lyMonthlyEUR: safeNum(row[11]),
+      lyYearlyEUR: safeNum(row[12]),
     };
 
     if (entry.isTotal) {
@@ -256,6 +262,9 @@ export async function POST(request: NextRequest) {
               monthlyBudgetEUR: e.monthlyBudgetEUR,
               yearlyActualEUR: e.yearlyActualEUR,
               yearlyBudgetEUR: e.yearlyBudgetEUR,
+              lyDailyEUR: e.lyDailyEUR,
+              lyMonthlyEUR: e.lyMonthlyEUR,
+              lyYearlyEUR: e.lyYearlyEUR,
             })),
           },
         },

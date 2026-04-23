@@ -7422,6 +7422,9 @@ model RevenueEntry {
   monthlyBudgetEUR   Float         @default(0)
   yearlyActualEUR    Float         @default(0)
   yearlyBudgetEUR    Float         @default(0)
+  lyDailyEUR         Float         @default(0)
+  lyMonthlyEUR       Float         @default(0)
+  lyYearlyEUR        Float         @default(0)
   createdAt          DateTime      @default(now())
 
   @@index([reportDate])
