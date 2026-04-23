@@ -14,14 +14,14 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const mode = searchParams.get('mode') ?? 'monthly'; // monthly | yearly | category
+    const mode = searchParams.get('mode') ?? 'ytd';
     const year1 = parseInt(searchParams.get('year1') ?? String(new Date().getFullYear()));
     const year2 = parseInt(searchParams.get('year2') ?? String(new Date().getFullYear() - 1));
     const month1 = parseInt(searchParams.get('month1') ?? String(new Date().getMonth() + 1));
     const month2 = parseInt(searchParams.get('month2') ?? String(new Date().getMonth()));
-    const category = searchParams.get('category') ?? null;
     const currency = searchParams.get('currency') ?? 'EUR';
 
+    // Yıllık: dailyActualEUR toplamı — doğru yıllık gelir hesabı
     if (mode === 'yearly') {
       const start1 = startOfYear(new Date(year1, 0, 1));
       const end1 = endOfYear(new Date(year1, 0, 1));
@@ -30,24 +30,14 @@ export async function GET(request: NextRequest) {
 
       const [entries1, entries2] = await Promise.all([
         prisma.revenueEntry.groupBy({
-          by: ['category', 'parentCategory', 'isTotal'],
+          by: ['category'],
           where: { reportDate: { gte: start1, lte: end1 }, isTotal: true },
-          _sum: {
-            monthlyActualTL: true,
-            monthlyActualEUR: true,
-            monthlyBudgetTL: true,
-            monthlyBudgetEUR: true,
-          },
+          _sum: { dailyActualTL: true, dailyActualEUR: true },
         }),
         prisma.revenueEntry.groupBy({
-          by: ['category', 'parentCategory', 'isTotal'],
+          by: ['category'],
           where: { reportDate: { gte: start2, lte: end2 }, isTotal: true },
-          _sum: {
-            monthlyActualTL: true,
-            monthlyActualEUR: true,
-            monthlyBudgetTL: true,
-            monthlyBudgetEUR: true,
-          },
+          _sum: { dailyActualTL: true, dailyActualEUR: true },
         }),
       ]);
 
@@ -56,15 +46,16 @@ export async function GET(request: NextRequest) {
       const allCats = [...new Set([...Object.keys(map1), ...Object.keys(map2)])];
 
       const comparison = allCats.map((cat) => {
-        const v1 = currency === 'TL' ? (map1[cat]?.monthlyActualTL ?? 0) : (map1[cat]?.monthlyActualEUR ?? 0);
-        const v2 = currency === 'TL' ? (map2[cat]?.monthlyActualTL ?? 0) : (map2[cat]?.monthlyActualEUR ?? 0);
-        const change = v2 > 0 ? ((v1 - v2) / v2) * 100 : 0;
-        return { category: cat, [`year_${year1}`]: v1, [`year_${year2}`]: v2, changePct: change };
+        const v1 = currency === 'TL' ? (map1[cat]?.dailyActualTL ?? 0) : (map1[cat]?.dailyActualEUR ?? 0);
+        const v2 = currency === 'TL' ? (map2[cat]?.dailyActualTL ?? 0) : (map2[cat]?.dailyActualEUR ?? 0);
+        const changePct = v2 > 0 ? ((v1 - v2) / v2) * 100 : 0;
+        return { category: cat, [`year_${year1}`]: v1, [`year_${year2}`]: v2, changePct };
       });
 
       return NextResponse.json({ success: true, data: { mode, year1, year2, comparison, currency } });
     }
 
+    // Aylık: gün-bazlı iki ay karşılaştırması
     if (mode === 'monthly') {
       const d1 = new Date(year1, month1 - 1, 1);
       const d2 = new Date(year2, month2 - 1, 1);
@@ -72,19 +63,13 @@ export async function GET(request: NextRequest) {
       const [daily1, daily2] = await Promise.all([
         prisma.revenueEntry.groupBy({
           by: ['reportDate'],
-          where: {
-            reportDate: { gte: startOfMonth(d1), lte: endOfMonth(d1) },
-            isTotal: true,
-          },
+          where: { reportDate: { gte: startOfMonth(d1), lte: endOfMonth(d1) }, isTotal: true },
           _sum: { dailyActualTL: true, dailyActualEUR: true },
           orderBy: { reportDate: 'asc' },
         }),
         prisma.revenueEntry.groupBy({
           by: ['reportDate'],
-          where: {
-            reportDate: { gte: startOfMonth(d2), lte: endOfMonth(d2) },
-            isTotal: true,
-          },
+          where: { reportDate: { gte: startOfMonth(d2), lte: endOfMonth(d2) }, isTotal: true },
           _sum: { dailyActualTL: true, dailyActualEUR: true },
           orderBy: { reportDate: 'asc' },
         }),
@@ -108,55 +93,62 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    if (mode === 'category' && category) {
-      const start1 = startOfYear(new Date(year1, 0, 1));
-      const end1 = endOfYear(new Date(year1, 0, 1));
-      const start2 = startOfYear(new Date(year2, 0, 1));
-      const end2 = endOfYear(new Date(year2, 0, 1));
+    // YTD: yılbaşından bugünün tarihine kadar aylık karşılaştırma
+    if (mode === 'ytd') {
+      const today = new Date();
+      const todayMonth = today.getMonth();
+      const todayDay = today.getDate();
 
-      const [monthly1, monthly2] = await Promise.all([
+      const ytdStart1 = new Date(year1, 0, 1);
+      const ytdEnd1 = new Date(year1, todayMonth, todayDay, 23, 59, 59);
+      const ytdStart2 = new Date(year2, 0, 1);
+      const ytdEnd2 = new Date(year2, todayMonth, todayDay, 23, 59, 59);
+
+      const [daily1, daily2] = await Promise.all([
         prisma.revenueEntry.groupBy({
           by: ['reportDate'],
-          where: {
-            reportDate: { gte: start1, lte: end1 },
-            category: { contains: category, mode: 'insensitive' },
-          },
-          _sum: { monthlyActualTL: true, monthlyActualEUR: true },
+          where: { reportDate: { gte: ytdStart1, lte: ytdEnd1 }, isTotal: true },
+          _sum: { dailyActualTL: true, dailyActualEUR: true },
           orderBy: { reportDate: 'asc' },
         }),
         prisma.revenueEntry.groupBy({
           by: ['reportDate'],
-          where: {
-            reportDate: { gte: start2, lte: end2 },
-            category: { contains: category, mode: 'insensitive' },
-          },
-          _sum: { monthlyActualTL: true, monthlyActualEUR: true },
+          where: { reportDate: { gte: ytdStart2, lte: ytdEnd2 }, isTotal: true },
+          _sum: { dailyActualTL: true, dailyActualEUR: true },
           orderBy: { reportDate: 'asc' },
         }),
       ]);
 
-      const groupByMonth = (entries: typeof monthly1) => {
+      const groupByMonth = (entries: typeof daily1) => {
         const map: Record<string, number> = {};
         for (const e of entries) {
-          const key = format(e.reportDate, 'yyyy-MM');
-          map[key] = currency === 'TL' ? (e._sum.monthlyActualTL ?? 0) : (e._sum.monthlyActualEUR ?? 0);
+          const key = format(e.reportDate, 'MM');
+          map[key] = (map[key] ?? 0) +
+            (currency === 'TL' ? (e._sum.dailyActualTL ?? 0) : (e._sum.dailyActualEUR ?? 0));
         }
         return map;
       };
 
-      const map1 = groupByMonth(monthly1);
-      const map2 = groupByMonth(monthly2);
-      const months = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
+      const map1 = groupByMonth(daily1);
+      const map2 = groupByMonth(daily2);
+
+      const months = Array.from({ length: todayMonth + 1 }, (_, i) =>
+        String(i + 1).padStart(2, '0')
+      );
 
       const comparison = months.map((m) => ({
         month: m,
-        [`${year1}`]: map1[`${year1}-${m}`] ?? 0,
-        [`${year2}`]: map2[`${year2}-${m}`] ?? 0,
+        [`${year1}`]: map1[m] ?? 0,
+        [`${year2}`]: map2[m] ?? 0,
       }));
+
+      const total1 = Object.values(map1).reduce((s, v) => s + v, 0);
+      const total2 = Object.values(map2).reduce((s, v) => s + v, 0);
+      const changePct = total2 > 0 ? ((total1 - total2) / total2) * 100 : 0;
 
       return NextResponse.json({
         success: true,
-        data: { mode, category, year1, year2, comparison, currency },
+        data: { mode, year1, year2, comparison, total1, total2, changePct, currency },
       });
     }
 
