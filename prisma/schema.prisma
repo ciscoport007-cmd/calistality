@@ -321,6 +321,9 @@ model User {
   zimmetReceived     ZimmetForm[]        @relation("ZimmetReceived")
   documentSignatures DocumentSignature[] @relation("DocumentSigner")
 
+  // Finans ilişkileri
+  uploadedFinanceReports FinanceReport[] @relation("FinanceReportUploader")
+
   @@map("users")
 }
 
@@ -7382,4 +7385,46 @@ model DocumentSignature {
   signedAt           DateTime        @default(now())
 
   @@map("document_signatures")
+}
+
+// ============================================
+// FİNANS MODÜLܗ GELİR YÖNETİMİ
+// ============================================
+
+model FinanceReport {
+  id           String   @id @default(cuid())
+  reportDate   DateTime
+  fileName     String
+  sheetName    String
+  uploadedById String?
+  uploadedBy   User?    @relation("FinanceReportUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  entries      RevenueEntry[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([reportDate])
+  @@map("finance_reports")
+}
+
+model RevenueEntry {
+  id                 String        @id @default(cuid())
+  reportId           String
+  report             FinanceReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportDate         DateTime
+  category           String
+  parentCategory     String?
+  isTotal            Boolean       @default(false)
+  dailyActualTL      Float         @default(0)
+  dailyActualEUR     Float         @default(0)
+  monthlyActualTL    Float         @default(0)
+  monthlyActualEUR   Float         @default(0)
+  monthlyBudgetTL    Float         @default(0)
+  monthlyBudgetEUR   Float         @default(0)
+  yearlyActualEUR    Float         @default(0)
+  yearlyBudgetEUR    Float         @default(0)
+  createdAt          DateTime      @default(now())
+
+  @@index([reportDate])
+  @@index([category])
+  @@map("revenue_entries")
 }

@@ -24,6 +24,7 @@ export const ALL_MODULES: ModuleDefinition[] = [
   { key: 'innovation',     label: 'İnovasyon Yönetimi',          description: 'Fikirler, projeler ve kanban' },
   { key: 'lqa',            label: 'LQA Kalite Değerlendirme',    description: 'Laboratuvar kalite değerlendirmesi' },
   { key: 'sustainability', label: 'Enerji & Çevre Yönetimi',     description: 'Enerji, su, atık ve karbon takibi' },
+  { key: 'finance',        label: 'Finans Yönetimi',             description: 'Gelir, gider ve finansal performans takibi' },
   { key: 'management',     label: 'Yönetim',                     description: 'Kullanıcılar, roller, departmanlar ve ayarlar' },
 ];
 

@@ -36,6 +36,7 @@ import {
   Leaf,
   Award,
   PenLine,
+  TrendingUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { signOut, useSession } from 'next-auth/react';
@@ -236,6 +237,18 @@ const menuItems = [
       { title: 'Karbon Ayak İzi', href: '/dashboard/sustainability/carbon' },
       { title: 'Hedef & Aksiyon', href: '/dashboard/sustainability/targets' },
       { title: 'Raporlar & Denetim', href: '/dashboard/sustainability/reports' },
+    ],
+  },
+  {
+    moduleKey: 'finance',
+    title: 'Finans Yönetimi',
+    href: '/dashboard/finance',
+    icon: TrendingUp,
+    subItems: [
+      { title: 'Genel Bakış', href: '/dashboard/finance' },
+      { title: 'Gelirler', href: '/dashboard/finance/gelirler' },
+      { title: 'Veri Yükle', href: '/dashboard/finance/gelirler/yukle' },
+      { title: 'Gelir Analizi', href: '/dashboard/finance/gelirler/analiz' },
     ],
   },
   {
