@@ -25,6 +25,7 @@ interface ParsedDayData {
     lyMonthlyEUR: number;
     lyYearlyEUR: number;
   }[];
+  rawFirstTotalRow?: unknown[]; // sütun tanısı için
 }
 
 export interface SheetWarning {
@@ -161,6 +162,7 @@ function parseSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedDayData | null
 
   const entries: ParsedDayData['entries'] = [];
   let currentTotal: string | null = null;
+  let rawFirstTotalRow: unknown[] | undefined;
 
   for (let i = 6; i < rows.length; i++) {
     const row = rows[i] as unknown[];
@@ -188,6 +190,7 @@ function parseSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedDayData | null
     };
 
     if (entry.isTotal) {
+      if (!rawFirstTotalRow) rawFirstTotalRow = Array.from(row);
       currentTotal = cat;
       entry.parentCategory = null;
     } else {
@@ -197,7 +200,7 @@ function parseSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedDayData | null
     entries.push(entry);
   }
 
-  return { date, sheetName, entries };
+  return { date, sheetName, entries, rawFirstTotalRow };
 }
 
 function parseCSVDay(content: string, fileName: string): ParsedDayData | null {
@@ -323,6 +326,17 @@ export async function POST(request: NextRequest) {
       .map((day) => ({ sheetName: day.sheetName, warnings: validateParsedDay(day) }))
       .filter((w) => w.warnings.length > 0);
 
+    // Sütun tanısı — ilk sheet'in ilk TOTAL satırının ham sütun değerleri
+    const rawRow = parsedDays[0]?.rawFirstTotalRow;
+    const columnDiagnostic = rawRow
+      ? Array.from({ length: Math.min(rawRow.length, 20) }, (_, i) => ({
+          index: i,
+          letter: i < 26 ? String.fromCharCode(65 + i) : `A${String.fromCharCode(65 + i - 26)}`,
+          raw: String(rawRow[i] ?? ''),
+          num: safeNum(rawRow[i]),
+        }))
+      : undefined;
+
     const existingDates = await prisma.financeReport.findMany({
       where: { reportDate: { in: parsedDays.map((d) => d.date) } },
       select: { reportDate: true },
@@ -342,6 +356,7 @@ export async function POST(request: NextRequest) {
         duplicateDays: duplicateDays.map((d) => d.date.toISOString().split('T')[0]),
         totalParsed: parsedDays.length,
         sheetWarnings,
+        columnDiagnostic,
       });
     }
 
@@ -353,6 +368,7 @@ export async function POST(request: NextRequest) {
         duplicateDays: duplicateDays.map((d) => d.date.toISOString().split('T')[0]),
         totalParsed: parsedDays.length,
         sheetWarnings,
+        columnDiagnostic,
       });
     }
 
@@ -406,6 +422,7 @@ export async function POST(request: NextRequest) {
           : ''
       }`,
       sheetWarnings,
+      columnDiagnostic,
     });
   } catch (error) {
     console.error('Finance upload error:', error);

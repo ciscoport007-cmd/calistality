@@ -24,6 +24,13 @@ interface SheetWarning {
   warnings: string[];
 }
 
+interface ColDiag {
+  index: number;
+  letter: string;
+  raw: string;
+  num: number;
+}
+
 interface UploadState {
   status: 'idle' | 'loading' | 'preview' | 'success' | 'error';
   message?: string;
@@ -33,6 +40,56 @@ interface UploadState {
   savedCount?: number;
   skippedCount?: number;
   sheetWarnings?: SheetWarning[];
+  columnDiagnostic?: ColDiag[];
+}
+
+function ColumnDiagPanel({ cols }: { cols: ColDiag[] }) {
+  const LY_CURRENT = [10, 11, 12]; // mevcut varsayım
+  return (
+    <details className="border border-gray-200 rounded-lg">
+      <summary className="px-3 py-2 text-xs font-medium text-gray-600 cursor-pointer select-none">
+        Sütun Tanısı — LY verileri doğru sütunda mı? (tıkla)
+      </summary>
+      <div className="px-3 pb-3 overflow-x-auto">
+        <p className="text-xs text-gray-500 mb-2">
+          Aşağıda ilk TOTAL satırının ham değerleri görünmektedir. Sarı satırlar{' '}
+          <strong>şu an LY olarak okunan sütunlar (K=10, L=11, M=12)</strong>. Değerler 0
+          ise sütun indeksleri yanlış olabilir.
+        </p>
+        <table className="text-xs font-mono border-collapse w-full">
+          <thead>
+            <tr className="bg-gray-50">
+              <th className="border border-gray-200 px-2 py-1 text-left">İndeks</th>
+              <th className="border border-gray-200 px-2 py-1 text-left">Sütun</th>
+              <th className="border border-gray-200 px-2 py-1 text-left">Ham Değer</th>
+              <th className="border border-gray-200 px-2 py-1 text-right">Sayısal</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cols.map((c) => (
+              <tr
+                key={c.index}
+                className={
+                  LY_CURRENT.includes(c.index)
+                    ? 'bg-yellow-50 font-semibold'
+                    : c.index < 2
+                    ? 'text-gray-400'
+                    : ''
+                }
+              >
+                <td className="border border-gray-200 px-2 py-1">{c.index}</td>
+                <td className="border border-gray-200 px-2 py-1">{c.letter}</td>
+                <td className="border border-gray-200 px-2 py-1 max-w-[160px] truncate">{c.raw || '—'}</td>
+                <td className="border border-gray-200 px-2 py-1 text-right">
+                  {c.num !== 0 ? c.num.toLocaleString('tr-TR') : <span className="text-gray-400">0</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  );
 }
 
 function WarningsPanel({ warnings }: { warnings: SheetWarning[] }) {
@@ -110,6 +167,7 @@ export default function YuklemePage() {
             duplicateDays: json.duplicateDays,
             totalParsed: json.totalParsed,
             sheetWarnings: json.sheetWarnings ?? [],
+            columnDiagnostic: json.columnDiagnostic,
           });
           return;
         }
@@ -120,6 +178,7 @@ export default function YuklemePage() {
           skippedCount: json.skippedCount,
           message: json.message,
           sheetWarnings: json.sheetWarnings ?? [],
+          columnDiagnostic: json.columnDiagnostic,
         });
       } catch {
         setState({ status: 'error', message: 'Sunucu ile bağlantı kurulamadı' });
@@ -249,6 +308,9 @@ export default function YuklemePage() {
             {(state.sheetWarnings?.length ?? 0) > 0 && (
               <WarningsPanel warnings={state.sheetWarnings!} />
             )}
+            {state.columnDiagnostic && (
+              <ColumnDiagPanel cols={state.columnDiagnostic} />
+            )}
 
             {(state.newDays?.length ?? 0) > 0 && (
               <div>
@@ -343,6 +405,9 @@ export default function YuklemePage() {
               <p className="text-sm font-medium text-gray-600 mb-2">Veri Uyarıları</p>
               <WarningsPanel warnings={state.sheetWarnings!} />
             </div>
+          )}
+          {state.columnDiagnostic && (
+            <ColumnDiagPanel cols={state.columnDiagnostic} />
           )}
         </div>
       )}
