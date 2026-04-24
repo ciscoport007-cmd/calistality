@@ -20,6 +20,14 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import {
   AlertOctagon,
   ArrowLeft,
   Calendar,
@@ -36,6 +44,10 @@ import {
   CheckCircle2,
   Loader2,
   Briefcase,
+  Eye,
+  Plus,
+  Trash2,
+  Phone,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDate } from '@/lib/export-utils';
@@ -71,6 +83,13 @@ interface OHSAccident {
     position?: string;
     personDepartment?: { id: string; name: string };
     notes?: string;
+  }>;
+  witnesses: Array<{
+    id: string;
+    user?: { id: string; name: string; surname?: string; email?: string };
+    externalName?: string;
+    contactInfo?: string;
+    statement?: string;
   }>;
 }
 
@@ -116,8 +135,21 @@ export default function AccidentDetailPage() {
   const [trainingSaving, setTrainingSaving] = useState(false);
   const trainingFileRef = useRef<HTMLInputElement>(null);
 
+  // Tanıklar state
+  const [users, setUsers] = useState<Array<{ id: string; name: string; surname?: string }>>([]);
+  const [witnessDialogOpen, setWitnessDialogOpen] = useState(false);
+  const [witnessForm, setWitnessForm] = useState({
+    type: 'system' as 'system' | 'external',
+    userId: '',
+    externalName: '',
+    contactInfo: '',
+    statement: '',
+  });
+  const [witnessSubmitting, setWitnessSubmitting] = useState(false);
+
   useEffect(() => {
     fetchAccident();
+    fetchUsers();
   }, [params.id]);
 
   const fetchAccident = async () => {
@@ -143,6 +175,72 @@ export default function AccidentDetailPage() {
       toast.error('Kaza kaydı yüklenemedi');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('/api/users');
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : data.users || [];
+        setUsers(list);
+      }
+    } catch (error) {
+      console.error('Users fetch error:', error);
+    }
+  };
+
+  const handleAddWitness = async () => {
+    if (witnessForm.type === 'system' && !witnessForm.userId) {
+      toast.error('Lütfen kullanıcı seçin');
+      return;
+    }
+    if (witnessForm.type === 'external' && !witnessForm.externalName.trim()) {
+      toast.error('Lütfen tanık adını girin');
+      return;
+    }
+    try {
+      setWitnessSubmitting(true);
+      const res = await fetch(`/api/ohs/accidents/${params.id}/witnesses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: witnessForm.type === 'system' ? witnessForm.userId : null,
+          externalName: witnessForm.type === 'external' ? witnessForm.externalName : null,
+          contactInfo: witnessForm.contactInfo || null,
+          statement: witnessForm.statement || null,
+        }),
+      });
+      if (res.ok) {
+        toast.success('Tanık eklendi');
+        setWitnessDialogOpen(false);
+        setWitnessForm({ type: 'system', userId: '', externalName: '', contactInfo: '', statement: '' });
+        fetchAccident();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'Tanık eklenemedi');
+      }
+    } catch (error) {
+      toast.error('Hata oluştu');
+    } finally {
+      setWitnessSubmitting(false);
+    }
+  };
+
+  const handleDeleteWitness = async (witnessId: string) => {
+    try {
+      const res = await fetch(`/api/ohs/accidents/${params.id}/witnesses?witnessId=${witnessId}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        toast.success('Tanık silindi');
+        fetchAccident();
+      } else {
+        toast.error('Tanık silinemedi');
+      }
+    } catch (error) {
+      toast.error('Hata oluştu');
     }
   };
 
@@ -687,6 +785,61 @@ export default function AccidentDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Tanıklar */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="w-4 h-4" />
+                  Tanıklar ({accident.witnesses?.length || 0})
+                </CardTitle>
+                <Button size="sm" variant="outline" onClick={() => setWitnessDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-1" />
+                  Tanık Ekle
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {!accident.witnesses?.length ? (
+                <p className="text-sm text-muted-foreground">Tanık kaydı yok</p>
+              ) : (
+                <div className="space-y-3">
+                  {accident.witnesses.map((w) => (
+                    <div key={w.id} className="border rounded-lg p-3 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-medium text-sm">
+                          {w.externalName || (w.user ? `${w.user.name} ${w.user.surname || ''}` : '-')}
+                          {!w.externalName && w.user && (
+                            <Badge variant="outline" className="ml-2 text-xs">Sistem Kullanıcısı</Badge>
+                          )}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-500 hover:text-red-700 h-6 w-6 p-0 flex-shrink-0"
+                          onClick={() => handleDeleteWitness(w.id)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                      {w.contactInfo && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Phone className="w-3 h-3" />
+                          <span>{w.contactInfo}</span>
+                        </div>
+                      )}
+                      {w.statement && (
+                        <p className="text-xs text-muted-foreground bg-muted rounded p-2 mt-1">
+                          {w.statement}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Meta Bilgiler */}
           <Card>
             <CardHeader>
@@ -705,6 +858,93 @@ export default function AccidentDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Tanık Ekleme Dialog */}
+      <Dialog open={witnessDialogOpen} onOpenChange={setWitnessDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tanık Ekle</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* Tip seçimi */}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={witnessForm.type === 'system' ? 'default' : 'outline'}
+                onClick={() => setWitnessForm({ ...witnessForm, type: 'system', externalName: '' })}
+              >
+                Sistemdeki Kullanıcı
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={witnessForm.type === 'external' ? 'default' : 'outline'}
+                onClick={() => setWitnessForm({ ...witnessForm, type: 'external', userId: '' })}
+              >
+                Harici Kişi
+              </Button>
+            </div>
+
+            {witnessForm.type === 'system' ? (
+              <div className="space-y-1">
+                <Label>Kullanıcı <span className="text-red-500">*</span></Label>
+                <Select
+                  value={witnessForm.userId}
+                  onValueChange={(v) => setWitnessForm({ ...witnessForm, userId: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Kullanıcı seçin" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.name} {u.surname || ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <Label>Ad Soyad <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="Tanık adı soyadı"
+                  value={witnessForm.externalName}
+                  onChange={(e) => setWitnessForm({ ...witnessForm, externalName: e.target.value })}
+                />
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <Label>İletişim Bilgisi</Label>
+              <Input
+                placeholder="Telefon veya e-posta"
+                value={witnessForm.contactInfo}
+                onChange={(e) => setWitnessForm({ ...witnessForm, contactInfo: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Tanık İfadesi</Label>
+              <Textarea
+                placeholder="Tanığın olayı nasıl gördüğünü açıklayın..."
+                value={witnessForm.statement}
+                onChange={(e) => setWitnessForm({ ...witnessForm, statement: e.target.value })}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWitnessDialogOpen(false)}>
+              İptal
+            </Button>
+            <Button onClick={handleAddWitness} disabled={witnessSubmitting}>
+              {witnessSubmitting ? 'Ekleniyor...' : 'Ekle'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

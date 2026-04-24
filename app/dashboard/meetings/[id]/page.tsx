@@ -123,6 +123,7 @@ interface Meeting {
     progress: number;
     dueDate: string;
     completedAt: string | null;
+    completionNote: string | null;
     inPool: boolean;
     assignee: { id: string; name: string; surname: string; email: string };
     createdBy: { id: string; name: string; surname: string };
@@ -261,6 +262,11 @@ export default function MeetingDetailPage() {
   // Notlar state
   const [meetingNotes, setMeetingNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
+
+  // Aksiyon tamamlama dialog state
+  const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
+  const [pendingCompletionActionId, setPendingCompletionActionId] = useState<string | null>(null);
+  const [completionNote, setCompletionNote] = useState('');
 
   useEffect(() => {
     if (params.id) {
@@ -427,6 +433,12 @@ export default function MeetingDetailPage() {
   };
 
   const updateActionStatus = async (actionId: string, status: string) => {
+    if (status === 'TAMAMLANDI') {
+      setPendingCompletionActionId(actionId);
+      setCompletionNote('');
+      setCompletionDialogOpen(true);
+      return;
+    }
     try {
       const res = await fetch(`/api/meetings/${params.id}/actions`, {
         method: 'PATCH',
@@ -437,6 +449,37 @@ export default function MeetingDetailPage() {
       if (res.ok) {
         toast.success('Aksiyon güncellendi');
         fetchMeeting();
+      }
+    } catch (error) {
+      toast.error('Hata oluştu');
+    }
+  };
+
+  const confirmActionCompletion = async () => {
+    if (!completionNote.trim()) {
+      toast.error('Lütfen tamamlama açıklaması yazınız');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/meetings/${params.id}/actions`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actionId: pendingCompletionActionId,
+          status: 'TAMAMLANDI',
+          completionNote: completionNote.trim(),
+        }),
+      });
+
+      if (res.ok) {
+        toast.success('Aksiyon tamamlandı');
+        setCompletionDialogOpen(false);
+        setPendingCompletionActionId(null);
+        setCompletionNote('');
+        fetchMeeting();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Hata oluştu');
       }
     } catch (error) {
       toast.error('Hata oluştu');
@@ -1050,6 +1093,15 @@ export default function MeetingDetailPage() {
                                   </span>
                                 )}
                               </div>
+                              {action.completionNote && (
+                                <div className="mt-2 flex items-start gap-1.5 text-sm bg-green-50 border border-green-200 rounded px-3 py-2">
+                                  <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                  <div>
+                                    <span className="font-medium text-green-700">Tamamlama Notu: </span>
+                                    <span className="text-green-800">{action.completionNote}</span>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                             <div className="flex items-center gap-2">
                               {action.status !== 'TAMAMLANDI' && !action.inPool && (
@@ -1574,6 +1626,52 @@ export default function MeetingDetailPage() {
             </Button>
             <Button onClick={handleFileUpload} disabled={uploading}>
               {uploading ? 'Yükleniyor...' : 'Yükle'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Aksiyon Tamamlama Dialog */}
+      <Dialog open={completionDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setCompletionDialogOpen(false);
+          setPendingCompletionActionId(null);
+          setCompletionNote('');
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Aksiyon Tamamlama Açıklaması</DialogTitle>
+            <DialogDescription>
+              Aksiyonu tamamlarken ne yaptığınızı, nasıl çözdüğünüzü detaylı olarak açıklayınız. Bu alan zorunludur.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="completionNote">
+              Tamamlama Açıklaması <span className="text-red-500">*</span>
+            </Label>
+            <Textarea
+              id="completionNote"
+              placeholder="Bu aksiyonu nasıl tamamladığınızı detaylı olarak açıklayınız..."
+              value={completionNote}
+              onChange={(e) => setCompletionNote(e.target.value)}
+              rows={5}
+              className={!completionNote.trim() ? 'border-red-300' : ''}
+            />
+            {!completionNote.trim() && (
+              <p className="text-xs text-red-500">Bu alan zorunludur</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setCompletionDialogOpen(false);
+              setPendingCompletionActionId(null);
+              setCompletionNote('');
+            }}>
+              İptal
+            </Button>
+            <Button onClick={confirmActionCompletion} disabled={!completionNote.trim()}>
+              Tamamlandı Olarak İşaretle
             </Button>
           </DialogFooter>
         </DialogContent>

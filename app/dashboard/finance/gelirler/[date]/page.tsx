@@ -26,6 +26,10 @@ const TOTAL_CATS = [
   'TOTAL EXTRA BEVERAGE REVENUES',
   'TOTAL SPA REVENUE',
   'TOTAL OTHER REVENUES',
+  'TOTAL FOOTBALL REVENUE',
+  'TOTAL A LA CARTE REVENUE',
+  'TOTAL TRANSPORTATIONS REVENUE',
+  'TOTAL SPORT ACADEMY REVENUE',
 ];
 
 const CAT_LABELS: Record<string, string> = {
@@ -34,9 +38,13 @@ const CAT_LABELS: Record<string, string> = {
   'TOTAL EXTRA BEVERAGE REVENUES': 'İçecek',
   'TOTAL SPA REVENUE': 'Spa',
   'TOTAL OTHER REVENUES': 'Diğer',
+  'TOTAL FOOTBALL REVENUE': 'Futbol',
+  'TOTAL A LA CARTE REVENUE': 'Alakart',
+  'TOTAL TRANSPORTATIONS REVENUE': 'Transfer',
+  'TOTAL SPORT ACADEMY REVENUE': 'Spor Akademi',
 };
 
-const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ec4899', '#14b8a6'];
+const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ec4899', '#14b8a6', '#f97316', '#8b5cf6', '#06b6d4', '#84cc16'];
 
 interface RevenueEntry {
   id: string;

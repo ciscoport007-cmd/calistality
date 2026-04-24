@@ -42,9 +42,13 @@ const CATEGORY_LABELS: Record<string, string> = {
   'TOTAL EXTRA BEVERAGE REVENUES': 'İçecek Gelirleri',
   'TOTAL SPA REVENUE': 'Spa Gelirleri',
   'TOTAL OTHER REVENUES': 'Diğer Gelirler',
+  'TOTAL FOOTBALL REVENUE': 'Futbol Gelirleri',
+  'TOTAL A LA CARTE REVENUE': 'Alakart Gelirleri',
+  'TOTAL TRANSPORTATIONS REVENUE': 'Transfer Gelirleri',
+  'TOTAL SPORT ACADEMY REVENUE': 'Spor Akademi Gelirleri',
 };
 
-const CATEGORY_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ec4899', '#14b8a6'];
+const CATEGORY_COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ec4899', '#14b8a6', '#f97316', '#8b5cf6', '#06b6d4', '#84cc16'];
 
 function fmtEUR(n: number) {
   return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n) + ' €';

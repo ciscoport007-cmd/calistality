@@ -12,6 +12,10 @@ const TOTAL_CATS = [
   'TOTAL EXTRA BEVERAGE REVENUES',
   'TOTAL SPA REVENUE',
   'TOTAL OTHER REVENUES',
+  'TOTAL FOOTBALL REVENUE',
+  'TOTAL A LA CARTE REVENUE',
+  'TOTAL TRANSPORTATIONS REVENUE',
+  'TOTAL SPORT ACADEMY REVENUE',
 ];
 
 function isTotalCat(cat: string) {
@@ -87,8 +91,17 @@ export async function GET(request: NextRequest) {
     const totalPrevMonthlyTL = Object.values(prevMonthByCategory).reduce((s, v) => s + v.tl, 0);
     const totalPrevMonthlyEUR = Object.values(prevMonthByCategory).reduce((s, v) => s + v.eur, 0);
 
-    const totalYearlyEUR = yearEntries.reduce((s, e) => s + e.yearlyActualEUR, 0) / (TOTAL_CATS.length || 1);
-    const totalYearlyBudgetEUR = yearEntries.reduce((s, e) => s + e.yearlyBudgetEUR, 0) / (TOTAL_CATS.length || 1);
+    // YTD: use the latest report day's entries (each carries cumulative YTD value)
+    const latestYearDate = yearEntries.reduce<Date | null>((max, e) => {
+      const d = new Date(e.reportDate);
+      return !max || d > max ? d : max;
+    }, null);
+    const latestYearKey = latestYearDate?.toISOString().split('T')[0] ?? '';
+    const latestYearEntries = yearEntries.filter(
+      (e) => new Date(e.reportDate).toISOString().split('T')[0] === latestYearKey
+    );
+    const totalYearlyEUR = latestYearEntries.reduce((s, e) => s + e.yearlyActualEUR, 0);
+    const totalYearlyBudgetEUR = latestYearEntries.reduce((s, e) => s + e.yearlyBudgetEUR, 0);
 
     const existingDates = new Set(missingDays30.map((r) => r.reportDate.toISOString().split('T')[0]));
     const missingDaysList: string[] = [];

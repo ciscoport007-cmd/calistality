@@ -7397,8 +7397,10 @@ model FinanceReport {
   fileName     String
   sheetName    String
   uploadedById String?
-  uploadedBy   User?    @relation("FinanceReportUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedBy   User?         @relation("FinanceReportUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   entries      RevenueEntry[]
+  statistic    DailyStatistic?
+  exchangeRate ExchangeRate?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -7430,4 +7432,118 @@ model RevenueEntry {
   @@index([reportDate])
   @@index([category])
   @@map("revenue_entries")
+}
+
+model DailyStatistic {
+  id         String        @id @default(cuid())
+  reportId   String        @unique
+  report     FinanceReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportDate DateTime
+
+  // Available rooms
+  availRoomToday    Float @default(0)
+  availRoomMTD      Float @default(0)
+  availRoomBudget   Float @default(0)
+  availRoomForecast Float @default(0)
+  availRoomYTD      Float @default(0)
+
+  // Sold rooms
+  soldRoomToday    Float @default(0)
+  soldRoomMTD      Float @default(0)
+  soldRoomBudget   Float @default(0)
+  soldRoomForecast Float @default(0)
+  soldRoomYTD      Float @default(0)
+
+  // Comp rooms
+  compRoomToday Float @default(0)
+  compRoomMTD   Float @default(0)
+
+  // Occupancy rate (decimal: 0.45 = 45%)
+  occupancyToday    Float @default(0)
+  occupancyMTD      Float @default(0)
+  occupancyBudget   Float @default(0)
+  occupancyForecast Float @default(0)
+  occupancyYTD      Float @default(0)
+
+  // ADR — Average Daily Rate (EUR, exc. VAT)
+  adrToday    Float @default(0)
+  adrMTD      Float @default(0)
+  adrBudget   Float @default(0)
+  adrForecast Float @default(0)
+  adrYTD      Float @default(0)
+
+  // Average Sales Rate (EUR, exc. VAT)
+  avgSalesRateToday Float @default(0)
+  avgSalesRateMTD   Float @default(0)
+
+  // PAX (paying guests)
+  paxToday    Float @default(0)
+  paxMTD      Float @default(0)
+  paxBudget   Float @default(0)
+  paxForecast Float @default(0)
+  paxYTD      Float @default(0)
+
+  // Out of order rooms
+  outOfOrderToday Float @default(0)
+  outOfOrderMTD   Float @default(0)
+  outOfOrderYTD   Float @default(0)
+
+  // Last year — Available rooms
+  lyAvailRoomToday Float @default(0)
+  lyAvailRoomMTD   Float @default(0)
+  lyAvailRoomYTD   Float @default(0)
+
+  // Last year — Sold rooms
+  lySoldRoomToday Float @default(0)
+  lySoldRoomMTD   Float @default(0)
+  lySoldRoomYTD   Float @default(0)
+
+  // Last year — Occupancy
+  lyOccupancyToday Float @default(0)
+  lyOccupancyMTD   Float @default(0)
+  lyOccupancyYTD   Float @default(0)
+
+  // Last year — ADR
+  lyAdrToday Float @default(0)
+  lyAdrMTD   Float @default(0)
+  lyAdrYTD   Float @default(0)
+
+  // Last year — PAX
+  lyPaxToday Float @default(0)
+  lyPaxMTD   Float @default(0)
+  lyPaxYTD   Float @default(0)
+
+  // Last year — Out of order
+  lyOutOfOrderToday Float @default(0)
+  lyOutOfOrderMTD   Float @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([reportDate])
+  @@map("daily_statistics")
+}
+
+model ExchangeRate {
+  id         String        @id @default(cuid())
+  reportId   String        @unique
+  report     FinanceReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportDate DateTime
+
+  // TL/EUR rates
+  dailyRate        Float @default(0) // Today's rate
+  monthlyAvgRate   Float @default(0) // MTD average
+  budgetRate       Float @default(0) // Monthly budget rate
+  forecastRate     Float @default(0) // Forecast rate
+  yearlyAvgRate    Float @default(0) // YTD average
+  yearlyBudgetRate Float @default(0) // Yearly budget rate
+
+  // Last year rates
+  lyDailyRate   Float @default(0)
+  lyMonthlyRate Float @default(0)
+  lyYearlyRate  Float @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([reportDate])
+  @@map("exchange_rates")
 }

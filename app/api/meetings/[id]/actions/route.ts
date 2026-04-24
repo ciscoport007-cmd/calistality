@@ -177,6 +177,14 @@ export async function PATCH(
       );
     }
 
+    // TAMAMLANDI durumu için completionNote zorunlu
+    if (status === 'TAMAMLANDI' && !completionNote?.trim()) {
+      return NextResponse.json(
+        { error: 'Aksiyonu tamamlarken açıklama yazılması zorunludur' },
+        { status: 400 }
+      );
+    }
+
     const updateData: any = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
