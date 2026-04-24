@@ -37,13 +37,30 @@ export async function GET(request: NextRequest) {
         data: {
           latest: null,
           trendData: [],
-          exchangeRates: [],
+          exchangeRate: null,
+          exchangeRateTrend: [],
+          kapakMissing: true,
         },
       });
     }
 
     // En son günün verisi
     const latest = statistics[statistics.length - 1];
+
+    // KAPAK verisinin anlamlı olup olmadığını kontrol et
+    const hasKapakData = latest.soldRoomToday > 0 || latest.adrToday > 0 || latest.occupancyToday > 0;
+    if (!hasKapakData) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          latest: null,
+          trendData: [],
+          exchangeRate: null,
+          exchangeRateTrend: [],
+          kapakMissing: true,
+        },
+      });
+    }
     const latestRate = exchangeRates[exchangeRates.length - 1] ?? null;
 
     // RevPAR = ADR × Occupancy (otel standardı)

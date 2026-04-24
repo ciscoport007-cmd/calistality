@@ -107,6 +107,7 @@ interface StatsData {
   exchangeRate: ExchangeRateData | null;
   trendData: TrendPoint[];
   exchangeRateTrend: { date: string; dailyRate: number; monthlyAvgRate: number }[];
+  kapakMissing?: boolean;
 }
 
 // ─── Yardımcı fonksiyonlar ───────────────────────────────────────────────────
@@ -283,8 +284,16 @@ export default function IstatistiklerPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center h-64 gap-3">
             <AlertTriangle className="h-8 w-8 text-amber-400" />
-            <p className="text-gray-500">Bu aya ait istatistik verisi bulunamadı.</p>
-            <p className="text-xs text-gray-400">Excel yükledikten sonra KAPAK sayfasından otomatik doldurulur.</p>
+            <p className="text-gray-600 font-medium">
+              {data?.kapakMissing
+                ? 'KAPAK sayfası verisi eksik veya okunamadı'
+                : 'Bu aya ait istatistik verisi bulunamadı'}
+            </p>
+            <p className="text-xs text-gray-400 text-center max-w-sm">
+              {data?.kapakMissing
+                ? 'Excel dosyanızda "KAPAK DD.MM.YYYY" adlı sheet bulunmalı ve doluluk/ADR satırları dolu olmalıdır. Güncel dosyayı tekrar yükleyin.'
+                : 'Excel yükledikten sonra KAPAK sayfasından otomatik doldurulur.'}
+            </p>
           </CardContent>
         </Card>
       ) : (

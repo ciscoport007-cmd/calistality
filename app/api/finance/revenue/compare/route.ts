@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         prisma.revenueEntry.groupBy({
           by: ['category'],
           where: { reportDate: { gte: start1, lte: end1 }, isTotal: true },
-          _sum: { dailyActualTL: true, dailyActualEUR: true, lyDailyEUR: true },
+          _sum: { dailyActualTL: true, dailyActualEUR: true, lyDailyEUR: true, lyYearlyEUR: true },
         }),
         prisma.revenueEntry.groupBy({
           by: ['category'],
@@ -41,8 +41,26 @@ export async function GET(request: NextRequest) {
         }),
       ]);
 
-      // Eğer year2 DB'de yoksa, year1 kayıtlarındaki lyDailyEUR toplamını kullan
+      // Eğer year2 DB'de yoksa, year1'in son günündeki lyYearlyEUR değerini kullan
+      // (lyDailyEUR toplamı yerine — yalnızca KAPAK günlerinde dolu)
       const useLyFallback = entries2.length === 0;
+
+      // LY yıllık için son yüklenen günün lyYearlyEUR değerini al
+      let lyYearlyByCategory: Record<string, number> = {};
+      if (useLyFallback) {
+        const latestEntry = await prisma.revenueEntry.findFirst({
+          where: { reportDate: { gte: start1, lte: end1 }, isTotal: true },
+          orderBy: { reportDate: 'desc' },
+          select: { reportDate: true },
+        });
+        if (latestEntry) {
+          const latestRows = await prisma.revenueEntry.findMany({
+            where: { reportDate: latestEntry.reportDate, isTotal: true },
+            select: { category: true, lyYearlyEUR: true },
+          });
+          lyYearlyByCategory = Object.fromEntries(latestRows.map((r) => [r.category, r.lyYearlyEUR]));
+        }
+      }
 
       const map1 = Object.fromEntries(entries1.map((e) => [e.category, e._sum]));
       const map2 = Object.fromEntries(entries2.map((e) => [e.category, e._sum]));
@@ -51,7 +69,7 @@ export async function GET(request: NextRequest) {
       const comparison = allCats.map((cat) => {
         const v1 = currency === 'TL' ? (map1[cat]?.dailyActualTL ?? 0) : (map1[cat]?.dailyActualEUR ?? 0);
         const v2 = useLyFallback
-          ? (map1[cat]?.lyDailyEUR ?? 0)
+          ? (lyYearlyByCategory[cat] ?? 0)
           : currency === 'TL'
           ? (map2[cat]?.dailyActualTL ?? 0)
           : (map2[cat]?.dailyActualEUR ?? 0);
@@ -134,27 +152,25 @@ export async function GET(request: NextRequest) {
         prisma.revenueEntry.groupBy({
           by: ['reportDate'],
           where: { reportDate: { gte: ytdStart1, lte: ytdEnd1 }, isTotal: true },
-          _sum: { dailyActualTL: true, dailyActualEUR: true, lyDailyEUR: true },
+          _sum: { dailyActualTL: true, dailyActualEUR: true, lyDailyEUR: true, lyMonthlyEUR: true },
           orderBy: { reportDate: 'asc' },
         }),
         prisma.revenueEntry.groupBy({
           by: ['reportDate'],
           where: { reportDate: { gte: ytdStart2, lte: ytdEnd2 }, isTotal: true },
-          _sum: { dailyActualTL: true, dailyActualEUR: true, lyDailyEUR: true },
+          _sum: { dailyActualTL: true, dailyActualEUR: true, lyDailyEUR: true, lyMonthlyEUR: true },
           orderBy: { reportDate: 'asc' },
         }),
       ]);
 
-      // Eğer year2 DB'de yoksa, year1 kayıtlarındaki lyDailyEUR toplamını kullan
+      // Eğer year2 DB'de yoksa, year1 kayıtlarındaki lyMonthlyEUR'unu kullan
       const useLyFallback = daily2.length === 0;
 
-      const groupByMonth = (entries: typeof daily1, useLy = false) => {
+      const groupByMonth = (entries: typeof daily1) => {
         const map: Record<string, number> = {};
         for (const e of entries) {
           const key = format(e.reportDate, 'MM');
-          const value = useLy
-            ? (e._sum.lyDailyEUR ?? 0)
-            : currency === 'TL'
+          const value = currency === 'TL'
             ? (e._sum.dailyActualTL ?? 0)
             : (e._sum.dailyActualEUR ?? 0);
           map[key] = (map[key] ?? 0) + value;
@@ -162,8 +178,26 @@ export async function GET(request: NextRequest) {
         return map;
       };
 
+      // LY fallback: her ay için son günün lyMonthlyEUR değerini kullan
+      // (lyDailyEUR yerine — yalnızca KAPAK olan günlerde dolu, toplamda eksik)
+      const lyFallbackGroupByMonth = (entries: typeof daily1): Record<string, number> => {
+        const latestByMonth: Record<string, typeof daily1[0]> = {};
+        for (const e of entries) {
+          const key = format(e.reportDate, 'MM');
+          const existing = latestByMonth[key];
+          if (!existing || new Date(e.reportDate) > new Date(existing.reportDate)) {
+            latestByMonth[key] = e;
+          }
+        }
+        const map: Record<string, number> = {};
+        for (const [month, e] of Object.entries(latestByMonth)) {
+          map[month] = e._sum.lyMonthlyEUR ?? 0;
+        }
+        return map;
+      };
+
       const map1 = groupByMonth(daily1);
-      const map2 = useLyFallback ? groupByMonth(daily1, true) : groupByMonth(daily2);
+      const map2 = useLyFallback ? lyFallbackGroupByMonth(daily1) : groupByMonth(daily2);
 
       const months = Array.from({ length: todayMonth + 1 }, (_, i) =>
         String(i + 1).padStart(2, '0')
