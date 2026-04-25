@@ -310,6 +310,75 @@ function findKapakRow(rows: unknown[][], keywords: string[], startFrom: number, 
   return -1;
 }
 
+// Column positions within a KAPAK statistics/rate row. All indices 0-based.
+interface KapakColMap {
+  today: number;
+  mtd: number;
+  budget: number;
+  forecast: number;
+  ytd: number;
+  lyToday: number;
+  lyMtd: number;
+  lyYtd: number;
+}
+
+// Defaults if header row is not found — matches the "every-other-column starting at D" layout.
+const STATS_DEFAULTS: KapakColMap = { today: 3, mtd: 5, budget: 7, forecast: 9, ytd: 11, lyToday: 15, lyMtd: 17, lyYtd: 19 };
+const EXRATE_DEFAULTS: KapakColMap = { today: 4, mtd: 6, budget: 8, forecast: 10, ytd: 12, lyToday: 16, lyMtd: 18, lyYtd: 20 };
+
+// Scans rows[searchFrom..searchTo] looking for a header row whose cells contain
+// "TODAY", "MTD", "BUDGET", "FORECAST", "YTD" (in any language/spacing variation).
+// Returns a KapakColMap built from the found column indices; falls back to `defaults`
+// for any header label that was not found.
+function findKapakColMap(
+  rows: unknown[][],
+  searchFrom: number,
+  searchTo: number,
+  defaults: KapakColMap,
+): KapakColMap {
+  for (let r = Math.max(0, searchFrom); r < Math.min(searchTo, rows.length); r++) {
+    const row = rows[r] as unknown[];
+    const todayIdxs: number[] = [];
+    const mtdIdxs: number[] = [];
+    const ytdIdxs: number[] = [];
+    let budgetIdx = -1, forecastIdx = -1;
+    let hits = 0;
+
+    for (let c = 0; c < Math.min(30, row.length); c++) {
+      const cell = row[c];
+      if (typeof cell !== 'string') continue;
+      const u = cell.trim().toUpperCase().replace(/\s+/g, ' ');
+
+      if (u === 'TODAY' || u.startsWith('TODAY ') || u === 'BUGÜN' || u === 'GÜNLÜK' || u === 'DAILY') {
+        todayIdxs.push(c); hits++;
+      } else if (u === 'MTD' || u === 'M.T.D.' || u.startsWith('MTD ') || u === 'MONTH TO DATE') {
+        mtdIdxs.push(c); hits++;
+      } else if (u === 'BUDGET' || u.startsWith('BUDGET ') || u === 'BÜTÇE' || u === 'BUTCE') {
+        budgetIdx = c; hits++;
+      } else if (u === 'FORECAST' || u.startsWith('FORECAST ') || u === 'FCST') {
+        forecastIdx = c; hits++;
+      } else if (u === 'YTD' || u === 'Y.T.D.' || u.startsWith('YTD ') || u === 'YEAR TO DATE') {
+        ytdIdxs.push(c); hits++;
+      }
+    }
+
+    // Need at least 3 column header labels to trust this row as a header.
+    if (hits >= 3) {
+      return {
+        today:    todayIdxs[0]  ?? defaults.today,
+        mtd:      mtdIdxs[0]   ?? defaults.mtd,
+        budget:   budgetIdx >= 0 ? budgetIdx    : defaults.budget,
+        forecast: forecastIdx >= 0 ? forecastIdx : defaults.forecast,
+        ytd:      ytdIdxs[0]   ?? defaults.ytd,
+        lyToday:  todayIdxs[1] ?? defaults.lyToday,
+        lyMtd:    mtdIdxs[1]   ?? defaults.lyMtd,
+        lyYtd:    ytdIdxs[1]   ?? defaults.lyYtd,
+      };
+    }
+  }
+  return { ...defaults };
+}
+
 function parseSheetDate(sheetName: string): Date | null {
   const trimmed = sheetName.trim();
   const match = trimmed.match(/^(\d{2})\.(\d{2})\.(\d{4})/);
@@ -397,13 +466,11 @@ function parseSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedDayData | null
   return { date, sheetName, entries, rawFirstTotalRow };
 }
 
-// Column mapping (0-indexed) — consistent across KAPAK sheets:
-//   Statistics cols: D(3)=Today, F(5)=MTD, H(7)=Budget, J(9)=Forecast, L(11)=YTD, P(15)=LY Today, R(17)=LY MTD, T(19)=LY YTD
-//   PAX cols (offset by +1): E(4)=Today, G(6)=MTD, I(8)=Budget, K(10)=Forecast, M(12)=YTD, Q(16)=LY Today, S(18)=LY MTD, U(20)=LY YTD
-//   Exchange rate cols: E(4)=daily, G(6)=monthly, I(8)=budget, K(10)=forecast, M(12)=ytd, O(14)=ytdBudget, Q(16)=LY daily, S(18)=LY monthly, U(20)=LY yearly
-//   Revenue LY cols: P(15)=LY Today EUR, R(17)=LY Monthly EUR, T(19)=LY Yearly EUR
-//
-// Row positions vary by Excel version — found via label search with hardcoded fallback.
+// Both row AND column positions are resolved from text labels in the Excel.
+// findKapakRow   → finds which ROW contains a given statistic (by cell text).
+// findKapakColMap → finds which COLUMNS contain Today/MTD/Budget/Forecast/YTD/LY*
+//                   by scanning for a header row ("TODAY", "MTD", "BUDGET"…).
+// Only falls back to hardcoded positions when no matching label is found.
 function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData | null {
   const dateStr = sheetName.replace(/^KAPAK/i, '').trim();
   const match = dateStr.match(/^(\d{2})\.(\d{2})\.(\d{4})/);
@@ -419,24 +486,29 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
     return { label, idx: idx >= 0 ? idx : fallback, byLabel: idx >= 0 };
   };
 
-  // Statistics block — rows vary; searched by label first
-  const availF  = found('availRoom',  ['AVAILABLE ROOM', 'AVAIL ROOM'],            22, 55, 34);
-  const soldF   = found('soldRoom',   ['SOLD ROOM'],                                22, 55, 35);
-  const compF   = found('compRoom',   ['COMP ROOM', 'COMPS ROOM', 'COMPLIMENTARY'], 24, 48, 36);
-  const occupF  = found('occupancy',  ['OCCUPIED', 'OCCUPANCY RATE', 'OCC %', 'OCC.'], 24, 55, 37);
-  const adrF    = found('adr',        ['AVR.ROOM RATE', 'AVR. ROOM RATE', 'AVR. ROOM', 'ADR', 'AVERAGE ROOM RATE', 'AVERAGE DAILY RATE', 'AVG.ROOM RATE', 'AVG. ROOM RATE', 'ORT.ODA', 'ORT. ODA', 'ORTALAMA ODA'], 22, 58, 38);
-  const avgSF   = found('avgSales',   ['AVR.SALES RATE', 'AVR. SALES RATE', 'AVR. SALES', 'AVERAGE SALES', 'AVG.SALES RATE', 'AVG. SALES RATE', 'ORT.SATIS', 'ORT. SATIŞ'], 24, 58, 39);
-  const paxF    = found('pax',        ['PAYING GUEST'],                              38, 65, 48);
-  const oooF    = found('outOfOrder', ['OUT OF ORDER', 'OUT-OF-ORDER'],              38, 72, 53);
-  const exRF    = found('exchangeRate', ['EUR KURU', 'EUR/TRY', 'EURO KURU', 'EXCHANGE RATE', 'KUR', 'EUR'], 52, 88, 65);
+  // ── Row detection (by cell text) ───────────────────────────────────────────
+  const availF  = found('availRoom',    ['AVAILABLE ROOM', 'AVAIL ROOM'],            22, 55, 34);
+  const soldF   = found('soldRoom',     ['SOLD ROOM'],                                22, 55, 35);
+  const compF   = found('compRoom',     ['COMP ROOM', 'COMPS ROOM', 'COMPLIMENTARY'], 24, 48, 36);
+  const occupF  = found('occupancy',    ['OCCUPIED', 'OCCUPANCY RATE', 'OCC %', 'OCC.', 'OCCUPANCY %'], 24, 58, 37);
+  const adrF    = found('adr',          ['AVR.ROOM RATE', 'AVR. ROOM RATE', 'AVR. ROOM', 'ADR',
+                                          'AVERAGE ROOM RATE', 'AVERAGE DAILY RATE',
+                                          'AVG.ROOM RATE', 'AVG. ROOM RATE',
+                                          'ORT.ODA', 'ORT. ODA', 'ORTALAMA ODA'],    22, 60, 38);
+  const avgSF   = found('avgSales',     ['AVR.SALES RATE', 'AVR. SALES RATE', 'AVR. SALES',
+                                          'AVERAGE SALES', 'AVG.SALES RATE', 'AVG. SALES RATE',
+                                          'ORT.SATIS', 'ORT. SATIŞ'],                24, 60, 39);
+  const paxF    = found('pax',          ['PAYING GUEST'],                              38, 65, 48);
+  const oooF    = found('outOfOrder',   ['OUT OF ORDER', 'OUT-OF-ORDER'],              38, 72, 53);
+  const exRF    = found('exchangeRate', ['EUR KURU', 'EUR/TRY', 'EURO KURU',
+                                          'EXCHANGE RATE', 'KUR', 'EUR'],             52, 92, 65);
 
-  // Revenue LY block — rows 14-32 typically
-  const roomRF  = found('roomRev',  ['ALL.INC', 'ALL INC', 'ALLINC'],                14, 32, 20);
+  const roomRF  = found('roomRev',  ['ALL.INC', 'ALL INC', 'ALLINC'],                 14, 32, 20);
   const foodRF  = found('foodRev',  ['F&B FOOD', 'FOOD REVENUE', 'YİYECEK', 'YIYECEK'], 14, 32, 21);
-  const bevRF   = found('bevRev',   ['F&B BEV', 'BEVERAGE', 'İÇECEK', 'ICECEK'],    14, 32, 22);
-  const spaRF   = found('spaRev',   ['SPA'],                                          14, 32, 23);
+  const bevRF   = found('bevRev',   ['F&B BEV', 'BEVERAGE', 'İÇECEK', 'ICECEK'],     14, 32, 22);
+  const spaRF   = found('spaRev',   ['SPA'],                                           14, 32, 23);
   const otherRF = found('otherRev', ['MISC', 'MISCELLANEOUS', 'DİĞER', 'DIGER', 'OTHER REVENUE'], 14, 32, 24);
-  const totRF   = found('totalRev', ['TOTALS'],                                       22, 32, 25);
+  const totRF   = found('totalRev', ['TOTALS'],                                        22, 32, 25);
 
   const availR = availF.idx; const soldR = soldF.idx; const compR = compF.idx;
   const occupR = occupF.idx; const adrR  = adrF.idx;  const avgSR = avgSF.idx;
@@ -444,16 +516,29 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
   const roomRR = roomRF.idx; const foodRR = foodRF.idx; const bevRR = bevRF.idx;
   const spaRR  = spaRF.idx;  const othrRR = otherRF.idx; const totRR = totRF.idx;
 
-  // Build diagnostic: raw label cells for rows 20-90 (cols 0-4) so the user can
-  // verify which row holds which value in their specific Excel version.
+  // ── Column detection (by header row text) ──────────────────────────────────
+  // Search for the stats section header above the first stat row.
+  const statsHeaderEnd = Math.min(availR, soldR, occupR, adrR);
+  const sc = findKapakColMap(rows, Math.max(0, statsHeaderEnd - 18), statsHeaderEnd + 2, STATS_DEFAULTS);
+
+  // PAX sometimes lives in a slightly different sub-block — search near paxR.
+  const paxColMap = findKapakColMap(rows, Math.max(0, paxR - 15), paxR + 2, sc);
+
+  // Exchange rate section has its own header.
+  const ec = findKapakColMap(rows, Math.max(0, exRR - 15), exRR + 2, EXRATE_DEFAULTS);
+
+  // Revenue LY block header (top section of KAPAK).
+  const rc = findKapakColMap(rows, 5, Math.min(roomRR + 2, 25), STATS_DEFAULTS);
+
+  // ── Diagnostic (raw label cells rows 20-90) ────────────────────────────────
   const rawRows = Array.from({ length: Math.min(90, rows.length) - 20 }, (_, i) => {
     const ri = i + 20;
     const row = rows[ri] as unknown[];
     return {
       rowIdx: ri,
       cells: [0, 1, 2, 3, 4].map(c => ({
-        col: c < 26 ? String.fromCharCode(65 + c) : `A${String.fromCharCode(65 + c - 26)}`,
-        val: row?.[c] !== null && row?.[c] !== undefined ? (row[c] as string | number) : null,
+        col: String.fromCharCode(65 + c),
+        val: row?.[c] != null ? (row[c] as string | number) : null,
       })),
     };
   });
@@ -462,13 +547,14 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
     sheetName,
     rowMap: Object.fromEntries(
       [availF, soldF, compF, occupF, adrF, avgSF, paxF, oooF, exRF,
-       roomRF, foodRF, bevRF, spaRF, otherRF, totRF].map(f => [f.label, { idx: f.idx, byLabel: f.byLabel }])
+       roomRF, foodRF, bevRF, spaRF, otherRF, totRF]
+        .map(f => [f.label, { idx: f.idx, byLabel: f.byLabel }])
     ),
     sampleValues: {
-      soldRoomToday:  g(soldR, 3),
-      occupancyToday: g(occupR, 3),
-      adrToday:       g(adrR, 3),
-      dailyRate:      g(exRR, 4),
+      soldRoomToday:  g(soldR, sc.today),
+      occupancyToday: g(occupR, sc.today),
+      adrToday:       g(adrR, sc.today),
+      dailyRate:      g(exRR, ec.today),
     },
     rawRows,
   };
@@ -477,86 +563,86 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
     _kapakDiag,
     date,
     statistic: {
-      availRoomToday:    g(availR, 3),
-      availRoomMTD:      g(availR, 5),
-      availRoomBudget:   g(availR, 7),
-      availRoomForecast: g(availR, 9),
-      availRoomYTD:      g(availR, 11),
-      soldRoomToday:     g(soldR, 3),
-      soldRoomMTD:       g(soldR, 5),
-      soldRoomBudget:    g(soldR, 7),
-      soldRoomForecast:  g(soldR, 9),
-      soldRoomYTD:       g(soldR, 11),
-      compRoomToday:     g(compR, 3),
-      compRoomMTD:       g(compR, 5),
-      occupancyToday:    g(occupR, 3),
-      occupancyMTD:      g(occupR, 5),
-      occupancyBudget:   g(occupR, 7),
-      occupancyForecast: g(occupR, 9),
-      occupancyYTD:      g(occupR, 11),
-      adrToday:          g(adrR, 3),
-      adrMTD:            g(adrR, 5),
-      adrBudget:         g(adrR, 7),
-      adrForecast:       g(adrR, 9),
-      adrYTD:            g(adrR, 11),
-      avgSalesRateToday: g(avgSR, 3),
-      avgSalesRateMTD:   g(avgSR, 5),
-      paxToday:          g(paxR, 4),
-      paxMTD:            g(paxR, 6),
-      paxBudget:         g(paxR, 8),
-      paxForecast:       g(paxR, 10),
-      paxYTD:            g(paxR, 12),
-      outOfOrderToday:   g(oooR, 3),
-      outOfOrderMTD:     g(oooR, 5),
-      outOfOrderYTD:     g(oooR, 11),
-      lyAvailRoomToday:  g(availR, 15),
-      lyAvailRoomMTD:    g(availR, 17),
-      lyAvailRoomYTD:    g(availR, 19),
-      lySoldRoomToday:   g(soldR, 15),
-      lySoldRoomMTD:     g(soldR, 17),
-      lySoldRoomYTD:     g(soldR, 19),
-      lyOccupancyToday:  g(occupR, 15),
-      lyOccupancyMTD:    g(occupR, 17),
-      lyOccupancyYTD:    g(occupR, 19),
-      lyAdrToday:        g(adrR, 15),
-      lyAdrMTD:          g(adrR, 17),
-      lyAdrYTD:          g(adrR, 19),
-      lyPaxToday:        g(paxR, 16),
-      lyPaxMTD:          g(paxR, 18),
-      lyPaxYTD:          g(paxR, 20),
-      lyOutOfOrderToday: g(oooR, 15),
-      lyOutOfOrderMTD:   g(oooR, 17),
+      availRoomToday:    g(availR, sc.today),
+      availRoomMTD:      g(availR, sc.mtd),
+      availRoomBudget:   g(availR, sc.budget),
+      availRoomForecast: g(availR, sc.forecast),
+      availRoomYTD:      g(availR, sc.ytd),
+      soldRoomToday:     g(soldR, sc.today),
+      soldRoomMTD:       g(soldR, sc.mtd),
+      soldRoomBudget:    g(soldR, sc.budget),
+      soldRoomForecast:  g(soldR, sc.forecast),
+      soldRoomYTD:       g(soldR, sc.ytd),
+      compRoomToday:     g(compR, sc.today),
+      compRoomMTD:       g(compR, sc.mtd),
+      occupancyToday:    g(occupR, sc.today),
+      occupancyMTD:      g(occupR, sc.mtd),
+      occupancyBudget:   g(occupR, sc.budget),
+      occupancyForecast: g(occupR, sc.forecast),
+      occupancyYTD:      g(occupR, sc.ytd),
+      adrToday:          g(adrR, sc.today),
+      adrMTD:            g(adrR, sc.mtd),
+      adrBudget:         g(adrR, sc.budget),
+      adrForecast:       g(adrR, sc.forecast),
+      adrYTD:            g(adrR, sc.ytd),
+      avgSalesRateToday: g(avgSR, sc.today),
+      avgSalesRateMTD:   g(avgSR, sc.mtd),
+      paxToday:          g(paxR, paxColMap.today),
+      paxMTD:            g(paxR, paxColMap.mtd),
+      paxBudget:         g(paxR, paxColMap.budget),
+      paxForecast:       g(paxR, paxColMap.forecast),
+      paxYTD:            g(paxR, paxColMap.ytd),
+      outOfOrderToday:   g(oooR, sc.today),
+      outOfOrderMTD:     g(oooR, sc.mtd),
+      outOfOrderYTD:     g(oooR, sc.ytd),
+      lyAvailRoomToday:  g(availR, sc.lyToday),
+      lyAvailRoomMTD:    g(availR, sc.lyMtd),
+      lyAvailRoomYTD:    g(availR, sc.lyYtd),
+      lySoldRoomToday:   g(soldR, sc.lyToday),
+      lySoldRoomMTD:     g(soldR, sc.lyMtd),
+      lySoldRoomYTD:     g(soldR, sc.lyYtd),
+      lyOccupancyToday:  g(occupR, sc.lyToday),
+      lyOccupancyMTD:    g(occupR, sc.lyMtd),
+      lyOccupancyYTD:    g(occupR, sc.lyYtd),
+      lyAdrToday:        g(adrR, sc.lyToday),
+      lyAdrMTD:          g(adrR, sc.lyMtd),
+      lyAdrYTD:          g(adrR, sc.lyYtd),
+      lyPaxToday:        g(paxR, paxColMap.lyToday),
+      lyPaxMTD:          g(paxR, paxColMap.lyMtd),
+      lyPaxYTD:          g(paxR, paxColMap.lyYtd),
+      lyOutOfOrderToday: g(oooR, sc.lyToday),
+      lyOutOfOrderMTD:   g(oooR, sc.lyMtd),
     },
     exchangeRate: {
-      dailyRate:        g(exRR, 4),
-      monthlyAvgRate:   g(exRR, 6),
-      budgetRate:       g(exRR, 8),
-      forecastRate:     g(exRR, 10),
-      yearlyAvgRate:    g(exRR, 12),
-      yearlyBudgetRate: g(exRR, 14),
-      lyDailyRate:      g(exRR, 16),
-      lyMonthlyRate:    g(exRR, 18),
-      lyYearlyRate:     g(exRR, 20),
+      dailyRate:        g(exRR, ec.today),
+      monthlyAvgRate:   g(exRR, ec.mtd),
+      budgetRate:       g(exRR, ec.budget),
+      forecastRate:     g(exRR, ec.forecast),
+      yearlyAvgRate:    g(exRR, ec.ytd),
+      yearlyBudgetRate: g(exRR, ec.ytd + 2),
+      lyDailyRate:      g(exRR, ec.lyToday),
+      lyMonthlyRate:    g(exRR, ec.lyMtd),
+      lyYearlyRate:     g(exRR, ec.lyYtd),
     },
     lyRevenue: {
-      roomLyDailyEUR:    g(roomRR, 15),
-      roomLyMonthlyEUR:  g(roomRR, 17),
-      roomLyYearlyEUR:   g(roomRR, 19),
-      foodLyDailyEUR:    g(foodRR, 15),
-      foodLyMonthlyEUR:  g(foodRR, 17),
-      foodLyYearlyEUR:   g(foodRR, 19),
-      bevLyDailyEUR:     g(bevRR, 15),
-      bevLyMonthlyEUR:   g(bevRR, 17),
-      bevLyYearlyEUR:    g(bevRR, 19),
-      spaLyDailyEUR:     g(spaRR, 15),
-      spaLyMonthlyEUR:   g(spaRR, 17),
-      spaLyYearlyEUR:    g(spaRR, 19),
-      otherLyDailyEUR:   g(othrRR, 15),
-      otherLyMonthlyEUR: g(othrRR, 17),
-      otherLyYearlyEUR:  g(othrRR, 19),
-      totalLyDailyEUR:   g(totRR, 15),
-      totalLyMonthlyEUR: g(totRR, 17),
-      totalLyYearlyEUR:  g(totRR, 19),
+      roomLyDailyEUR:    g(roomRR, rc.lyToday),
+      roomLyMonthlyEUR:  g(roomRR, rc.lyMtd),
+      roomLyYearlyEUR:   g(roomRR, rc.lyYtd),
+      foodLyDailyEUR:    g(foodRR, rc.lyToday),
+      foodLyMonthlyEUR:  g(foodRR, rc.lyMtd),
+      foodLyYearlyEUR:   g(foodRR, rc.lyYtd),
+      bevLyDailyEUR:     g(bevRR,  rc.lyToday),
+      bevLyMonthlyEUR:   g(bevRR,  rc.lyMtd),
+      bevLyYearlyEUR:    g(bevRR,  rc.lyYtd),
+      spaLyDailyEUR:     g(spaRR,  rc.lyToday),
+      spaLyMonthlyEUR:   g(spaRR,  rc.lyMtd),
+      spaLyYearlyEUR:    g(spaRR,  rc.lyYtd),
+      otherLyDailyEUR:   g(othrRR, rc.lyToday),
+      otherLyMonthlyEUR: g(othrRR, rc.lyMtd),
+      otherLyYearlyEUR:  g(othrRR, rc.lyYtd),
+      totalLyDailyEUR:   g(totRR,  rc.lyToday),
+      totalLyMonthlyEUR: g(totRR,  rc.lyMtd),
+      totalLyYearlyEUR:  g(totRR,  rc.lyYtd),
     },
   };
 }
