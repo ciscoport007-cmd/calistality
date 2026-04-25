@@ -28,7 +28,15 @@ interface ParsedDayData {
   rawFirstTotalRow?: unknown[];
 }
 
+export interface KapakDiagnostic {
+  sheetName: string;
+  rowMap: Record<string, { idx: number; byLabel: boolean }>;
+  sampleValues: { soldRoomToday: number; occupancyToday: number; adrToday: number; dailyRate: number };
+  rawRows: Array<{ rowIdx: number; cells: Array<{ col: string; val: string | number | null }> }>;
+}
+
 interface ParsedKapakData {
+  _kapakDiag?: KapakDiagnostic;
   date: Date;
   statistic: {
     availRoomToday: number;
@@ -286,6 +294,22 @@ function safeNum(val: unknown): number {
   return isNaN(n) ? 0 : n;
 }
 
+function findKapakRow(rows: unknown[][], keywords: string[], startFrom: number, endAt: number): number {
+  for (let i = startFrom; i < Math.min(endAt, rows.length); i++) {
+    const row = rows[i] as unknown[];
+    for (let c = 0; c < Math.min(5, row.length); c++) {
+      const cell = row[c];
+      if (typeof cell === 'string') {
+        const upper = cell.trim().toUpperCase();
+        if (keywords.some(kw => upper.includes(kw.toUpperCase()))) {
+          return i;
+        }
+      }
+    }
+  }
+  return -1;
+}
+
 function parseSheetDate(sheetName: string): Date | null {
   const trimmed = sheetName.trim();
   const match = trimmed.match(/^(\d{2})\.(\d{2})\.(\d{4})/);
@@ -373,29 +397,13 @@ function parseSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedDayData | null
   return { date, sheetName, entries, rawFirstTotalRow };
 }
 
-// KAPAK sheet column mapping (0-indexed), confirmed from EXCEL_YAPISAL_HARITA:
-// Statistics block (rows 34-40, PDF 1-indexed 35-40):
-//   col 3  (D) = Today ROOM count
-//   col 4  (E) = Today PAX count
-//   col 5  (F) = MTD Actual ROOM
-//   col 6  (G) = MTD Actual PAX
-//   col 7  (H) = Budget ROOM
-//   col 8  (I) = Budget PAX
-//   col 9  (J) = Forecast ROOM
-//   col 10 (K) = Forecast PAX
-//   col 11 (L) = YTD ROOM
-//   col 12 (M) = YTD PAX
-//   col 13 (N) = YTD Budget ROOM
-//   col 14 (O) = YTD Budget PAX
-//   col 15 (P) = LY Today ROOM
-//   col 16 (Q) = LY Today PAX
-//   col 17 (R) = LY MTD ROOM
-//   col 18 (S) = LY MTD PAX
-//   col 19 (T) = LY Yearly ROOM
-//   col 20 (U) = LY Yearly PAX
-// ADR/Rate rows: only ROOM column has a value (no PAX equivalent)
-// Occupancy detail block (rows 47-53, PDF 1-indexed 48-54): same D/E column pattern
-// Exchange rate row (0-idx 65 = PDF row 66): values in E, G, I, K, M, O, Q, S, U
+// Column mapping (0-indexed) — consistent across KAPAK sheets:
+//   Statistics cols: D(3)=Today, F(5)=MTD, H(7)=Budget, J(9)=Forecast, L(11)=YTD, P(15)=LY Today, R(17)=LY MTD, T(19)=LY YTD
+//   PAX cols (offset by +1): E(4)=Today, G(6)=MTD, I(8)=Budget, K(10)=Forecast, M(12)=YTD, Q(16)=LY Today, S(18)=LY MTD, U(20)=LY YTD
+//   Exchange rate cols: E(4)=daily, G(6)=monthly, I(8)=budget, K(10)=forecast, M(12)=ytd, O(14)=ytdBudget, Q(16)=LY daily, S(18)=LY monthly, U(20)=LY yearly
+//   Revenue LY cols: P(15)=LY Today EUR, R(17)=LY Monthly EUR, T(19)=LY Yearly EUR
+//
+// Row positions vary by Excel version — found via label search with hardcoded fallback.
 function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData | null {
   const dateStr = sheetName.replace(/^KAPAK/i, '').trim();
   const match = dateStr.match(/^(\d{2})\.(\d{2})\.(\d{4})/);
@@ -406,125 +414,149 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
   const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null });
   const g = (rowIdx: number, col: number) => safeNum((rows[rowIdx] as unknown[])?.[col]);
 
-  // Row references (0-indexed = PDF 1-indexed - 1):
-  // 33 = PDF 34 = "TOTAL ROOM & BEDS" (total capacity)
-  // 34 = PDF 35 = "AVAILABLE ROOM"
-  // 35 = PDF 36 = "SOLD ROOMS"
-  // 36 = PDF 37 = "COMPS ROOMS"
-  // 37 = PDF 38 = "OCCUPIED" (occupancy rate as decimal, e.g. 0.93)
-  // 38 = PDF 39 = "AVR.ROOM RATE" = ADR (EUR)
-  // 39 = PDF 40 = "AVR.SALES RATE" (EUR)
-  // 47 = PDF 48 = OCCUPANCY section header (total capacity repeat)
-  // 48 = PDF 49 = "PAYING GUEST" (PAX source for today/MTD/etc.)
-  // 53 = PDF 54 = "OUT OF ORDER"
-  // 65 = PDF 66 = exchange rate values row (E=daily, G=monthly avg, I=budget, K=forecast, M=ytd, O=ytd budget, Q=LY daily, S=LY monthly, U=LY yearly)
+  const found = (label: string, kws: string[], from: number, to: number, fallback: number) => {
+    const idx = findKapakRow(rows, kws, from, to);
+    return { label, idx: idx >= 0 ? idx : fallback, byLabel: idx >= 0 };
+  };
+
+  // Statistics block — rows vary; searched by label first
+  const availF  = found('availRoom',  ['AVAILABLE ROOM', 'AVAIL ROOM'],            22, 55, 34);
+  const soldF   = found('soldRoom',   ['SOLD ROOM'],                                22, 55, 35);
+  const compF   = found('compRoom',   ['COMP ROOM', 'COMPS ROOM', 'COMPLIMENTARY'], 24, 48, 36);
+  const occupF  = found('occupancy',  ['OCCUPIED', 'OCCUPANCY RATE', 'OCC %', 'OCC.'], 24, 55, 37);
+  const adrF    = found('adr',        ['AVR.ROOM RATE', 'AVR. ROOM', 'ADR', 'AVERAGE ROOM RATE'], 24, 55, 38);
+  const avgSF   = found('avgSales',   ['AVR.SALES RATE', 'AVR. SALES', 'AVERAGE SALES'], 24, 55, 39);
+  const paxF    = found('pax',        ['PAYING GUEST'],                              38, 65, 48);
+  const oooF    = found('outOfOrder', ['OUT OF ORDER', 'OUT-OF-ORDER'],              38, 72, 53);
+  const exRF    = found('exchangeRate', ['EUR KURU', 'EUR/TRY', 'EURO KURU', 'EXCHANGE RATE', 'KUR', 'EUR'], 52, 88, 65);
+
+  // Revenue LY block — rows 14-32 typically
+  const roomRF  = found('roomRev',  ['ALL.INC', 'ALL INC', 'ALLINC'],                14, 32, 20);
+  const foodRF  = found('foodRev',  ['F&B FOOD', 'FOOD REVENUE', 'YİYECEK', 'YIYECEK'], 14, 32, 21);
+  const bevRF   = found('bevRev',   ['F&B BEV', 'BEVERAGE', 'İÇECEK', 'ICECEK'],    14, 32, 22);
+  const spaRF   = found('spaRev',   ['SPA'],                                          14, 32, 23);
+  const otherRF = found('otherRev', ['MISC', 'MISCELLANEOUS', 'DİĞER', 'DIGER', 'OTHER REVENUE'], 14, 32, 24);
+  const totRF   = found('totalRev', ['TOTALS'],                                       22, 32, 25);
+
+  const availR = availF.idx; const soldR = soldF.idx; const compR = compF.idx;
+  const occupR = occupF.idx; const adrR  = adrF.idx;  const avgSR = avgSF.idx;
+  const paxR   = paxF.idx;   const oooR  = oooF.idx;  const exRR  = exRF.idx;
+  const roomRR = roomRF.idx; const foodRR = foodRF.idx; const bevRR = bevRF.idx;
+  const spaRR  = spaRF.idx;  const othrRR = otherRF.idx; const totRR = totRF.idx;
+
+  // Build diagnostic: raw label cells for rows 25-75 (cols 0-4) so the user can
+  // verify which row holds which value in their specific Excel version.
+  const rawRows = Array.from({ length: Math.min(75, rows.length) - 25 }, (_, i) => {
+    const ri = i + 25;
+    const row = rows[ri] as unknown[];
+    return {
+      rowIdx: ri,
+      cells: [0, 1, 2, 3, 4].map(c => ({
+        col: c < 26 ? String.fromCharCode(65 + c) : `A${String.fromCharCode(65 + c - 26)}`,
+        val: row?.[c] !== null && row?.[c] !== undefined ? (row[c] as string | number) : null,
+      })),
+    };
+  });
+
+  const _kapakDiag: KapakDiagnostic = {
+    sheetName,
+    rowMap: Object.fromEntries(
+      [availF, soldF, compF, occupF, adrF, avgSF, paxF, oooF, exRF,
+       roomRF, foodRF, bevRF, spaRF, otherRF, totRF].map(f => [f.label, { idx: f.idx, byLabel: f.byLabel }])
+    ),
+    sampleValues: {
+      soldRoomToday:  g(soldR, 3),
+      occupancyToday: g(occupR, 3),
+      adrToday:       g(adrR, 3),
+      dailyRate:      g(exRR, 4),
+    },
+    rawRows,
+  };
 
   return {
+    _kapakDiag,
     date,
     statistic: {
-      // Available rooms (PDF row 35, 0-idx 34)
-      availRoomToday:    g(34, 3),   // D35 = 39
-      availRoomMTD:      g(34, 5),   // F35 = 2206
-      availRoomBudget:   g(34, 7),   // H35 = 2118
-      availRoomForecast: g(34, 9),   // J35 = 2758.59
-      availRoomYTD:      g(34, 11),  // L35 = 36537
-      // Sold rooms (PDF row 36, 0-idx 35)
-      soldRoomToday:     g(35, 3),   // D36 = 518
-      soldRoomMTD:       g(35, 5),   // F36 = 3347
-      soldRoomBudget:    g(35, 7),   // H36 = 3508.67
-      soldRoomForecast:  g(35, 9),   // J36 = 2841.41
-      soldRoomYTD:       g(35, 11),  // L36 = 21511
-      // Comp rooms (PDF row 37, 0-idx 36)
-      compRoomToday:     g(36, 3),   // D37 = 3
-      compRoomMTD:       g(36, 5),   // F37 = 47
-      // Occupancy rate (decimal, PDF row 38, 0-idx 37)
-      occupancyToday:    g(37, 3),   // D38 = 0.930357
-      occupancyMTD:      g(37, 5),   // F38 = 0.606071
-      occupancyBudget:   g(37, 7),   // H38 = 0.647
-      occupancyForecast: g(37, 9),   // J38 = 0.507394
-      occupancyYTD:      g(37, 11),  // L38 = 0.373938
-      // ADR (PDF row 39, 0-idx 38) — ROOM col only, EUR
-      adrToday:          g(38, 3),   // D39 = 260.036270
-      adrMTD:            g(38, 5),   // F39 = 261.922729
-      adrBudget:         g(38, 7),   // H39 = 252.772528
-      adrForecast:       g(38, 9),   // J39 = 231.544004
-      adrYTD:            g(38, 11),  // L39 = 222.694823
-      // Avg Sales Rate (PDF row 40, 0-idx 39) — ROOM col only, EUR
-      avgSalesRateToday: g(39, 3),   // D40 = 225.235073
-      avgSalesRateMTD:   g(39, 5),   // F40 = 194.820457
-      // PAX — from PAYING GUEST row, PAX column E (PDF row 49, 0-idx 48)
-      paxToday:          g(48, 4),   // E49 = 597
-      paxMTD:            g(48, 6),   // G49 = 4467
-      paxBudget:         g(48, 8),   // I49 = 5906.12
-      paxForecast:       g(48, 10),  // K49 = 3881.71
-      paxYTD:            g(48, 12),  // M49 = 33707
-      // Out of order (PDF row 54, 0-idx 53)
-      outOfOrderToday:   g(53, 3),   // D54 = 10
-      outOfOrderMTD:     g(53, 5),   // F54 = 135
-      outOfOrderYTD:     g(53, 11),  // L54 = 13478
-      // LY — Available rooms (col P=15, R=17, T=19)
-      lyAvailRoomToday:  g(34, 15),  // P35 = 20
-      lyAvailRoomMTD:    g(34, 17),  // R35 = 3287
-      lyAvailRoomYTD:    g(34, 19),  // T35 = 37276
-      // LY — Sold rooms
-      lySoldRoomToday:   g(35, 15),  // P36
-      lySoldRoomMTD:     g(35, 17),  // R36
-      lySoldRoomYTD:     g(35, 19),  // T36
-      // LY — Occupancy
-      lyOccupancyToday:  g(37, 15),  // P38 = 0.938333
-      lyOccupancyMTD:    g(37, 17),  // R38 = 0.430167
-      lyOccupancyYTD:    g(37, 19),  // T38 = 0.371033
-      // LY — ADR
-      lyAdrToday:        g(38, 15),  // P39 = 267.665821
-      lyAdrMTD:          g(38, 17),  // R39 = 258.680765
-      lyAdrYTD:          g(38, 19),  // T39 = 218.327219
-      // LY — PAX (col Q=16, S=18, U=20 in paying guest row)
-      lyPaxToday:        g(48, 16),  // Q49 = 804
-      lyPaxMTD:          g(48, 18),  // S49 = 4059
-      lyPaxYTD:          g(48, 20),  // U49 = 34840
-      // LY — Out of order
-      lyOutOfOrderToday: g(53, 15),  // P54 = 8
-      lyOutOfOrderMTD:   g(53, 17),  // R54 = 24
+      availRoomToday:    g(availR, 3),
+      availRoomMTD:      g(availR, 5),
+      availRoomBudget:   g(availR, 7),
+      availRoomForecast: g(availR, 9),
+      availRoomYTD:      g(availR, 11),
+      soldRoomToday:     g(soldR, 3),
+      soldRoomMTD:       g(soldR, 5),
+      soldRoomBudget:    g(soldR, 7),
+      soldRoomForecast:  g(soldR, 9),
+      soldRoomYTD:       g(soldR, 11),
+      compRoomToday:     g(compR, 3),
+      compRoomMTD:       g(compR, 5),
+      occupancyToday:    g(occupR, 3),
+      occupancyMTD:      g(occupR, 5),
+      occupancyBudget:   g(occupR, 7),
+      occupancyForecast: g(occupR, 9),
+      occupancyYTD:      g(occupR, 11),
+      adrToday:          g(adrR, 3),
+      adrMTD:            g(adrR, 5),
+      adrBudget:         g(adrR, 7),
+      adrForecast:       g(adrR, 9),
+      adrYTD:            g(adrR, 11),
+      avgSalesRateToday: g(avgSR, 3),
+      avgSalesRateMTD:   g(avgSR, 5),
+      paxToday:          g(paxR, 4),
+      paxMTD:            g(paxR, 6),
+      paxBudget:         g(paxR, 8),
+      paxForecast:       g(paxR, 10),
+      paxYTD:            g(paxR, 12),
+      outOfOrderToday:   g(oooR, 3),
+      outOfOrderMTD:     g(oooR, 5),
+      outOfOrderYTD:     g(oooR, 11),
+      lyAvailRoomToday:  g(availR, 15),
+      lyAvailRoomMTD:    g(availR, 17),
+      lyAvailRoomYTD:    g(availR, 19),
+      lySoldRoomToday:   g(soldR, 15),
+      lySoldRoomMTD:     g(soldR, 17),
+      lySoldRoomYTD:     g(soldR, 19),
+      lyOccupancyToday:  g(occupR, 15),
+      lyOccupancyMTD:    g(occupR, 17),
+      lyOccupancyYTD:    g(occupR, 19),
+      lyAdrToday:        g(adrR, 15),
+      lyAdrMTD:          g(adrR, 17),
+      lyAdrYTD:          g(adrR, 19),
+      lyPaxToday:        g(paxR, 16),
+      lyPaxMTD:          g(paxR, 18),
+      lyPaxYTD:          g(paxR, 20),
+      lyOutOfOrderToday: g(oooR, 15),
+      lyOutOfOrderMTD:   g(oooR, 17),
     },
     exchangeRate: {
-      // PDF row 66 (0-idx 65): E=daily, G=monthly, I=budget, K=forecast, M=ytd, O=ytd budget, Q=LY daily, S=LY monthly, U=LY yearly
-      dailyRate:        g(65, 4),   // E66 = 51.9538
-      monthlyAvgRate:   g(65, 6),   // G66 = 51.4239
-      budgetRate:       g(65, 8),   // I66 = 54
-      forecastRate:     g(65, 10),  // K66 = 51.5
-      yearlyAvgRate:    g(65, 12),  // M66 = 51.0448
-      yearlyBudgetRate: g(65, 14),  // O66 = 53
-      lyDailyRate:      g(65, 16),  // Q66 = 41.871
-      lyMonthlyRate:    g(65, 18),  // S66 = 41.4161
-      lyYearlyRate:     g(65, 20),  // U66 = 38.3905
+      dailyRate:        g(exRR, 4),
+      monthlyAvgRate:   g(exRR, 6),
+      budgetRate:       g(exRR, 8),
+      forecastRate:     g(exRR, 10),
+      yearlyAvgRate:    g(exRR, 12),
+      yearlyBudgetRate: g(exRR, 14),
+      lyDailyRate:      g(exRR, 16),
+      lyMonthlyRate:    g(exRR, 18),
+      lyYearlyRate:     g(exRR, 20),
     },
-    // KAPAK revenue block LY columns: P(15)=LY Today EUR, R(17)=LY Monthly EUR, T(19)=LY Yearly EUR
-    // Revenue rows (0-indexed): 19=TOTAL SALES, 20=HB, 21=All.Inc, 22=F&B Food, 23=F&B Bev, 24=SPA, 25=Misc, 26=TOTALS
     lyRevenue: {
-      // All.Inc Rooms (PDF row 21, 0-idx 20) → maps to TOTAL ROOM REVENUES
-      roomLyDailyEUR:    g(20, 15),  // P21 = 150,695.857071
-      roomLyMonthlyEUR:  g(20, 17),  // R21 = 667,655.054373
-      roomLyYearlyEUR:   g(20, 19),  // T21 = 4,860,400.542576
-      // F&B Food (PDF row 22, 0-idx 21) → TOTAL EXTRA FOOD REVENUES
-      foodLyDailyEUR:    g(21, 15),  // P22 = 73.636364
-      foodLyMonthlyEUR:  g(21, 17),  // R22 = 3,303.746795
-      foodLyYearlyEUR:   g(21, 19),  // T22 = 65,735.494195
-      // F&B Beverage (PDF row 23, 0-idx 22) → TOTAL EXTRA BEVERAGE REVENUES
-      bevLyDailyEUR:     g(22, 15),  // P23 = 12.500000
-      bevLyMonthlyEUR:   g(22, 17),  // R23 = 2,840.200862
-      bevLyYearlyEUR:    g(22, 19),  // T23 = 76,961.158066
-      // SPA (PDF row 24, 0-idx 23) → TOTAL SPA REVENUE
-      spaLyDailyEUR:     g(23, 15),  // P24 = 2,337.500000
-      spaLyMonthlyEUR:   g(23, 17),  // R24 = 21,959.118551
-      spaLyYearlyEUR:    g(23, 19),  // T24 = 116,615.432401
-      // Miscellaneous (PDF row 25, 0-idx 24) → TOTAL OTHER REVENUES (approximate)
-      otherLyDailyEUR:   g(24, 15),  // P25 = 1,159.910503
-      otherLyMonthlyEUR: g(24, 17),  // R25 = 8,053.638489
-      otherLyYearlyEUR:  g(24, 19),  // T25 = 128,654.008261
-      // TOTALS (PDF row 26, 0-idx 25) — overall total
-      totalLyDailyEUR:   g(25, 15),  // P26 = 154,279.403937
-      totalLyMonthlyEUR: g(25, 17),  // R26 = 703,811.759070
-      totalLyYearlyEUR:  g(25, 19),  // T26 = 5,248,366.635500
+      roomLyDailyEUR:    g(roomRR, 15),
+      roomLyMonthlyEUR:  g(roomRR, 17),
+      roomLyYearlyEUR:   g(roomRR, 19),
+      foodLyDailyEUR:    g(foodRR, 15),
+      foodLyMonthlyEUR:  g(foodRR, 17),
+      foodLyYearlyEUR:   g(foodRR, 19),
+      bevLyDailyEUR:     g(bevRR, 15),
+      bevLyMonthlyEUR:   g(bevRR, 17),
+      bevLyYearlyEUR:    g(bevRR, 19),
+      spaLyDailyEUR:     g(spaRR, 15),
+      spaLyMonthlyEUR:   g(spaRR, 17),
+      spaLyYearlyEUR:    g(spaRR, 19),
+      otherLyDailyEUR:   g(othrRR, 15),
+      otherLyMonthlyEUR: g(othrRR, 17),
+      otherLyYearlyEUR:  g(othrRR, 19),
+      totalLyDailyEUR:   g(totRR, 15),
+      totalLyMonthlyEUR: g(totRR, 17),
+      totalLyYearlyEUR:  g(totRR, 19),
     },
   };
 }
@@ -769,6 +801,10 @@ export async function POST(request: NextRequest) {
       savedCount++;
     }
 
+    const kapakDiagnostics = [...kapakMap.values()]
+      .map(k => k._kapakDiag)
+      .filter(Boolean) as KapakDiagnostic[];
+
     return NextResponse.json({
       success: true,
       savedCount,
@@ -781,6 +817,7 @@ export async function POST(request: NextRequest) {
       }${kapakMap.size > 0 ? `, ${kapakMap.size} KAPAK (istatistik + kur) kaydedildi` : ''}`,
       sheetWarnings,
       columnDiagnostic,
+      kapakDiagnostics,
     });
   } catch (error) {
     console.error('Finance upload error:', error);

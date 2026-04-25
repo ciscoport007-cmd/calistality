@@ -31,6 +31,18 @@ interface ColDiag {
   num: number;
 }
 
+interface KapakRawRow {
+  rowIdx: number;
+  cells: Array<{ col: string; val: string | number | null }>;
+}
+
+interface KapakDiagnostic {
+  sheetName: string;
+  rowMap: Record<string, { idx: number; byLabel: boolean }>;
+  sampleValues: { soldRoomToday: number; occupancyToday: number; adrToday: number; dailyRate: number };
+  rawRows: KapakRawRow[];
+}
+
 interface UploadState {
   status: 'idle' | 'loading' | 'preview' | 'success' | 'error';
   message?: string;
@@ -41,6 +53,7 @@ interface UploadState {
   skippedCount?: number;
   sheetWarnings?: SheetWarning[];
   columnDiagnostic?: ColDiag[];
+  kapakDiagnostics?: KapakDiagnostic[];
 }
 
 function ColumnDiagPanel({ cols }: { cols: ColDiag[] }) {
@@ -89,6 +102,111 @@ function ColumnDiagPanel({ cols }: { cols: ColDiag[] }) {
         </table>
       </div>
     </details>
+  );
+}
+
+function KapakDiagPanel({ diags }: { diags: KapakDiagnostic[] }) {
+  if (!diags || diags.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      {diags.map((d) => {
+        const hasData =
+          d.sampleValues.soldRoomToday > 0 ||
+          d.sampleValues.occupancyToday > 0 ||
+          d.sampleValues.adrToday > 0;
+        return (
+          <div key={d.sheetName} className={`border rounded-lg ${hasData ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+            <div className={`px-3 py-2 flex items-center gap-2 text-xs font-semibold ${hasData ? 'text-green-800' : 'text-red-800'}`}>
+              {hasData ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+              KAPAK: {d.sheetName}
+              {hasData ? ' — veri okundu ✓' : ' — veriler 0 (satır bulunamadı!)'}
+            </div>
+            <div className="px-3 pb-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="bg-white rounded p-1.5 border border-gray-100">
+                <span className="text-gray-500 block">Satılan Oda</span>
+                <span className={`font-mono font-bold ${d.sampleValues.soldRoomToday > 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  {d.sampleValues.soldRoomToday}
+                </span>
+              </div>
+              <div className="bg-white rounded p-1.5 border border-gray-100">
+                <span className="text-gray-500 block">Doluluk</span>
+                <span className={`font-mono font-bold ${d.sampleValues.occupancyToday > 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  {(d.sampleValues.occupancyToday * 100).toFixed(1)}%
+                </span>
+              </div>
+              <div className="bg-white rounded p-1.5 border border-gray-100">
+                <span className="text-gray-500 block">ADR</span>
+                <span className={`font-mono font-bold ${d.sampleValues.adrToday > 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  {d.sampleValues.adrToday.toFixed(0)} €
+                </span>
+              </div>
+              <div className="bg-white rounded p-1.5 border border-gray-100">
+                <span className="text-gray-500 block">Kur (EUR)</span>
+                <span className={`font-mono font-bold ${d.sampleValues.dailyRate > 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  {d.sampleValues.dailyRate > 0 ? d.sampleValues.dailyRate.toFixed(4) : '0'}
+                </span>
+              </div>
+            </div>
+
+            {/* Satır haritası */}
+            <details className="px-3 pb-2">
+              <summary className="text-xs text-gray-500 cursor-pointer select-none mb-1">
+                Satır haritası (etiketle mi, yoksa sabit indeks mi kullanıldı?)
+              </summary>
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {Object.entries(d.rowMap).map(([lbl, info]) => (
+                  <span
+                    key={lbl}
+                    className={`text-xs px-2 py-0.5 rounded-full font-mono ${info.byLabel ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}
+                  >
+                    {lbl}={info.idx} {info.byLabel ? '✓' : '(fallback)'}
+                  </span>
+                ))}
+              </div>
+            </details>
+
+            {/* Ham satır dökümü */}
+            {!hasData && (
+              <details className="px-3 pb-3">
+                <summary className="text-xs text-red-600 font-medium cursor-pointer select-none mb-1">
+                  Ham satırlar (25-74) — verinin hangi satırda olduğunu bulmak için
+                </summary>
+                <div className="overflow-x-auto mt-1">
+                  <table className="text-xs font-mono border-collapse w-full">
+                    <thead>
+                      <tr className="bg-red-100">
+                        <th className="border border-red-200 px-1.5 py-1 text-left">Satır</th>
+                        <th className="border border-red-200 px-1.5 py-1 text-left">A</th>
+                        <th className="border border-red-200 px-1.5 py-1 text-left">B</th>
+                        <th className="border border-red-200 px-1.5 py-1 text-left">C</th>
+                        <th className="border border-red-200 px-1.5 py-1 text-left">D</th>
+                        <th className="border border-red-200 px-1.5 py-1 text-left">E</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {d.rawRows.map((r) => {
+                        const hasAnyVal = r.cells.some(c => c.val !== null && c.val !== '' && c.val !== 0);
+                        if (!hasAnyVal) return null;
+                        return (
+                          <tr key={r.rowIdx} className="hover:bg-red-50">
+                            <td className="border border-red-100 px-1.5 py-0.5 text-gray-400">{r.rowIdx}</td>
+                            {r.cells.map((c) => (
+                              <td key={c.col} className="border border-red-100 px-1.5 py-0.5 max-w-[120px] truncate">
+                                {c.val !== null ? String(c.val) : <span className="text-gray-300">—</span>}
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -168,6 +286,7 @@ export default function YuklemePage() {
             totalParsed: json.totalParsed,
             sheetWarnings: json.sheetWarnings ?? [],
             columnDiagnostic: json.columnDiagnostic,
+            kapakDiagnostics: json.kapakDiagnostics,
           });
           return;
         }
@@ -179,6 +298,7 @@ export default function YuklemePage() {
           message: json.message,
           sheetWarnings: json.sheetWarnings ?? [],
           columnDiagnostic: json.columnDiagnostic,
+          kapakDiagnostics: json.kapakDiagnostics,
         });
       } catch {
         setState({ status: 'error', message: 'Sunucu ile bağlantı kurulamadı' });
@@ -311,6 +431,7 @@ export default function YuklemePage() {
             {state.columnDiagnostic && (
               <ColumnDiagPanel cols={state.columnDiagnostic} />
             )}
+            <KapakDiagPanel diags={state.kapakDiagnostics ?? []} />
 
             {(state.newDays?.length ?? 0) > 0 && (
               <div>
@@ -409,6 +530,7 @@ export default function YuklemePage() {
           {state.columnDiagnostic && (
             <ColumnDiagPanel cols={state.columnDiagnostic} />
           )}
+          <KapakDiagPanel diags={state.kapakDiagnostics ?? []} />
         </div>
       )}
 
