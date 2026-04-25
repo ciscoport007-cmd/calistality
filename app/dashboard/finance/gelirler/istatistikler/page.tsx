@@ -155,16 +155,19 @@ interface KpiCardProps {
   today: number;
   mtd: number;
   budget: number;
+  forecast?: number;
+  ytd?: number;
   ly: number;
   lyMtd: number;
+  lyYtd?: number;
   fmt: (n: number) => string;
   color: string;
 }
 
-function KpiCard({ title, icon, today, mtd, budget, ly, lyMtd, fmt, color }: KpiCardProps) {
+function KpiCard({ title, icon, today, mtd, budget, forecast, ytd, ly, lyMtd, lyYtd, fmt, color }: KpiCardProps) {
   const mtdVsBudget = budget > 0 ? ((mtd - budget) / budget) * 100 : 0;
   const todayVsLY = ly > 0 ? ((today - ly) / ly) * 100 : 0;
-  const mtdVsLYMtd = lyMtd > 0 ? ((mtd - lyMtd) / lyMtd) * 100 : 0;
+  const ytdVsLyYtd = (ytd && lyYtd && lyYtd > 0) ? ((ytd - lyYtd) / lyYtd) * 100 : null;
 
   return (
     <Card className="overflow-hidden">
@@ -212,6 +215,31 @@ function KpiCard({ title, icon, today, mtd, budget, ly, lyMtd, fmt, color }: Kpi
             </p>
           </div>
         </div>
+
+        {(forecast !== undefined || ytd !== undefined) && (
+          <div className="border-t pt-2 grid grid-cols-3 gap-2 text-xs">
+            {forecast !== undefined && (
+              <div>
+                <p className="text-gray-400">Forecast</p>
+                <p className="font-semibold">{fmt(forecast)}</p>
+              </div>
+            )}
+            {ytd !== undefined && (
+              <div>
+                <p className="text-gray-400">YTD</p>
+                <p className="font-semibold">{fmt(ytd)}</p>
+              </div>
+            )}
+            {ytdVsLyYtd !== null && (
+              <div>
+                <p className="text-gray-400">YTD vs LY</p>
+                <p className={`font-semibold ${ytdVsLyYtd >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {ytdVsLyYtd >= 0 ? '+' : ''}{ytdVsLyYtd.toFixed(1)}%
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -306,6 +334,8 @@ export default function IstatistiklerPage() {
               today={s.occupancyToday}
               mtd={s.occupancyMTD}
               budget={s.occupancyBudget}
+              forecast={s.occupancyForecast}
+              ytd={s.occupancyYTD}
               ly={s.lyOccupancyToday}
               lyMtd={s.lyOccupancyMTD}
               fmt={fmtPct}
@@ -317,6 +347,8 @@ export default function IstatistiklerPage() {
               today={s.adrToday}
               mtd={s.adrMTD}
               budget={s.adrBudget}
+              forecast={s.adrForecast}
+              ytd={s.adrYTD}
               ly={s.lyAdrToday}
               lyMtd={s.lyAdrMTD}
               fmt={fmtEUR}
@@ -328,6 +360,7 @@ export default function IstatistiklerPage() {
               today={s.revPARToday}
               mtd={s.revPARMTD}
               budget={s.revPARBudget}
+              ytd={s.revPARYTD}
               ly={s.lyRevPARToday}
               lyMtd={s.lyRevPARMTD}
               fmt={fmtEUR}
@@ -339,6 +372,8 @@ export default function IstatistiklerPage() {
               today={s.paxToday}
               mtd={s.paxMTD}
               budget={s.paxBudget}
+              forecast={s.paxForecast}
+              ytd={s.paxYTD}
               ly={s.lyPaxToday}
               lyMtd={s.lyPaxMTD}
               fmt={fmtNum}

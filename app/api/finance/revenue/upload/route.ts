@@ -424,8 +424,8 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
   const soldF   = found('soldRoom',   ['SOLD ROOM'],                                22, 55, 35);
   const compF   = found('compRoom',   ['COMP ROOM', 'COMPS ROOM', 'COMPLIMENTARY'], 24, 48, 36);
   const occupF  = found('occupancy',  ['OCCUPIED', 'OCCUPANCY RATE', 'OCC %', 'OCC.'], 24, 55, 37);
-  const adrF    = found('adr',        ['AVR.ROOM RATE', 'AVR. ROOM', 'ADR', 'AVERAGE ROOM RATE'], 24, 55, 38);
-  const avgSF   = found('avgSales',   ['AVR.SALES RATE', 'AVR. SALES', 'AVERAGE SALES'], 24, 55, 39);
+  const adrF    = found('adr',        ['AVR.ROOM RATE', 'AVR. ROOM RATE', 'AVR. ROOM', 'ADR', 'AVERAGE ROOM RATE', 'AVERAGE DAILY RATE', 'AVG.ROOM RATE', 'AVG. ROOM RATE', 'ORT.ODA', 'ORT. ODA', 'ORTALAMA ODA'], 22, 58, 38);
+  const avgSF   = found('avgSales',   ['AVR.SALES RATE', 'AVR. SALES RATE', 'AVR. SALES', 'AVERAGE SALES', 'AVG.SALES RATE', 'AVG. SALES RATE', 'ORT.SATIS', 'ORT. SATIŞ'], 24, 58, 39);
   const paxF    = found('pax',        ['PAYING GUEST'],                              38, 65, 48);
   const oooF    = found('outOfOrder', ['OUT OF ORDER', 'OUT-OF-ORDER'],              38, 72, 53);
   const exRF    = found('exchangeRate', ['EUR KURU', 'EUR/TRY', 'EURO KURU', 'EXCHANGE RATE', 'KUR', 'EUR'], 52, 88, 65);
@@ -444,10 +444,10 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
   const roomRR = roomRF.idx; const foodRR = foodRF.idx; const bevRR = bevRF.idx;
   const spaRR  = spaRF.idx;  const othrRR = otherRF.idx; const totRR = totRF.idx;
 
-  // Build diagnostic: raw label cells for rows 25-75 (cols 0-4) so the user can
+  // Build diagnostic: raw label cells for rows 20-90 (cols 0-4) so the user can
   // verify which row holds which value in their specific Excel version.
-  const rawRows = Array.from({ length: Math.min(75, rows.length) - 25 }, (_, i) => {
-    const ri = i + 25;
+  const rawRows = Array.from({ length: Math.min(90, rows.length) - 20 }, (_, i) => {
+    const ri = i + 20;
     const row = rows[ri] as unknown[];
     return {
       rowIdx: ri,
