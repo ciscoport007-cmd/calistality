@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -497,8 +497,8 @@ function ExchangeSection({ er }: { er: ExchangeRate }) {
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
-export default function KapakDetailPage({ params }: { params: Promise<{ date: string }> }) {
-  const { date } = use(params);
+export default function KapakDetailPage({ params }: { params: { date: string } }) {
+  const { date } = params;
   const router = useRouter();
   const [data, setData] = useState<KapakData | null>(null);
   const [loading, setLoading] = useState(true);
