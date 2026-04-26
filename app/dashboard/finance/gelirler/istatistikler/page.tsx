@@ -42,6 +42,7 @@ interface LatestStats {
   occupancyYTD: number;
   lyOccupancyToday: number;
   lyOccupancyMTD: number;
+  lyOccupancyYTD: number;
   adrToday: number;
   adrMTD: number;
   adrBudget: number;
@@ -49,6 +50,7 @@ interface LatestStats {
   adrYTD: number;
   lyAdrToday: number;
   lyAdrMTD: number;
+  lyAdrYTD: number;
   revPARToday: number;
   revPARMTD: number;
   revPARBudget: number;
@@ -62,6 +64,7 @@ interface LatestStats {
   paxYTD: number;
   lyPaxToday: number;
   lyPaxMTD: number;
+  lyPaxYTD: number;
   soldRoomToday: number;
   soldRoomMTD: number;
   soldRoomBudget: number;
@@ -338,6 +341,7 @@ export default function IstatistiklerPage() {
               ytd={s.occupancyYTD}
               ly={s.lyOccupancyToday}
               lyMtd={s.lyOccupancyMTD}
+              lyYtd={s.lyOccupancyYTD}
               fmt={fmtPct}
               color="#6366f1"
             />
@@ -351,6 +355,7 @@ export default function IstatistiklerPage() {
               ytd={s.adrYTD}
               ly={s.lyAdrToday}
               lyMtd={s.lyAdrMTD}
+              lyYtd={s.lyAdrYTD}
               fmt={fmtEUR}
               color="#22c55e"
             />
@@ -376,6 +381,7 @@ export default function IstatistiklerPage() {
               ytd={s.paxYTD}
               ly={s.lyPaxToday}
               lyMtd={s.lyPaxMTD}
+              lyYtd={s.lyPaxYTD}
               fmt={fmtNum}
               color="#ec4899"
             />

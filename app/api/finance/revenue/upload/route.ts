@@ -100,27 +100,52 @@ interface ParsedKapakData {
     lyMonthlyRate: number;
     lyYearlyRate: number;
   };
-  // LY revenue values from KAPAK revenue block (cols P/R/T = LY Today/Monthly/Yearly EUR)
-  // Used to populate lyDailyEUR / lyMonthlyEUR / lyYearlyEUR on total RevenueEntry rows
   lyRevenue: {
-    roomLyDailyEUR: number;
-    roomLyMonthlyEUR: number;
-    roomLyYearlyEUR: number;
-    foodLyDailyEUR: number;
-    foodLyMonthlyEUR: number;
-    foodLyYearlyEUR: number;
-    bevLyDailyEUR: number;
-    bevLyMonthlyEUR: number;
-    bevLyYearlyEUR: number;
-    spaLyDailyEUR: number;
-    spaLyMonthlyEUR: number;
-    spaLyYearlyEUR: number;
-    otherLyDailyEUR: number;
-    otherLyMonthlyEUR: number;
-    otherLyYearlyEUR: number;
-    totalLyDailyEUR: number;
-    totalLyMonthlyEUR: number;
-    totalLyYearlyEUR: number;
+    roomLyDailyEUR: number; roomLyMonthlyEUR: number; roomLyYearlyEUR: number;
+    foodLyDailyEUR: number; foodLyMonthlyEUR: number; foodLyYearlyEUR: number;
+    bevLyDailyEUR: number; bevLyMonthlyEUR: number; bevLyYearlyEUR: number;
+    spaLyDailyEUR: number; spaLyMonthlyEUR: number; spaLyYearlyEUR: number;
+    otherLyDailyEUR: number; otherLyMonthlyEUR: number; otherLyYearlyEUR: number;
+    totalLyDailyEUR: number; totalLyMonthlyEUR: number; totalLyYearlyEUR: number;
+  };
+  // Section 1: Full revenue data for KapakReport display
+  revenueData: Array<{
+    label: string; isTotal: boolean;
+    todayTL: number; todayEUR: number;
+    mtdActualTL: number; mtdActualEUR: number;
+    mtdBudgetTL: number; mtdBudgetEUR: number;
+    mtdForecastTL: number; mtdForecastEUR: number;
+    ytdActualEUR: number; ytdBudgetEUR: number;
+    lyTodayEUR: number; lyMonthEUR: number; lyYearEUR: number;
+  }>;
+  // Section 2 supplement: fields not in DailyStatistic
+  statsExtra: {
+    avgSalesRateBudget: number; avgSalesRateForecast: number; avgSalesRateYTD: number;
+    compRoomBudget: number; compRoomForecast: number; compRoomYTD: number;
+  };
+  // Section 3: Occupancy breakdown by guest type
+  occupancyBreakdown: Array<{
+    label: string;
+    todayRoom: number; todayPax: number;
+    mtdRoom: number; mtdPax: number;
+    budgetRoom: number; budgetPax: number;
+    forecastRoom: number; forecastPax: number;
+    ytdRoom: number; ytdPax: number;
+    ytdBudgetRoom: number; ytdBudgetPax: number;
+    lyTodayRoom: number; lyTodayPax: number;
+    lyMonthRoom: number; lyMonthPax: number;
+    lyYearRoom: number; lyYearPax: number;
+  }>;
+  // Section 4: Forecast occupancy arrivals / departures
+  forecastOccupancy: {
+    todayArrivalsRoom: number; todayArrivalsPax: number;
+    todayArrivalsRoomPct: number; todayArrivalsPaxPct: number;
+    todayDepartRoom: number; todayDepartPax: number;
+    todayDepartRoomPct: number; todayDepartPaxPct: number;
+    tmrwArrivalsRoom: number; tmrwArrivalsPax: number;
+    tmrwArrivalsRoomPct: number; tmrwArrivalsPaxPct: number;
+    tmrwDepartRoom: number; tmrwDepartPax: number;
+    tmrwDepartRoomPct: number; tmrwDepartPaxPct: number;
   };
 }
 
@@ -292,6 +317,22 @@ function safeNum(val: unknown): number {
   if (typeof val === 'string' && val.trim() === '-') return 0;
   const n = Number(val);
   return isNaN(n) ? 0 : n;
+}
+
+function scanRowNums(rows: unknown[][], rowIdx: number, count: number): number[] {
+  if (rowIdx < 0 || rowIdx >= rows.length) return Array(count).fill(0);
+  const row = (rows[rowIdx] as unknown[]) || [];
+  const nums: number[] = [];
+  for (let c = 2; c < Math.min(row.length, 50); c++) {
+    const val = row[c];
+    const str = String(val ?? '').trim();
+    if (str !== '' && str !== '-' && str !== 'null') {
+      nums.push(safeNum(val));
+      if (nums.length >= count) break;
+    }
+  }
+  while (nums.length < count) nums.push(0);
+  return nums;
 }
 
 function findKapakRow(rows: unknown[][], keywords: string[], startFrom: number, endAt: number): number {
@@ -559,6 +600,84 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
     rawRows,
   };
 
+  // ── Section 3: Occupancy breakdown rows ───────────────────────────────────
+  const compGuestF  = found('compGuest',     ['COMP GUEST', 'COMPLIMENTARY GUEST'],             paxR, paxR + 20, paxR + 1);
+  const payChildF   = found('payingChildren', ['PAYING CHILDREN', 'ÜCRETLİ ÇOCUK', 'UCRETLI COCUK'], paxR, paxR + 20, paxR + 2);
+  const compChildF  = found('compChildren',   ['COMP CHILDREN', 'COMP CHILD'],                  paxR, paxR + 20, paxR + 3);
+  const freeChildF  = found('freeChild',      ['FREE CHILD', 'ÜCRETSİZ ÇOCUK', 'UCRETSIZ COCUK'], paxR, paxR + 25, paxR + 4);
+
+  const compGuestR  = compGuestF.idx;
+  const payChildR   = payChildF.idx;
+  const compChildR  = compChildF.idx;
+  const freeChildR  = freeChildF.idx;
+
+  const occ = (r: number) => ({
+    todayRoom:    g(r, sc.today),     todayPax:      g(r, sc.today + 1),
+    mtdRoom:      g(r, sc.mtd),       mtdPax:        g(r, sc.mtd + 1),
+    budgetRoom:   g(r, sc.budget),    budgetPax:     g(r, sc.budget + 1),
+    forecastRoom: g(r, sc.forecast),  forecastPax:   g(r, sc.forecast + 1),
+    ytdRoom:      g(r, sc.ytd),       ytdPax:        g(r, sc.ytd + 1),
+    ytdBudgetRoom: g(r, sc.ytd + 2), ytdBudgetPax:  g(r, sc.ytd + 3),
+    lyTodayRoom:  g(r, sc.lyToday),   lyTodayPax:    g(r, sc.lyToday + 1),
+    lyMonthRoom:  g(r, sc.lyMtd),     lyMonthPax:    g(r, sc.lyMtd + 1),
+    lyYearRoom:   g(r, sc.lyYtd),     lyYearPax:     g(r, sc.lyYtd + 1),
+  });
+
+  const occupancyBreakdown = [
+    { label: 'PAYING GUEST / Ücretli Misafir',    ...occ(paxR) },
+    { label: 'COMP GUEST / Ücretsiz Misafir',     ...occ(compGuestR) },
+    { label: 'PAYING CHILDREN / Ücretli Çocuk',  ...occ(payChildR) },
+    { label: 'COMP CHILDREN / Ücretsiz Çocuk',   ...occ(compChildR) },
+    { label: 'FREE CHILD / Ücretsiz Çocuk',       ...occ(freeChildR) },
+    { label: 'OUT OF ORDER / Arızalı Oda',        ...occ(oooR) },
+  ];
+
+  // ── Section 4: Forecast occupancy arrivals / departures ───────────────────
+  const fcStartRaw = findKapakRow(rows, ['FORECAST OCCUPANCY', 'TAHMİNİ DOLULUK', 'TAHMINI DOLULUK'], 55, 110);
+  const fcStart    = fcStartRaw >= 0 ? fcStartRaw : 80;
+  const fcArrRaw   = findKapakRow(rows, ['ARRIVALS', 'GELİŞ', 'GELIS'], fcStart, fcStart + 12);
+  const fcArrRow   = fcArrRaw >= 0 ? fcArrRaw : fcStart + 2;
+  const fcDepRaw   = findKapakRow(rows, ['DEPARTURES', 'GİDİŞ', 'GIDIS'], fcStart, fcStart + 12);
+  const fcDepRow   = fcDepRaw >= 0 ? fcDepRaw : fcStart + 3;
+
+  const arrNums = scanRowNums(rows, fcArrRow, 8);
+  const depNums = scanRowNums(rows, fcDepRow, 8);
+
+  const forecastOccupancy = {
+    todayArrivalsRoom: arrNums[0], todayArrivalsPax:     arrNums[1],
+    todayArrivalsRoomPct: arrNums[2], todayArrivalsPaxPct: arrNums[3],
+    tmrwArrivalsRoom: arrNums[4], tmrwArrivalsPax:     arrNums[5],
+    tmrwArrivalsRoomPct: arrNums[6], tmrwArrivalsPaxPct: arrNums[7],
+    todayDepartRoom: depNums[0], todayDepartPax:       depNums[1],
+    todayDepartRoomPct: depNums[2], todayDepartPaxPct:  depNums[3],
+    tmrwDepartRoom: depNums[4], tmrwDepartPax:        depNums[5],
+    tmrwDepartRoomPct: depNums[6], tmrwDepartPaxPct:   depNums[7],
+  };
+
+  // ── Section 1: Full revenue data ──────────────────────────────────────────
+  const totalSalesF = found('totalSales', ['TOTAL SALES REVENUE', 'TOPLAM SATIŞ', 'TOPLAM SATIS'], 10, 28, totRR - 8);
+  const hbRoomF     = found('hbRoom',     ['HB ROOM', 'HB ODA', 'YARI PANSIYON', 'YARI PANSİYON', 'HALF BOARD'], 10, 28, roomRR - 1);
+
+  const rv = (r: number) => ({
+    todayTL: g(r, rc.today),      todayEUR: g(r, rc.today + 1),
+    mtdActualTL: g(r, rc.mtd),    mtdActualEUR: g(r, rc.mtd + 1),
+    mtdBudgetTL: g(r, rc.budget), mtdBudgetEUR: g(r, rc.budget + 1),
+    mtdForecastTL: g(r, rc.forecast), mtdForecastEUR: g(r, rc.forecast + 1),
+    ytdActualEUR: g(r, rc.ytd),   ytdBudgetEUR: g(r, rc.ytd + 2),
+    lyTodayEUR: g(r, rc.lyToday), lyMonthEUR: g(r, rc.lyMtd), lyYearEUR: g(r, rc.lyYtd),
+  });
+
+  const revenueData = [
+    { label: 'TOTAL SALES REVENUE / TOPLAM SATIŞ GELİRİ', isTotal: true,  ...rv(totalSalesF.idx) },
+    { label: 'HB Rooms Revenues / Yarım Pansiyon Oda Geliri', isTotal: false, ...rv(hbRoomF.idx) },
+    { label: 'All.Inc.Rooms Revenues / Herşey Dahil Oda Geliri', isTotal: false, ...rv(roomRR) },
+    { label: 'F&B FOOD EXT.REV. / Ekstra Yiyecek Geliri', isTotal: false, ...rv(foodRR) },
+    { label: 'F&B BEVERAGE EXT.REV. / Ekstra İçecek Geliri', isTotal: false, ...rv(bevRR) },
+    { label: 'SPA REVENUES / SPA Gelirleri', isTotal: false, ...rv(spaRR) },
+    { label: 'MISCELLANEOUS / Diğer Gelirler', isTotal: false, ...rv(othrRR) },
+    { label: 'TOTALS / TOPLAMLAR', isTotal: true, ...rv(totRR) },
+  ];
+
   return {
     _kapakDiag,
     date,
@@ -644,6 +763,17 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
       totalLyMonthlyEUR: g(totRR,  rc.lyMtd),
       totalLyYearlyEUR:  g(totRR,  rc.lyYtd),
     },
+    revenueData,
+    statsExtra: {
+      avgSalesRateBudget:   g(avgSR, sc.budget),
+      avgSalesRateForecast: g(avgSR, sc.forecast),
+      avgSalesRateYTD:      g(avgSR, sc.ytd),
+      compRoomBudget:       g(compR, sc.budget),
+      compRoomForecast:     g(compR, sc.forecast),
+      compRoomYTD:          g(compR, sc.ytd),
+    },
+    occupancyBreakdown,
+    forecastOccupancy,
   };
 }
 
@@ -879,6 +1009,15 @@ export async function POST(request: NextRequest) {
               create: {
                 reportDate: day.date,
                 ...kapak.exchangeRate,
+              },
+            },
+            kapakReport: {
+              create: {
+                reportDate: day.date,
+                revenueData: kapak.revenueData,
+                occupancyBreakdown: kapak.occupancyBreakdown,
+                ...kapak.statsExtra,
+                ...kapak.forecastOccupancy,
               },
             },
           }),

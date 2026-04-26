@@ -248,6 +248,7 @@ const menuItems = [
       { title: 'Genel Bakış', href: '/dashboard/finance' },
       { title: 'Gelirler', href: '/dashboard/finance/gelirler' },
       { title: 'Veri Yükle', href: '/dashboard/finance/gelirler/yukle' },
+      { title: 'Kapak Raporları', href: '/dashboard/finance/gelirler/kapak' },
       { title: 'Gelir Analizi', href: '/dashboard/finance/gelirler/analiz' },
       { title: 'İstatistikler', href: '/dashboard/finance/gelirler/istatistikler' },
       { title: 'Departman Raporu', href: '/dashboard/finance/gelirler/departman' },

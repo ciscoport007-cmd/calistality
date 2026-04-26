@@ -104,6 +104,7 @@ export async function GET(request: NextRequest) {
           occupancyYTD: +(latest.occupancyYTD * 100).toFixed(2),
           lyOccupancyToday: +(latest.lyOccupancyToday * 100).toFixed(2),
           lyOccupancyMTD: +(latest.lyOccupancyMTD * 100).toFixed(2),
+          lyOccupancyYTD: +(latest.lyOccupancyYTD * 100).toFixed(2),
           // ADR
           adrToday: +latest.adrToday.toFixed(2),
           adrMTD: +latest.adrMTD.toFixed(2),
@@ -112,6 +113,7 @@ export async function GET(request: NextRequest) {
           adrYTD: +latest.adrYTD.toFixed(2),
           lyAdrToday: +latest.lyAdrToday.toFixed(2),
           lyAdrMTD: +latest.lyAdrMTD.toFixed(2),
+          lyAdrYTD: +latest.lyAdrYTD.toFixed(2),
           // RevPAR
           revPARToday: +revPARToday.toFixed(2),
           revPARMTD: +revPARMTD.toFixed(2),
@@ -127,6 +129,7 @@ export async function GET(request: NextRequest) {
           paxYTD: latest.paxYTD,
           lyPaxToday: latest.lyPaxToday,
           lyPaxMTD: latest.lyPaxMTD,
+          lyPaxYTD: latest.lyPaxYTD,
           // Oda
           soldRoomToday: latest.soldRoomToday,
           soldRoomMTD: latest.soldRoomMTD,

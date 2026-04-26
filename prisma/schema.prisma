@@ -7401,6 +7401,7 @@ model FinanceReport {
   entries      RevenueEntry[]
   statistic    DailyStatistic?
   exchangeRate ExchangeRate?
+  kapakReport  KapakReport?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -7546,4 +7547,48 @@ model ExchangeRate {
 
   @@index([reportDate])
   @@map("exchange_rates")
+}
+
+model KapakReport {
+  id         String        @id @default(cuid())
+  reportId   String        @unique
+  report     FinanceReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportDate DateTime
+
+  // Section 1: Revenue data (JSON - all categories with all time periods)
+  revenueData Json @default("[]")
+
+  // Section 2: Statistics supplement (fields not in DailyStatistic)
+  avgSalesRateBudget   Float @default(0)
+  avgSalesRateForecast Float @default(0)
+  avgSalesRateYTD      Float @default(0)
+  compRoomBudget       Float @default(0)
+  compRoomForecast     Float @default(0)
+  compRoomYTD          Float @default(0)
+
+  // Section 3: Occupancy breakdown by guest type (JSON)
+  occupancyBreakdown Json @default("[]")
+
+  // Section 4: Forecast occupancy arrivals/departures
+  todayArrivalsRoom    Float @default(0)
+  todayArrivalsPax     Float @default(0)
+  todayArrivalsRoomPct Float @default(0)
+  todayArrivalsPaxPct  Float @default(0)
+  todayDepartRoom      Float @default(0)
+  todayDepartPax       Float @default(0)
+  todayDepartRoomPct   Float @default(0)
+  todayDepartPaxPct    Float @default(0)
+  tmrwArrivalsRoom     Float @default(0)
+  tmrwArrivalsPax      Float @default(0)
+  tmrwArrivalsRoomPct  Float @default(0)
+  tmrwArrivalsPaxPct   Float @default(0)
+  tmrwDepartRoom       Float @default(0)
+  tmrwDepartPax        Float @default(0)
+  tmrwDepartRoomPct    Float @default(0)
+  tmrwDepartPaxPct     Float @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([reportDate])
+  @@map("kapak_reports")
 }
