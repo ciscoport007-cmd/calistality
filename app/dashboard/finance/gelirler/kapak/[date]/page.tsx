@@ -93,8 +93,8 @@ const fmtPct = (n: number) => n === 0 ? '-' : `${n.toLocaleString('tr-TR', { min
 const fmtRate = (n: number) => n === 0 ? '-' : n.toLocaleString('tr-TR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
 
 // ─── Table primitives ─────────────────────────────────────────────────────────
-const TH = ({ children, colSpan, className = '' }: { children?: React.ReactNode; colSpan?: number; className?: string }) => (
-  <th colSpan={colSpan} className={`px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wide border border-gray-300 bg-gray-100 whitespace-nowrap ${className}`}>
+const TH = ({ children, colSpan, rowSpan, className = '' }: { children?: React.ReactNode; colSpan?: number; rowSpan?: number; className?: string }) => (
+  <th colSpan={colSpan} rowSpan={rowSpan} className={`px-2 py-1.5 text-center text-[10px] font-semibold uppercase tracking-wide border border-gray-300 bg-gray-100 whitespace-nowrap ${className}`}>
     {children}
   </th>
 );
@@ -347,34 +347,35 @@ function RateRow({ label, t, m, b, f, y, yb, lt, lm, ly }: {
 function OccupancySection({ rows }: { rows: OccupancyRow[] }) {
   return (
     <div className="overflow-x-auto">
-      <div className="text-xs font-bold mb-1">OCCUPANCY / DOLULUK</div>
-      <table className="w-full border-collapse text-xs min-w-[1400px]">
+      <div className="text-xs font-bold text-red-600 mb-1">OCCUPANCY / DOLULUK</div>
+      <table className="w-full border-collapse text-xs min-w-[1600px]">
         <thead>
+          {/* Row 1: top-level group labels */}
           <tr>
             <TH className="w-56 text-left">Misafir Tipi</TH>
             <TH colSpan={2}>TODAY / BUGÜN</TH>
             <TH colSpan={6}>CUMULATIVE MONTH TO DATE / AYLIK TOPLAM</TH>
             <TH colSpan={4}>YEARLY / YILLIK</TH>
-            <TH colSpan={6}>LAST YEAR / GEÇEN YIL</TH>
+            <TH colSpan={2}>LAST YEAR / TODAY / BUGÜN</TH>
+            <TH colSpan={2}>LAST YEAR / MONT / AYLIK</TH>
+            <TH colSpan={2}>LAST YEAR / YEAR / YILLIK</TH>
           </tr>
+          {/* Row 2: sub-group labels; TODAY and LY cols use rowSpan=2 to skip row 3 */}
           <tr>
             <TH className="text-left"></TH>
-            <TH colSpan={2}>ACTUAL</TH>
-            <TH colSpan={2}>ACTUAL</TH>
-            <TH colSpan={2}>BUDGET</TH>
-            <TH colSpan={2}>FORECAST</TH>
-            <TH colSpan={2}>ACTUAL</TH>
-            <TH colSpan={2}>BUDGET</TH>
-            <TH colSpan={2}>TODAY</TH>
-            <TH colSpan={2}>MONTHLY</TH>
-            <TH colSpan={2}>YEARLY</TH>
+            <TH rowSpan={2}>ROOM / ODA</TH><TH rowSpan={2}>PAX / KİŞİ</TH>
+            <TH colSpan={2}>ACTUAL / GERÇEKLEŞEN</TH>
+            <TH colSpan={2}>BUDGET / BÜTÇE</TH>
+            <TH colSpan={2}>FORECAST / TAHMİNİ</TH>
+            <TH colSpan={2}>ACTUAL / GERÇEKLEŞEN</TH>
+            <TH colSpan={2}>BUDGET / BÜTÇE</TH>
+            <TH rowSpan={2}>ROOM / ODA</TH><TH rowSpan={2}>PAX / KİŞİ</TH>
+            <TH rowSpan={2}>ROOM / ODA</TH><TH rowSpan={2}>PAX / KİŞİ</TH>
+            <TH rowSpan={2}>ROOM / ODA</TH><TH rowSpan={2}>PAX / KİŞİ</TH>
           </tr>
+          {/* Row 3: ODA/KİŞİ only for ACTUAL/BUDGET/FORECAST sub-groups */}
           <tr>
             <TH className="text-left"></TH>
-            <TH>ODA</TH><TH>KİŞİ</TH>
-            <TH>ODA</TH><TH>KİŞİ</TH>
-            <TH>ODA</TH><TH>KİŞİ</TH>
-            <TH>ODA</TH><TH>KİŞİ</TH>
             <TH>ODA</TH><TH>KİŞİ</TH>
             <TH>ODA</TH><TH>KİŞİ</TH>
             <TH>ODA</TH><TH>KİŞİ</TH>
