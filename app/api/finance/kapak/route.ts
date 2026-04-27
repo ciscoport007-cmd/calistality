@@ -96,6 +96,14 @@ export async function GET(request: NextRequest) {
               avgSalesRateBudget: kapak.avgSalesRateBudget,
               avgSalesRateForecast: kapak.avgSalesRateForecast,
               avgSalesRateYTD: kapak.avgSalesRateYTD,
+              // Available room LY
+              lyAvailRoomToday: statistic.lyAvailRoomToday,
+              lyAvailRoomMTD:   statistic.lyAvailRoomMTD,
+              lyAvailRoomYTD:   statistic.lyAvailRoomYTD,
+              // Sold room LY
+              lySoldRoomToday: statistic.lySoldRoomToday,
+              lySoldRoomMTD:   statistic.lySoldRoomMTD,
+              lySoldRoomYTD:   statistic.lySoldRoomYTD,
               // PAX
               paxToday: statistic.paxToday, paxMTD: statistic.paxMTD,
               paxBudget: statistic.paxBudget, paxForecast: statistic.paxForecast,
@@ -104,6 +112,15 @@ export async function GET(request: NextRequest) {
               // Out of order
               outOfOrderToday: statistic.outOfOrderToday, outOfOrderMTD: statistic.outOfOrderMTD,
               outOfOrderYTD: statistic.outOfOrderYTD,
+              lyOutOfOrderToday: statistic.lyOutOfOrderToday,
+              lyOutOfOrderMTD:   statistic.lyOutOfOrderMTD,
+              // YTD Budget (from KapakReport — fields added in migration add_ytd_budget_fields)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              soldRoomYTDBudget:  (kapak as any).soldRoomYTDBudget ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              availRoomYTDBudget: (kapak as any).availRoomYTDBudget ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              paxYTDBudget:       (kapak as any).paxYTDBudget ?? 0,
             }
           : null,
         // Section 3: Occupancy breakdown

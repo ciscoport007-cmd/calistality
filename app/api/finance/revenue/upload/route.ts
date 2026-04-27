@@ -122,6 +122,7 @@ interface ParsedKapakData {
   statsExtra: {
     avgSalesRateBudget: number; avgSalesRateForecast: number; avgSalesRateYTD: number;
     compRoomBudget: number; compRoomForecast: number; compRoomYTD: number;
+    soldRoomYTDBudget: number; availRoomYTDBudget: number; paxYTDBudget: number;
   };
   // Section 3: Occupancy breakdown by guest type
   occupancyBreakdown: Array<{
@@ -761,6 +762,9 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
       compRoomBudget:       g(compR, sc.budget),
       compRoomForecast:     g(compR, sc.forecast),
       compRoomYTD:          g(compR, sc.ytd),
+      soldRoomYTDBudget:    g(soldR, sc.ytd + 2),
+      availRoomYTDBudget:   g(availR, sc.ytd + 2),
+      paxYTDBudget:         g(paxR,  paxColMap.ytd + 2),
     },
     occupancyBreakdown,
     forecastOccupancy,

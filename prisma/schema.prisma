@@ -7565,6 +7565,10 @@ model KapakReport {
   compRoomBudget       Float @default(0)
   compRoomForecast     Float @default(0)
   compRoomYTD          Float @default(0)
+  // YTD Budget (not stored in DailyStatistic — read from KAPAK col ytd+2)
+  soldRoomYTDBudget    Float @default(0)
+  availRoomYTDBudget   Float @default(0)
+  paxYTDBudget         Float @default(0)
 
   // Section 3: Occupancy breakdown by guest type (JSON)
   occupancyBreakdown Json @default("[]")

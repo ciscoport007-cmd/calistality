@@ -20,8 +20,10 @@ interface RevenueRow {
 interface Statistics {
   availRoomToday: number; availRoomMTD: number; availRoomBudget: number;
   availRoomForecast: number; availRoomYTD: number;
+  lyAvailRoomToday: number; lyAvailRoomMTD: number; lyAvailRoomYTD: number;
   soldRoomToday: number; soldRoomMTD: number; soldRoomBudget: number;
   soldRoomForecast: number; soldRoomYTD: number;
+  lySoldRoomToday: number; lySoldRoomMTD: number; lySoldRoomYTD: number;
   compRoomToday: number; compRoomMTD: number; compRoomBudget: number;
   compRoomForecast: number; compRoomYTD: number;
   occupancyToday: number; occupancyMTD: number; occupancyBudget: number;
@@ -37,6 +39,8 @@ interface Statistics {
   paxForecast: number; paxYTD: number;
   lyPaxToday: number; lyPaxMTD: number; lyPaxYTD: number;
   outOfOrderToday: number; outOfOrderMTD: number; outOfOrderYTD: number;
+  lyOutOfOrderToday: number; lyOutOfOrderMTD: number;
+  soldRoomYTDBudget: number; availRoomYTDBudget: number; paxYTDBudget: number;
 }
 
 interface OccupancyRow {
@@ -226,8 +230,10 @@ function StatisticsSection({ s }: { s: Statistics }) {
             b1={s.soldRoomBudget} b2={s.paxBudget}
             f1={s.soldRoomForecast} f2={s.paxForecast}
             y1={s.soldRoomYTD} y2={s.paxYTD}
-            yb1={0} yb2={0}
-            lt1={0} lt2={0} lm1={0} lm2={0} ly1={0} ly2={0}
+            yb1={s.soldRoomYTDBudget} yb2={s.paxYTDBudget}
+            lt1={s.lySoldRoomToday} lt2={s.lyPaxToday}
+            lm1={s.lySoldRoomMTD} lm2={s.lyPaxMTD}
+            ly1={s.lySoldRoomYTD} ly2={s.lyPaxYTD}
           />
           <StatRow label="  AVAILABLE ROOM / Satılabilir Oda"
             t1={s.availRoomToday} t2={0}
@@ -235,7 +241,10 @@ function StatisticsSection({ s }: { s: Statistics }) {
             b1={s.availRoomBudget} b2={0}
             f1={s.availRoomForecast} f2={0}
             y1={s.availRoomYTD} y2={0}
-            yb1={0} yb2={0} lt1={0} lt2={0} lm1={0} lm2={0} ly1={0} ly2={0}
+            yb1={s.availRoomYTDBudget} yb2={0}
+            lt1={s.lyAvailRoomToday} lt2={0}
+            lm1={s.lyAvailRoomMTD} lm2={0}
+            ly1={s.lyAvailRoomYTD} ly2={0}
           />
           <StatRow label="  SOLD ROOMS / Dolu Oda"
             t1={s.soldRoomToday} t2={s.paxToday}
@@ -243,7 +252,10 @@ function StatisticsSection({ s }: { s: Statistics }) {
             b1={s.soldRoomBudget} b2={s.paxBudget}
             f1={s.soldRoomForecast} f2={s.paxForecast}
             y1={s.soldRoomYTD} y2={s.paxYTD}
-            yb1={0} yb2={0} lt1={0} lt2={0} lm1={0} lm2={0} ly1={0} ly2={0}
+            yb1={s.soldRoomYTDBudget} yb2={s.paxYTDBudget}
+            lt1={s.lySoldRoomToday} lt2={s.lyPaxToday}
+            lm1={s.lySoldRoomMTD} lm2={s.lyPaxMTD}
+            ly1={s.lySoldRoomYTD} ly2={s.lyPaxYTD}
           />
           <StatRow label="  COMPS ROOMS / Dolu Oda"
             t1={s.compRoomToday} t2={0}
@@ -272,7 +284,10 @@ function StatisticsSection({ s }: { s: Statistics }) {
             m1={s.outOfOrderMTD} m2={0}
             b1={0} b2={0} f1={0} f2={0}
             y1={s.outOfOrderYTD} y2={0}
-            yb1={0} yb2={0} lt1={0} lt2={0} lm1={0} lm2={0} ly1={0} ly2={0}
+            yb1={0} yb2={0}
+            lt1={s.lyOutOfOrderToday} lt2={0}
+            lm1={s.lyOutOfOrderMTD} lm2={0}
+            ly1={0} ly2={0}
           />
         </tbody>
       </table>
