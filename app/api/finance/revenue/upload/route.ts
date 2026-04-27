@@ -325,9 +325,10 @@ function scanRowNums(rows: unknown[][], rowIdx: number, count: number): number[]
   const nums: number[] = [];
   for (let c = 2; c < Math.min(row.length, 50); c++) {
     const val = row[c];
-    const str = String(val ?? '').trim();
-    if (str !== '' && str !== '-' && str !== 'null') {
-      nums.push(safeNum(val));
+    if (val === null || val === undefined) continue;
+    const n = Number(val);
+    if (!isNaN(n)) {
+      nums.push(n);
       if (nums.length >= count) break;
     }
   }
@@ -363,9 +364,9 @@ interface KapakColMap {
   lyYtd: number;
 }
 
-// Defaults if header row is not found — matches the "every-other-column starting at D" layout.
-const STATS_DEFAULTS: KapakColMap = { today: 3, mtd: 5, budget: 7, forecast: 9, ytd: 11, lyToday: 15, lyMtd: 17, lyYtd: 19 };
-const EXRATE_DEFAULTS: KapakColMap = { today: 4, mtd: 6, budget: 8, forecast: 10, ytd: 12, lyToday: 16, lyMtd: 18, lyYtd: 20 };
+// Column layout (0-based): ROOM cols at 2,4,6,8,10,12,14,16,18 / PAX cols at 3,5,7,9,11,13,15,17,19
+// Groups: TODAY=2, MTD=4, BUDGET=6, FORECAST=8, YTD=10, YTD_BGT=12, LY_TODAY=14, LY_MTD=16, LY_YTD=18
+const STATS_DEFAULTS: KapakColMap = { today: 2, mtd: 4, budget: 6, forecast: 8, ytd: 10, lyToday: 14, lyMtd: 16, lyYtd: 18 };
 
 // Scans rows[searchFrom..searchTo] looking for a header row whose cells contain
 // "TODAY", "MTD", "BUDGET", "FORECAST", "YTD" (in any language/spacing variation).
@@ -565,9 +566,6 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
   // PAX sometimes lives in a slightly different sub-block — search near paxR.
   const paxColMap = findKapakColMap(rows, Math.max(0, paxR - 15), paxR + 2, sc);
 
-  // Exchange rate section has its own header.
-  const ec = findKapakColMap(rows, Math.max(0, exRR - 15), exRR + 2, EXRATE_DEFAULTS);
-
   // Revenue LY block header (top section of KAPAK).
   const rc = findKapakColMap(rows, 5, Math.min(roomRR + 2, 25), STATS_DEFAULTS);
 
@@ -595,7 +593,7 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
       soldRoomToday:  g(soldR, sc.today),
       occupancyToday: g(occupR, sc.today),
       adrToday:       g(adrR, sc.today),
-      dailyRate:      g(exRR, ec.today),
+      dailyRate:      g(exRR + 1, sc.today + 1),
     },
     rawRows,
   };
@@ -663,10 +661,11 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
     mtdActualTL: g(r, rc.mtd),    mtdActualEUR: g(r, rc.mtd + 1),
     mtdBudgetTL: g(r, rc.budget), mtdBudgetEUR: g(r, rc.budget + 1),
     mtdForecastTL: g(r, rc.forecast), mtdForecastEUR: g(r, rc.forecast + 1),
-    // Revenue YTD has only 2 EUR cols (Actual + Budget), so Budget = ytd+1, not +2
-    // LY has 3 consecutive EUR cols (Today/Month/Year) starting right after YTD Budget
-    ytdActualEUR: g(r, rc.ytd),   ytdBudgetEUR: g(r, rc.ytd + 1),
-    lyTodayEUR: g(r, rc.ytd + 2), lyMonthEUR: g(r, rc.ytd + 3), lyYearEUR: g(r, rc.ytd + 4),
+    // Revenue uses ROOM columns only (no PAX), so each group is 2 cols apart.
+    // ytd=ROOM col, ytd+1=PAX col (empty), ytd+2=ROOM col (YTD Budget), etc.
+    ytdActualEUR: g(r, rc.ytd),       ytdBudgetEUR: g(r, rc.ytd + 2),
+    lyTodayEUR:   g(r, rc.ytd + 4),   lyMonthEUR:   g(r, rc.ytd + 6),
+    lyYearEUR:    g(r, rc.ytd + 8),
   });
 
   const revenueData = [
@@ -734,25 +733,25 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
       lyOutOfOrderToday: g(oooR, sc.lyToday),
       lyOutOfOrderMTD:   g(oooR, sc.lyMtd),
     },
-    // Exchange rate is a single value per period (not ROOM+PAX pair), same columns as stats
+    // Exchange rate row: exRR = sub-label row (even cols), exRR+1 = value row (odd/PAX cols)
     exchangeRate: {
-      dailyRate:        g(exRR, sc.today),
-      monthlyAvgRate:   g(exRR, sc.mtd),
-      budgetRate:       g(exRR, sc.budget),
-      forecastRate:     g(exRR, sc.forecast),
-      yearlyAvgRate:    g(exRR, sc.ytd),
-      yearlyBudgetRate: g(exRR, sc.ytd + 2),
-      lyDailyRate:      g(exRR, sc.lyToday),
-      lyMonthlyRate:    g(exRR, sc.lyMtd),
-      lyYearlyRate:     g(exRR, sc.lyYtd),
+      dailyRate:        g(exRR + 1, sc.today + 1),
+      monthlyAvgRate:   g(exRR + 1, sc.mtd + 1),
+      budgetRate:       g(exRR + 1, sc.budget + 1),
+      forecastRate:     g(exRR + 1, sc.forecast + 1),
+      yearlyAvgRate:    g(exRR + 1, sc.ytd + 1),
+      yearlyBudgetRate: g(exRR + 1, sc.ytd + 3),
+      lyDailyRate:      g(exRR + 1, sc.lyToday + 1),
+      lyMonthlyRate:    g(exRR + 1, sc.lyMtd + 1),
+      lyYearlyRate:     g(exRR + 1, sc.lyYtd + 1),
     },
     lyRevenue: {
-      roomLyDailyEUR:    g(roomRR, rc.ytd + 2), roomLyMonthlyEUR:  g(roomRR, rc.ytd + 3), roomLyYearlyEUR:   g(roomRR, rc.ytd + 4),
-      foodLyDailyEUR:    g(foodRR, rc.ytd + 2), foodLyMonthlyEUR:  g(foodRR, rc.ytd + 3), foodLyYearlyEUR:   g(foodRR, rc.ytd + 4),
-      bevLyDailyEUR:     g(bevRR,  rc.ytd + 2), bevLyMonthlyEUR:   g(bevRR,  rc.ytd + 3), bevLyYearlyEUR:    g(bevRR,  rc.ytd + 4),
-      spaLyDailyEUR:     g(spaRR,  rc.ytd + 2), spaLyMonthlyEUR:   g(spaRR,  rc.ytd + 3), spaLyYearlyEUR:    g(spaRR,  rc.ytd + 4),
-      otherLyDailyEUR:   g(othrRR, rc.ytd + 2), otherLyMonthlyEUR: g(othrRR, rc.ytd + 3), otherLyYearlyEUR:  g(othrRR, rc.ytd + 4),
-      totalLyDailyEUR:   g(totRR,  rc.ytd + 2), totalLyMonthlyEUR: g(totRR,  rc.ytd + 3), totalLyYearlyEUR:  g(totRR,  rc.ytd + 4),
+      roomLyDailyEUR:    g(roomRR, rc.ytd + 4), roomLyMonthlyEUR:  g(roomRR, rc.ytd + 6), roomLyYearlyEUR:   g(roomRR, rc.ytd + 8),
+      foodLyDailyEUR:    g(foodRR, rc.ytd + 4), foodLyMonthlyEUR:  g(foodRR, rc.ytd + 6), foodLyYearlyEUR:   g(foodRR, rc.ytd + 8),
+      bevLyDailyEUR:     g(bevRR,  rc.ytd + 4), bevLyMonthlyEUR:   g(bevRR,  rc.ytd + 6), bevLyYearlyEUR:    g(bevRR,  rc.ytd + 8),
+      spaLyDailyEUR:     g(spaRR,  rc.ytd + 4), spaLyMonthlyEUR:   g(spaRR,  rc.ytd + 6), spaLyYearlyEUR:    g(spaRR,  rc.ytd + 8),
+      otherLyDailyEUR:   g(othrRR, rc.ytd + 4), otherLyMonthlyEUR: g(othrRR, rc.ytd + 6), otherLyYearlyEUR:  g(othrRR, rc.ytd + 8),
+      totalLyDailyEUR:   g(totRR,  rc.ytd + 4), totalLyMonthlyEUR: g(totRR,  rc.ytd + 6), totalLyYearlyEUR:  g(totRR,  rc.ytd + 8),
     },
     revenueData,
     statsExtra: {
