@@ -278,17 +278,6 @@ function StatisticsSection({ s }: { s: Statistics }) {
             <TD>{fmtPct(s.lyOccupancyMTD)}</TD><TD>-</TD>
             <TD>{fmtPct(s.lyOccupancyYTD)}</TD><TD>-</TD>
           </tr>
-          {/* Out of order */}
-          <StatRow label="  OUT OF ORDER / Arızalı Oda"
-            t1={s.outOfOrderToday} t2={0}
-            m1={s.outOfOrderMTD} m2={0}
-            b1={0} b2={0} f1={0} f2={0}
-            y1={s.outOfOrderYTD} y2={0}
-            yb1={0} yb2={0}
-            lt1={s.lyOutOfOrderToday} lt2={0}
-            lm1={s.lyOutOfOrderMTD} lm2={0}
-            ly1={0} ly2={0}
-          />
         </tbody>
       </table>
 
