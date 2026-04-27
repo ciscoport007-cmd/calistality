@@ -45,6 +45,7 @@ interface Statistics {
 
 interface OccupancyRow {
   label: string;
+  isTotal?: boolean;
   todayRoom: number; todayPax: number;
   mtdRoom: number; mtdPax: number;
   budgetRoom: number; budgetPax: number;
@@ -383,17 +384,17 @@ function OccupancySection({ rows }: { rows: OccupancyRow[] }) {
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i} className="hover:bg-gray-50">
-              <TDLabel>{r.label}</TDLabel>
-              <TD>{fmt(r.todayRoom)}</TD><TD>{fmt(r.todayPax)}</TD>
-              <TD>{fmt(r.mtdRoom)}</TD><TD>{fmt(r.mtdPax)}</TD>
-              <TD>{fmt(r.budgetRoom)}</TD><TD>{fmt(r.budgetPax)}</TD>
-              <TD>{fmt(r.forecastRoom)}</TD><TD>{fmt(r.forecastPax)}</TD>
-              <TD>{fmt(r.ytdRoom)}</TD><TD>{fmt(r.ytdPax)}</TD>
-              <TD>{fmt(r.ytdBudgetRoom)}</TD><TD>{fmt(r.ytdBudgetPax)}</TD>
-              <TD>{fmt(r.lyTodayRoom)}</TD><TD>{fmt(r.lyTodayPax)}</TD>
-              <TD>{fmt(r.lyMonthRoom)}</TD><TD>{fmt(r.lyMonthPax)}</TD>
-              <TD>{fmt(r.lyYearRoom)}</TD><TD>{fmt(r.lyYearPax)}</TD>
+            <tr key={i} className={r.isTotal ? 'bg-blue-50' : 'hover:bg-gray-50'}>
+              <TDLabel isTotal={!!r.isTotal}>{r.label}</TDLabel>
+              <TD isTotal={!!r.isTotal}>{fmt(r.todayRoom)}</TD><TD isTotal={!!r.isTotal}>{fmt(r.todayPax)}</TD>
+              <TD isTotal={!!r.isTotal}>{fmt(r.mtdRoom)}</TD><TD isTotal={!!r.isTotal}>{fmt(r.mtdPax)}</TD>
+              <TD isTotal={!!r.isTotal}>{fmt(r.budgetRoom)}</TD><TD isTotal={!!r.isTotal}>{fmt(r.budgetPax)}</TD>
+              <TD isTotal={!!r.isTotal}>{fmt(r.forecastRoom)}</TD><TD isTotal={!!r.isTotal}>{fmt(r.forecastPax)}</TD>
+              <TD isTotal={!!r.isTotal}>{fmt(r.ytdRoom)}</TD><TD isTotal={!!r.isTotal}>{fmt(r.ytdPax)}</TD>
+              <TD isTotal={!!r.isTotal}>{fmt(r.ytdBudgetRoom)}</TD><TD isTotal={!!r.isTotal}>{fmt(r.ytdBudgetPax)}</TD>
+              <TD isTotal={!!r.isTotal}>{fmt(r.lyTodayRoom)}</TD><TD isTotal={!!r.isTotal}>{fmt(r.lyTodayPax)}</TD>
+              <TD isTotal={!!r.isTotal}>{fmt(r.lyMonthRoom)}</TD><TD isTotal={!!r.isTotal}>{fmt(r.lyMonthPax)}</TD>
+              <TD isTotal={!!r.isTotal}>{fmt(r.lyYearRoom)}</TD><TD isTotal={!!r.isTotal}>{fmt(r.lyYearPax)}</TD>
             </tr>
           ))}
         </tbody>

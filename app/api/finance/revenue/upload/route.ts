@@ -600,6 +600,10 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
   };
 
   // ── Section 3: Occupancy breakdown rows ───────────────────────────────────
+  // Total occupancy summary row sits just above PAYING GUEST
+  const occTotalF = found('occTotal', ['OCCUPANCY', 'DOLULUK', 'DOLULIK'], Math.max(0, paxR - 8), paxR, paxR - 1);
+  const occTotalR = occTotalF.idx;
+
   const compGuestF  = found('compGuest',     ['COMP GUEST', 'COMPLIMENTARY GUEST'],             paxR, paxR + 20, paxR + 1);
   const payChildF   = found('payingChildren', ['PAYING CHILDREN', 'ÜCRETLİ ÇOCUK', 'UCRETLI COCUK'], paxR, paxR + 20, paxR + 2);
   const compChildF  = found('compChildren',   ['COMP CHILDREN', 'COMP CHILD'],                  paxR, paxR + 20, paxR + 3);
@@ -623,12 +627,13 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
   });
 
   const occupancyBreakdown = [
-    { label: 'PAYING GUEST / Ücretli Misafir',    ...occ(paxR) },
-    { label: 'COMP GUEST / Ücretsiz Misafir',     ...occ(compGuestR) },
-    { label: 'PAYING CHILDREN / Ücretli Çocuk',  ...occ(payChildR) },
-    { label: 'COMP CHILDREN / Ücretsiz Çocuk',   ...occ(compChildR) },
-    { label: 'FREE CHILD / Ücretsiz Çocuk',       ...occ(freeChildR) },
-    { label: 'OUT OF ORDER / Arızalı Oda',        ...occ(oooR) },
+    { label: 'OCCUPANCY / DOLULUK', isTotal: true,  ...occ(occTotalR) },
+    { label: 'PAYING GUEST / Ücretli Misafir',       ...occ(paxR) },
+    { label: 'COMP GUEST / Ücretsiz Misafir',        ...occ(compGuestR) },
+    { label: 'PAYING CHILDREN / Ücretli Çocuk',     ...occ(payChildR) },
+    { label: 'COMP CHILDREN / Ücretsiz Çocuk',      ...occ(compChildR) },
+    { label: 'FREE CHILD / Ücretsiz Çocuk',          ...occ(freeChildR) },
+    { label: 'OUT OF ORDER / Arızalı Oda',           ...occ(oooR) },
   ];
 
   // ── Section 4: Forecast occupancy arrivals / departures ───────────────────
