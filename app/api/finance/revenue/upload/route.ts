@@ -386,14 +386,15 @@ interface KapakColMap {
   lyYtd: number;
 }
 
-// Column layout (0-based): ROOM cols at 2,4,6,8,10,12,14,16,18 / PAX cols at 3,5,7,9,11,13,15,17,19
-// Groups: TODAY=2, MTD=4, BUDGET=6, FORECAST=8, YTD=10, YTD_BGT=12, LY_TODAY=14, LY_MTD=16, LY_YTD=18
-const STATS_DEFAULTS: KapakColMap = { today: 2, mtd: 4, budget: 6, forecast: 8, ytd: 10, lyToday: 14, lyMtd: 16, lyYtd: 18 };
+// Column layout (0-based): label at col 2; ROOM/PAX pairs follow:
+// TODAY=3/4, MTD_ACTUAL=5/6, MTD_BUDGET=7/8, MTD_FORECAST=9/10,
+// YTD_ACTUAL=11/12, YTD_BUDGET=13/14, LY_TODAY=15/16, LY_MTD=17/18, LY_YTD=19/20
+const STATS_DEFAULTS: KapakColMap = { today: 3, mtd: 5, budget: 7, forecast: 9, ytd: 11, lyToday: 15, lyMtd: 17, lyYtd: 19 };
 
-// Scans rows[searchFrom..searchTo] looking for a header row whose cells contain
-// "TODAY", "MTD", "BUDGET", "FORECAST", "YTD" (in any language/spacing variation).
-// Returns a KapakColMap built from the found column indices; falls back to `defaults`
-// for any header label that was not found.
+// Scans rows[searchFrom..searchTo] for a KAPAK header row and returns column positions.
+// Excel uses "ACTUAL / GERÇEKLEŞEN" for both MTD and YTD; we detect them by position
+// (first ACTUAL = MTD, second ACTUAL = YTD). "TODAY / BUGÜN" appears once; LY columns
+// are detected from "LAST YEAR" prefix. Falls back to `defaults` for undetected labels.
 function findKapakColMap(
   rows: unknown[][],
   searchFrom: number,
@@ -402,10 +403,15 @@ function findKapakColMap(
 ): KapakColMap {
   for (let r = Math.max(0, searchFrom); r < Math.min(searchTo, rows.length); r++) {
     const row = rows[r] as unknown[];
-    const todayIdxs: number[] = [];
-    const mtdIdxs: number[] = [];
-    const ytdIdxs: number[] = [];
-    let budgetIdx = -1, forecastIdx = -1;
+    let todayIdx = -1;
+    let mtdIdx = -1;
+    let ytdIdx = -1;
+    let budgetIdx = -1;
+    let forecastIdx = -1;
+    let lyTodayIdx = -1;
+    let lyMtdIdx = -1;
+    let lyYtdIdx = -1;
+    let actualCount = 0;
     let hits = 0;
 
     for (let c = 0; c < Math.min(30, row.length); c++) {
@@ -413,30 +419,39 @@ function findKapakColMap(
       if (typeof cell !== 'string') continue;
       const u = cell.trim().toUpperCase().replace(/\s+/g, ' ');
 
-      if (u === 'TODAY' || u.startsWith('TODAY ') || u === 'BUGÜN' || u === 'GÜNLÜK' || u === 'DAILY') {
-        todayIdxs.push(c); hits++;
-      } else if (u === 'MTD' || u === 'M.T.D.' || u.startsWith('MTD ') || u === 'MONTH TO DATE') {
-        mtdIdxs.push(c); hits++;
+      if (todayIdx < 0 && (u === 'TODAY' || u.startsWith('TODAY ') || u === 'BUGÜN' || u === 'GÜNLÜK' || u === 'DAILY')) {
+        todayIdx = c; hits++;
+      } else if (u === 'ACTUAL' || u.startsWith('ACTUAL ') || u === 'GERÇEKLEŞEN' || u === 'GERCEKLESEN') {
+        actualCount++;
+        if (actualCount === 1 && mtdIdx < 0) { mtdIdx = c; hits++; }
+        else if (actualCount === 2 && ytdIdx < 0) { ytdIdx = c; hits++; }
       } else if (budgetIdx < 0 && (u === 'BUDGET' || u.startsWith('BUDGET ') || u === 'BÜTÇE' || u === 'BUTCE')) {
         budgetIdx = c; hits++;
-      } else if (forecastIdx < 0 && (u === 'FORECAST' || u.startsWith('FORECAST ') || u === 'FCST')) {
+      } else if (forecastIdx < 0 && (u === 'FORECAST' || u.startsWith('FORECAST ') || u === 'FCST' || u === 'TAHMİNİ' || u === 'TAHMINI')) {
         forecastIdx = c; hits++;
+      } else if (u === 'MTD' || u === 'M.T.D.' || u.startsWith('MTD ') || u === 'MONTH TO DATE') {
+        if (mtdIdx < 0) { mtdIdx = c; hits++; }
       } else if (u === 'YTD' || u === 'Y.T.D.' || u.startsWith('YTD ') || u === 'YEAR TO DATE') {
-        ytdIdxs.push(c); hits++;
+        if (ytdIdx < 0) { ytdIdx = c; hits++; }
+      } else if (lyTodayIdx < 0 && u.startsWith('LAST YEAR') && (u.includes('TODAY') || u.includes('BUGÜN') || u.includes('GÜNLÜK'))) {
+        lyTodayIdx = c; hits++;
+      } else if (lyMtdIdx < 0 && u.startsWith('LAST YEAR') && (u.includes('MONT') || u.includes('MONTH') || u.includes('AYLIK'))) {
+        lyMtdIdx = c; hits++;
+      } else if (lyYtdIdx < 0 && u.startsWith('LAST YEAR') && (u.includes('YEAR') || u.includes('YIL') || u.includes('YEARLY'))) {
+        lyYtdIdx = c; hits++;
       }
     }
 
-    // Need at least 3 column header labels to trust this row as a header.
     if (hits >= 3) {
       return {
-        today:    todayIdxs[0]  ?? defaults.today,
-        mtd:      mtdIdxs[0]   ?? defaults.mtd,
-        budget:   budgetIdx >= 0 ? budgetIdx    : defaults.budget,
+        today:    todayIdx    >= 0 ? todayIdx    : defaults.today,
+        mtd:      mtdIdx      >= 0 ? mtdIdx      : defaults.mtd,
+        budget:   budgetIdx   >= 0 ? budgetIdx   : defaults.budget,
         forecast: forecastIdx >= 0 ? forecastIdx : defaults.forecast,
-        ytd:      ytdIdxs[0]   ?? defaults.ytd,
-        lyToday:  todayIdxs[1] ?? defaults.lyToday,
-        lyMtd:    mtdIdxs[1]   ?? defaults.lyMtd,
-        lyYtd:    ytdIdxs[1]   ?? defaults.lyYtd,
+        ytd:      ytdIdx      >= 0 ? ytdIdx      : defaults.ytd,
+        lyToday:  lyTodayIdx  >= 0 ? lyTodayIdx  : defaults.lyToday,
+        lyMtd:    lyMtdIdx    >= 0 ? lyMtdIdx    : defaults.lyMtd,
+        lyYtd:    lyYtdIdx    >= 0 ? lyYtdIdx    : defaults.lyYtd,
       };
     }
   }
