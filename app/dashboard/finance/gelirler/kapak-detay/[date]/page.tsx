@@ -83,6 +83,51 @@ function DataCell({ value, className }: { value: string; className?: string }) {
   );
 }
 
+function computeGrandTotal(groups: { total: Entry; items: Entry[] }[]): Entry {
+  const sum = (key: keyof Entry) =>
+    groups.reduce((acc, g) => acc + (g.total[key] as number), 0);
+  return {
+    id: '__grand_total__',
+    category: 'TOPLAM',
+    parentCategory: null,
+    isTotal: true,
+    dailyActualTL: sum('dailyActualTL'),
+    dailyActualEUR: sum('dailyActualEUR'),
+    monthlyActualTL: sum('monthlyActualTL'),
+    monthlyActualEUR: sum('monthlyActualEUR'),
+    monthlyBudgetTL: sum('monthlyBudgetTL'),
+    monthlyBudgetEUR: sum('monthlyBudgetEUR'),
+    yearlyActualEUR: sum('yearlyActualEUR'),
+    yearlyBudgetEUR: sum('yearlyBudgetEUR'),
+    lyDailyEUR: sum('lyDailyEUR'),
+    lyMonthlyEUR: sum('lyMonthlyEUR'),
+    lyYearlyEUR: sum('lyYearlyEUR'),
+  };
+}
+
+function GrandTotalRow({ total }: { total: Entry }) {
+  return (
+    <tr className="bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 border-b-2 border-gray-700 dark:border-gray-300">
+      <td className="px-3 py-2.5 sticky left-0 z-10 bg-gray-900 dark:bg-gray-100">
+        <div className="flex items-center gap-1.5 min-w-[220px]">
+          <span className="font-bold text-xs tracking-wide uppercase">TOPLAM</span>
+        </div>
+      </td>
+      <DataCell value={fmtTL(total.dailyActualTL)} className="font-bold text-white dark:text-gray-900" />
+      <DataCell value={fmtEUR(total.dailyActualEUR)} className="font-bold text-white dark:text-gray-900" />
+      <DataCell value={fmtTL(total.monthlyActualTL)} className="font-bold text-white dark:text-gray-900" />
+      <DataCell value={fmtEUR(total.monthlyActualEUR)} className="font-bold text-white dark:text-gray-900" />
+      <DataCell value={fmtTL(total.monthlyBudgetTL)} className="font-bold text-white dark:text-gray-900" />
+      <DataCell value={fmtEUR(total.monthlyBudgetEUR)} className="font-bold text-white dark:text-gray-900" />
+      <DataCell value={fmtEUR(total.yearlyActualEUR)} className="font-bold text-white dark:text-gray-900" />
+      <DataCell value={fmtEUR(total.yearlyBudgetEUR)} className="font-bold text-white dark:text-gray-900" />
+      <DataCell value={fmtEUR(total.lyDailyEUR)} className="font-bold text-gray-300 dark:text-gray-600" />
+      <DataCell value={fmtEUR(total.lyMonthlyEUR)} className="font-bold text-gray-300 dark:text-gray-600" />
+      <DataCell value={fmtEUR(total.lyYearlyEUR)} className="font-bold text-gray-300 dark:text-gray-600" />
+    </tr>
+  );
+}
+
 function GroupRow({
   group,
   open,
@@ -224,6 +269,7 @@ export default function KapakDetayDatePage({ params }: { params: { date: string 
   if (!data) return null;
 
   const allOpen = openGroups.size === data.grouped.length;
+  const grandTotal = computeGrandTotal(data.grouped);
 
   return (
     <div className="space-y-4">
@@ -278,6 +324,7 @@ export default function KapakDetayDatePage({ params }: { params: { date: string 
             </tr>
           </thead>
           <tbody className="divide-y divide-border/50">
+            <GrandTotalRow total={grandTotal} />
             {data.grouped.map((group) => (
               <GroupRow
                 key={group.total.id}
