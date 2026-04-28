@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -154,8 +154,8 @@ function GroupRow({
   );
 }
 
-export default function KapakDetayDatePage({ params }: { params: Promise<{ date: string }> }) {
-  const { date } = use(params);
+export default function KapakDetayDatePage({ params }: { params: { date: string } }) {
+  const { date } = params;
   const router = useRouter();
   const [data, setData] = useState<GroupedData | null>(null);
   const [loading, setLoading] = useState(true);
