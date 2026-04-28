@@ -114,13 +114,58 @@ export async function GET(request: NextRequest) {
               outOfOrderYTD: statistic.outOfOrderYTD,
               lyOutOfOrderToday: statistic.lyOutOfOrderToday,
               lyOutOfOrderMTD:   statistic.lyOutOfOrderMTD,
-              // YTD Budget (from KapakReport — fields added in migration add_ytd_budget_fields)
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               soldRoomYTDBudget:  (kapak as any).soldRoomYTDBudget ?? 0,
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               availRoomYTDBudget: (kapak as any).availRoomYTDBudget ?? 0,
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               paxYTDBudget:       (kapak as any).paxYTDBudget ?? 0,
+              // Available PAX (bed-nights capacity) — migration: add_avail_comp_pax_ly_fields
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              availPaxToday:    (statistic as any).availPaxToday ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              availPaxMTD:      (statistic as any).availPaxMTD ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              availPaxBudget:   (statistic as any).availPaxBudget ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              availPaxForecast: (statistic as any).availPaxForecast ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              availPaxYTD:      (statistic as any).availPaxYTD ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              lyAvailPaxToday:  (statistic as any).lyAvailPaxToday ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              lyAvailPaxMTD:    (statistic as any).lyAvailPaxMTD ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              lyAvailPaxYTD:    (statistic as any).lyAvailPaxYTD ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              availPaxYTDBudget: (kapak as any).availPaxYTDBudget ?? 0,
+              // Comp rooms — PAX and Last Year
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              compPaxToday:    (statistic as any).compPaxToday ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              compPaxMTD:      (statistic as any).compPaxMTD ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              compPaxBudget:   (kapak as any).compPaxBudget ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              compPaxForecast: (kapak as any).compPaxForecast ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              compPaxYTD:      (kapak as any).compPaxYTD ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              compRoomYTDBudget: (kapak as any).compRoomYTDBudget ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              compPaxYTDBudget:  (kapak as any).compPaxYTDBudget ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              lyCompRoomToday: (statistic as any).lyCompRoomToday ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              lyCompRoomMTD:   (statistic as any).lyCompRoomMTD ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              lyCompRoomYTD:   (statistic as any).lyCompRoomYTD ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              lyCompPaxToday:  (statistic as any).lyCompPaxToday ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              lyCompPaxMTD:    (statistic as any).lyCompPaxMTD ?? 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              lyCompPaxYTD:    (statistic as any).lyCompPaxYTD ?? 0,
             }
           : null,
         // Section 3: Occupancy breakdown

@@ -7518,6 +7518,26 @@ model DailyStatistic {
   lyOutOfOrderToday Float @default(0)
   lyOutOfOrderMTD   Float @default(0)
 
+  // Available PAX (bed-nights capacity — parallel to availRoom* columns)
+  availPaxToday    Float @default(0)
+  availPaxMTD      Float @default(0)
+  availPaxBudget   Float @default(0)
+  availPaxForecast Float @default(0)
+  availPaxYTD      Float @default(0)
+  lyAvailPaxToday  Float @default(0)
+  lyAvailPaxMTD    Float @default(0)
+  lyAvailPaxYTD    Float @default(0)
+
+  // Comp rooms — PAX and Last Year
+  compPaxToday    Float @default(0)
+  compPaxMTD      Float @default(0)
+  lyCompRoomToday Float @default(0)
+  lyCompRoomMTD   Float @default(0)
+  lyCompRoomYTD   Float @default(0)
+  lyCompPaxToday  Float @default(0)
+  lyCompPaxMTD    Float @default(0)
+  lyCompPaxYTD    Float @default(0)
+
   createdAt DateTime @default(now())
 
   @@index([reportDate])
@@ -7569,6 +7589,14 @@ model KapakReport {
   soldRoomYTDBudget    Float @default(0)
   availRoomYTDBudget   Float @default(0)
   paxYTDBudget         Float @default(0)
+  // Available PAX YTD Budget
+  availPaxYTDBudget    Float @default(0)
+  // Comp rooms extras: PAX Budget/Forecast/YTD and ROOM/PAX YTD Budget
+  compPaxBudget        Float @default(0)
+  compPaxForecast      Float @default(0)
+  compPaxYTD           Float @default(0)
+  compRoomYTDBudget    Float @default(0)
+  compPaxYTDBudget     Float @default(0)
 
   // Section 3: Occupancy breakdown by guest type (JSON)
   occupancyBreakdown Json @default("[]")

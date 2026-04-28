@@ -88,6 +88,24 @@ interface ParsedKapakData {
     lyPaxYTD: number;
     lyOutOfOrderToday: number;
     lyOutOfOrderMTD: number;
+    // Available PAX (bed-nights capacity)
+    availPaxToday: number;
+    availPaxMTD: number;
+    availPaxBudget: number;
+    availPaxForecast: number;
+    availPaxYTD: number;
+    lyAvailPaxToday: number;
+    lyAvailPaxMTD: number;
+    lyAvailPaxYTD: number;
+    // Comp rooms — PAX and Last Year
+    compPaxToday: number;
+    compPaxMTD: number;
+    lyCompRoomToday: number;
+    lyCompRoomMTD: number;
+    lyCompRoomYTD: number;
+    lyCompPaxToday: number;
+    lyCompPaxMTD: number;
+    lyCompPaxYTD: number;
   };
   exchangeRate: {
     dailyRate: number;
@@ -123,6 +141,9 @@ interface ParsedKapakData {
     avgSalesRateBudget: number; avgSalesRateForecast: number; avgSalesRateYTD: number;
     compRoomBudget: number; compRoomForecast: number; compRoomYTD: number;
     soldRoomYTDBudget: number; availRoomYTDBudget: number; paxYTDBudget: number;
+    availPaxYTDBudget: number;
+    compPaxBudget: number; compPaxForecast: number; compPaxYTD: number;
+    compRoomYTDBudget: number; compPaxYTDBudget: number;
   };
   // Section 3: Occupancy breakdown by guest type
   occupancyBreakdown: Array<{
@@ -396,9 +417,9 @@ function findKapakColMap(
         todayIdxs.push(c); hits++;
       } else if (u === 'MTD' || u === 'M.T.D.' || u.startsWith('MTD ') || u === 'MONTH TO DATE') {
         mtdIdxs.push(c); hits++;
-      } else if (u === 'BUDGET' || u.startsWith('BUDGET ') || u === 'BÜTÇE' || u === 'BUTCE') {
+      } else if (budgetIdx < 0 && (u === 'BUDGET' || u.startsWith('BUDGET ') || u === 'BÜTÇE' || u === 'BUTCE')) {
         budgetIdx = c; hits++;
-      } else if (u === 'FORECAST' || u.startsWith('FORECAST ') || u === 'FCST') {
+      } else if (forecastIdx < 0 && (u === 'FORECAST' || u.startsWith('FORECAST ') || u === 'FCST')) {
         forecastIdx = c; hits++;
       } else if (u === 'YTD' || u === 'Y.T.D.' || u.startsWith('YTD ') || u === 'YEAR TO DATE') {
         ytdIdxs.push(c); hits++;
@@ -530,9 +551,12 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
   };
 
   // ── Row detection (by cell text) ───────────────────────────────────────────
-  const availF  = found('availRoom',    ['AVAILABLE ROOM', 'AVAIL ROOM'],            22, 55, 34);
-  const soldF   = found('soldRoom',     ['SOLD ROOM'],                                22, 55, 35);
-  const compF   = found('compRoom',     ['COMP ROOM', 'COMPS ROOM', 'COMPLIMENTARY'], 24, 48, 36);
+  const availF  = found('availRoom',    ['AVAILABLE ROOM', 'AVAIL ROOM', 'AVAIL. ROOM'],            22, 60, 34);
+  const soldF   = found('soldRoom',     ['SOLD ROOM', 'OCCUPIED ROOM'],                               22, 60, 35);
+  const compF   = found('compRoom',
+    ['COMP ROOM', 'COMPS ROOM', 'COMP. ROOM', 'COMPLIMENTARY ROOM', 'COMPLIMENTARY',
+     'HOUSE USE', 'ÜCRETSİZ ODA', 'UCRETSIZ ODA', 'KOMPLİMAN', 'KOMPLIMAN'],
+    22, 60, 36);
   const occupF  = found('occupancy',    ['OCCUPIED', 'OCCUPANCY RATE', 'OCC %', 'OCC.', 'OCCUPANCY %'], 24, 58, 37);
   const adrF    = found('adr',          ['AVR.ROOM RATE', 'AVR. ROOM RATE', 'AVR. ROOM', 'ADR',
                                           'AVERAGE ROOM RATE', 'AVERAGE DAILY RATE',
@@ -738,6 +762,24 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
       lyPaxYTD:          g(paxR, paxColMap.lyYtd),
       lyOutOfOrderToday: g(oooR, sc.lyToday),
       lyOutOfOrderMTD:   g(oooR, sc.lyMtd),
+      // Available PAX (bed-nights capacity)
+      availPaxToday:    g(availR, sc.today + 1),
+      availPaxMTD:      g(availR, sc.mtd + 1),
+      availPaxBudget:   g(availR, sc.budget + 1),
+      availPaxForecast: g(availR, sc.forecast + 1),
+      availPaxYTD:      g(availR, sc.ytd + 1),
+      lyAvailPaxToday:  g(availR, sc.lyToday + 1),
+      lyAvailPaxMTD:    g(availR, sc.lyMtd + 1),
+      lyAvailPaxYTD:    g(availR, sc.lyYtd + 1),
+      // Comp rooms — PAX and Last Year
+      compPaxToday:    g(compR, sc.today + 1),
+      compPaxMTD:      g(compR, sc.mtd + 1),
+      lyCompRoomToday: g(compR, sc.lyToday),
+      lyCompRoomMTD:   g(compR, sc.lyMtd),
+      lyCompRoomYTD:   g(compR, sc.lyYtd),
+      lyCompPaxToday:  g(compR, sc.lyToday + 1),
+      lyCompPaxMTD:    g(compR, sc.lyMtd + 1),
+      lyCompPaxYTD:    g(compR, sc.lyYtd + 1),
     },
     // Exchange rate row: exRR = sub-label row (even cols), exRR+1 = value row (odd/PAX cols)
     exchangeRate: {
@@ -770,6 +812,12 @@ function parseKapakSheet(ws: XLSX.WorkSheet, sheetName: string): ParsedKapakData
       soldRoomYTDBudget:    g(soldR, sc.ytd + 2),
       availRoomYTDBudget:   g(availR, sc.ytd + 2),
       paxYTDBudget:         g(paxR,  paxColMap.ytd + 2),
+      availPaxYTDBudget:    g(availR, sc.ytd + 3),
+      compPaxBudget:        g(compR, sc.budget + 1),
+      compPaxForecast:      g(compR, sc.forecast + 1),
+      compPaxYTD:           g(compR, sc.ytd + 1),
+      compRoomYTDBudget:    g(compR, sc.ytd + 2),
+      compPaxYTDBudget:     g(compR, sc.ytd + 3),
     },
     occupancyBreakdown,
     forecastOccupancy,
