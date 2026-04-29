@@ -269,9 +269,13 @@ export default function DepartmanPage() {
 
   const varData = deptSummaries.filter((d) => d.budget > 0).map((d) => ({ dept: d.label, variance: d.vPct }));
 
-  const lineData = trend.map((d) => ({
-    gun: shortDate(d.date),
-    Oda: d.roomsEUR, 'F&B': d.fbEUR, Spa: d.spaEUR, Diğer: d.otherEUR,
+  // YoY grouped bar data
+  const yoyBarData = deptSummaries.map((d, i) => ({
+    dept: `${d.emoji} ${d.label}`,
+    'Bu Yıl MTD': d.actual,
+    'Geçen Yıl MTD': d.ly,
+    color: PIE_COLORS[i],
+    yoyPct: d.ly > 0 ? varPct(d.actual, d.ly) : null,
   }));
 
   // YoY Radar — YoY% per dept
@@ -535,27 +539,48 @@ export default function DepartmanPage() {
       {/* Charts row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-        {/* Multi-line trend */}
+        {/* YoY Grouped Bar */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold">Departman Trend — MTD Son {days} Gün (€)</CardTitle>
+            <CardTitle className="text-sm font-semibold">YoY Karşılaştırması — Bu Yıl vs Geçen Yıl MTD (€)</CardTitle>
           </CardHeader>
           <CardContent>
-            {lineData.length === 0 ? (
-              <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">Veri yok</div>
+            {yoyBarData.every((d) => d['Geçen Yıl MTD'] === 0) ? (
+              <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">Geçen yıl verisi yok</div>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={lineData} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
+                <BarChart data={yoyBarData} barCategoryGap="28%" barGap={3} margin={{ left: 0, right: 8, top: 16, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis dataKey="gun" tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} />
+                  <XAxis dataKey="dept" tick={{ fontSize: 10, fill: '#374151' }} tickLine={false} axisLine={false} />
                   <YAxis tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${(v/1000).toFixed(0)}K`} />
-                  <Tooltip formatter={(v: number) => fmtEUR(v)} contentStyle={TOOLTIP_STYLE} />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null;
+                      const thisYear = (payload.find((p) => p.dataKey === 'Bu Yıl MTD')?.value as number) ?? 0;
+                      const lastYear = (payload.find((p) => p.dataKey === 'Geçen Yıl MTD')?.value as number) ?? 0;
+                      const pct = lastYear > 0 ? varPct(thisYear, lastYear) : null;
+                      return (
+                        <div className="bg-white border border-gray-200 rounded-lg p-2.5 shadow-sm text-xs">
+                          <p className="font-semibold mb-1.5">{label}</p>
+                          <p className="text-indigo-600">Bu Yıl: {fmtEUR(thisYear)}</p>
+                          <p className="text-gray-400">Geçen Yıl: {fmtEUR(lastYear)}</p>
+                          {pct !== null && (
+                            <p className={`font-bold mt-1 ${pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              YoY: {fmtPct(pct, true)}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    }}
+                  />
                   <Legend wrapperStyle={{ fontSize: 10 }} />
-                  <Line type="monotone" dataKey="Oda"   stroke="#4f46e5" strokeWidth={2.5} dot={false} />
-                  <Line type="monotone" dataKey="F&B"   stroke="#0891b2" strokeWidth={2}   dot={false} />
-                  <Line type="monotone" dataKey="Spa"   stroke="#16a34a" strokeWidth={2}   dot={false} />
-                  <Line type="monotone" dataKey="Diğer" stroke="#f59e0b" strokeWidth={2}   dot={false} strokeDasharray="4 3" />
-                </LineChart>
+                  <Bar dataKey="Bu Yıl MTD" radius={[3,3,0,0]}
+                    label={{ position: 'top', fontSize: 9, fill: '#6b7280', formatter: (v: number) => v > 0 ? `${(v/1000).toFixed(0)}K` : '' }}>
+                    {yoyBarData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                  </Bar>
+                  <Bar dataKey="Geçen Yıl MTD" fill="#d1d5db" radius={[3,3,0,0]} />
+                </BarChart>
               </ResponsiveContainer>
             )}
           </CardContent>
