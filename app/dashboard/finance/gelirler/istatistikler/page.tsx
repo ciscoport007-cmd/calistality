@@ -155,9 +155,8 @@ export default function IstatistiklerPage() {
     );
   }
 
-  const revpar = stat.availRoomMTD > 0 && stat.soldRoomMTD > 0
-    ? (stat.adrMTD * stat.soldRoomMTD) / stat.availRoomMTD : 0;
-  const lyRevpar = stat.lyOccupancyMTD > 0 ? stat.lyAdrMTD * (stat.lyOccupancyMTD / 100) : 0;
+  const revpar   = stat.adrMTD    > 0 && stat.occupancyMTD   > 0 ? stat.adrMTD    * (stat.occupancyMTD   / 100) : 0;
+  const lyRevpar = stat.lyAdrMTD > 0 && stat.lyOccupancyMTD > 0 ? stat.lyAdrMTD * (stat.lyOccupancyMTD / 100) : 0;
 
   return (
     <div className="space-y-6">
