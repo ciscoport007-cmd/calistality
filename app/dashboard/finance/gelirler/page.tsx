@@ -8,10 +8,14 @@ import { RefreshCw, Upload, ChevronDown, ChevronRight, TrendingUp, TrendingDown 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend, Cell,
 } from 'recharts';
+import { useFinanceFilters } from '@/hooks/use-finance-filters';
+import { FinanceFilterBar } from '@/components/finance/filter-bar';
+import { downloadCSV } from '@/lib/csv-export';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,17 +31,23 @@ interface RevenueRow {
 
 interface KapakData { reportDate: string; revenueData: RevenueRow[] }
 
+interface TrendDay {
+  date: string;
+  roomsEUR: number; fbEUR: number; spaEUR: number; otherEUR: number;
+  totalEUR: number;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TOTAL_PATTERNS = ['TOTAL SALES REVENUE', 'TOTAL SALES', 'TOTALS', 'TOPLAM'];
 const DEPT_GROUPS: { key: string; label: string; patterns: string[]; color: string }[] = [
-  { key: 'rooms', label: 'Oda Gelirleri',   patterns: ['ALL.INC', 'HB ROOM'],  color: '#4f46e5' },
-  { key: 'fb',    label: 'F&B Gelirleri',   patterns: ['F&B FOOD', 'F&B BEV'], color: '#0891b2' },
-  { key: 'spa',   label: 'Spa Gelirleri',   patterns: ['SPA'],                 color: '#16a34a' },
-  { key: 'other', label: 'Diğer Gelirler',  patterns: ['MISC'],                color: '#f59e0b' },
+  { key: 'rooms', label: 'Oda Gelirleri',  patterns: ['ALL.INC', 'HB ROOM'],  color: '#4f46e5' },
+  { key: 'fb',    label: 'F&B Gelirleri',  patterns: ['F&B FOOD', 'F&B BEV'], color: '#0891b2' },
+  { key: 'spa',   label: 'Spa Gelirleri',  patterns: ['SPA'],                 color: '#16a34a' },
+  { key: 'other', label: 'Diğer Gelirler', patterns: ['MISC'],                color: '#f59e0b' },
 ];
-
 const STACKED_COLORS = ['#4f46e5', '#0891b2', '#16a34a', '#f59e0b'];
+const DEPT_KEYS      = ['Oda', 'F&B', 'Spa', 'Diğer'] as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -50,11 +60,12 @@ function isGrandTotal(row: RevenueRow) {
   return row.isTotal && matchLabel(row.label, TOTAL_PATTERNS);
 }
 
-const fmt0 = (n: number) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(n);
+const fmt0   = (n: number) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(n);
 const fmtEUR = (n: number) => n === 0 ? '—' : `${fmt0(n)} €`;
+const fmtTL  = (n: number) => n === 0 ? '—' : `${fmt0(n)} ₺`;
 const fmtPct = (n: number, sign = false) => n === 0 ? '—' : `${sign && n > 0 ? '+' : ''}${n.toFixed(1)}%`;
 const varPct = (actual: number, budget: number) => budget > 0 ? ((actual - budget) / budget) * 100 : 0;
-const yoyPct = (cur: number, ly: number) => ly > 0 ? ((cur - ly) / ly) * 100 : 0;
+const yoyPct = (cur: number, ly: number)         => ly > 0     ? ((cur - ly) / ly) * 100          : 0;
 const shortDate = (d: string) => format(new Date(d), 'd MMM', { locale: tr });
 
 const TOOLTIP_STYLE = { fontSize: 11, borderRadius: 8, border: '1px solid #e5e7eb' };
@@ -69,13 +80,20 @@ function VarBadge({ pct }: { pct: number }) {
 
 // ─── Table row ────────────────────────────────────────────────────────────────
 
-function TableRow({ row, indent = 0, expanded, onToggle, hasChildren }: {
-  row: RevenueRow; indent?: number; expanded?: boolean; onToggle?: () => void; hasChildren?: boolean;
+function TableRow({ row, indent = 0, expanded, onToggle, hasChildren, currency }: {
+  row: RevenueRow; indent?: number; expanded?: boolean; onToggle?: () => void;
+  hasChildren?: boolean; currency: 'eur' | 'tl' | 'both';
 }) {
   const isTotal = row.isTotal;
   const mtdVar = varPct(row.mtdActualEUR, row.mtdBudgetEUR);
   const ytdVar = varPct(row.ytdActualEUR, row.ytdBudgetEUR);
   const yoy    = yoyPct(row.mtdActualEUR, row.lyMonthEUR);
+
+  const fmtVal = (eur: number, tl: number) => {
+    if (currency === 'tl')   return fmtTL(tl);
+    if (currency === 'both') return `${fmtEUR(eur)} / ${fmtTL(tl)}`;
+    return fmtEUR(eur);
+  };
 
   return (
     <tr className={`border-b border-border/40 ${isTotal ? 'bg-muted/40 font-semibold' : 'hover:bg-muted/20'} text-sm`}>
@@ -89,9 +107,9 @@ function TableRow({ row, indent = 0, expanded, onToggle, hasChildren }: {
           <span className={`text-xs ${isTotal ? 'font-bold' : ''}`}>{row.label}</span>
         </div>
       </td>
-      <td className="px-3 py-2 text-right text-xs whitespace-nowrap">{fmtEUR(row.todayEUR)}</td>
-      <td className="px-3 py-2 text-right text-xs whitespace-nowrap">{fmtEUR(row.mtdActualEUR)}</td>
-      <td className="px-3 py-2 text-right text-xs whitespace-nowrap">{fmtEUR(row.mtdBudgetEUR)}</td>
+      <td className="px-3 py-2 text-right text-xs whitespace-nowrap">{fmtVal(row.todayEUR, row.todayTL)}</td>
+      <td className="px-3 py-2 text-right text-xs whitespace-nowrap">{fmtVal(row.mtdActualEUR, row.mtdActualTL)}</td>
+      <td className="px-3 py-2 text-right text-xs whitespace-nowrap">{fmtVal(row.mtdBudgetEUR, row.mtdBudgetTL)}</td>
       <td className="px-3 py-2 text-center text-xs"><VarBadge pct={mtdVar} /></td>
       <td className="px-3 py-2 text-right text-xs whitespace-nowrap">{fmtEUR(row.ytdActualEUR)}</td>
       <td className="px-3 py-2 text-right text-xs whitespace-nowrap">{fmtEUR(row.ytdBudgetEUR)}</td>
@@ -102,12 +120,28 @@ function TableRow({ row, indent = 0, expanded, onToggle, hasChildren }: {
   );
 }
 
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function PageSkeleton() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-14 rounded-xl" />
+      <Skeleton className="h-72 rounded-xl" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Skeleton className="h-56 rounded-xl" />
+        <Skeleton className="h-56 rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function GelirlerPage() {
-  const [kapak, setKapak] = useState<KapakData | null>(null);
-  const [trend, setTrend] = useState<Record<string, unknown>[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { filters, update, days } = useFinanceFilters();
+  const [kapak, setKapak]   = useState<KapakData | null>(null);
+  const [trend, setTrend]   = useState<TrendDay[]>([]);
+  const [loading, setLoading]  = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
@@ -115,7 +149,7 @@ export default function GelirlerPage() {
     try {
       const [kRes, tRes] = await Promise.all([
         fetch('/api/finance/kapak?latest=true'),
-        fetch('/api/finance/kapak/trend?days=30'),
+        fetch(`/api/finance/kapak/trend?days=${days}`),
       ]);
       const [kJson, tJson] = await Promise.all([kRes.json(), tRes.json()]);
       if (kJson.success) setKapak(kJson.data);
@@ -123,7 +157,7 @@ export default function GelirlerPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [days]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -133,28 +167,36 @@ export default function GelirlerPage() {
     return next;
   });
 
-  const rows = kapak?.revenueData ?? [];
+  const rows      = kapak?.revenueData ?? [];
   const grandTotal = rows.find((r) => isGrandTotal(r));
-  const totalRows = rows.filter((r) => r.isTotal && !isGrandTotal(r));
-  const subRows   = rows.filter((r) => !r.isTotal);
+  const subRows    = rows.filter((r) => !r.isTotal);
+  const totalRows  = rows.filter((r) => r.isTotal && !isGrandTotal(r));
 
-  // Map dept group → matching rows (KAPAK dept rows are non-isTotal)
   const deptRows = DEPT_GROUPS.map((g) => ({
     ...g,
     rows: subRows.filter((r) => matchLabel(r.label, g.patterns)),
     subrows: [] as RevenueRow[],
   }));
 
-  // Stacked area chart — MTD by dept
-  const stackedData = (trend as { date: string; roomsEUR: number; fbEUR: number; spaEUR: number; otherEUR: number }[]).map((d) => ({
+  // Stacked area — MTD by dept
+  const stackedData = trend.map((d) => ({
     gun: shortDate(d.date),
-    Oda: d.roomsEUR,
-    'F&B': d.fbEUR,
-    Spa: d.spaEUR,
-    Diğer: d.otherEUR,
+    Oda: d.roomsEUR, 'F&B': d.fbEUR, Spa: d.spaEUR, Diğer: d.otherEUR,
   }));
 
-  // Budget variance waterfall
+  // 100% Stacked Bar — Revenue Mix per day
+  const mixData = trend.map((d) => {
+    const total = d.roomsEUR + d.fbEUR + d.spaEUR + d.otherEUR;
+    return {
+      gun: shortDate(d.date),
+      Oda:   total > 0 ? +((d.roomsEUR / total) * 100).toFixed(1) : 0,
+      'F&B': total > 0 ? +((d.fbEUR   / total) * 100).toFixed(1) : 0,
+      Spa:   total > 0 ? +((d.spaEUR  / total) * 100).toFixed(1) : 0,
+      Diğer: total > 0 ? +((d.otherEUR/ total) * 100).toFixed(1) : 0,
+    };
+  });
+
+  // Budget variance waterfall data
   const waterfallData = deptRows.map((g) => {
     const actual = g.rows.reduce((s, r) => s + r.mtdActualEUR, 0);
     const budget = g.rows.reduce((s, r) => s + r.mtdBudgetEUR, 0);
@@ -163,13 +205,23 @@ export default function GelirlerPage() {
 
   const latestDate = kapak ? format(new Date(kapak.reportDate), 'd MMMM yyyy', { locale: tr }) : '';
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Yükleniyor...
-      </div>
-    );
-  }
+  // CSV export
+  const handleExport = () => {
+    if (!rows.length) return;
+    const headers = ['Gelir Kalemi', 'Günlük (€)', 'MTD Actual (€)', 'MTD Budget (€)', 'MTD Var%', 'YTD Actual (€)', 'YTD Budget (€)', 'YTD Var%', 'LY MTD (€)', 'YoY%'];
+    const csvRows = rows.map((r) => [
+      r.label,
+      r.todayEUR, r.mtdActualEUR, r.mtdBudgetEUR,
+      `${varPct(r.mtdActualEUR, r.mtdBudgetEUR).toFixed(1)}%`,
+      r.ytdActualEUR, r.ytdBudgetEUR,
+      `${varPct(r.ytdActualEUR, r.ytdBudgetEUR).toFixed(1)}%`,
+      r.lyMonthEUR,
+      `${yoyPct(r.mtdActualEUR, r.lyMonthEUR).toFixed(1)}%`,
+    ]);
+    downloadCSV(`gelirler-${latestDate || 'export'}.csv`, headers, csvRows);
+  };
+
+  if (loading) return <PageSkeleton />;
 
   if (!kapak) {
     return (
@@ -184,16 +236,25 @@ export default function GelirlerPage() {
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold">Gelirler</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Son veri: {latestDate}</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4 mr-1" />Yenile</Button>
-          <Link href="/dashboard/finance/gelirler/yukle">
-            <Button size="sm"><Upload className="h-4 w-4 mr-1" />Veri Yükle</Button>
-          </Link>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4 mr-1" />Yenile</Button>
+            <Link href="/dashboard/finance/gelirler/yukle">
+              <Button size="sm"><Upload className="h-4 w-4 mr-1" />Veri Yükle</Button>
+            </Link>
+          </div>
+          <FinanceFilterBar
+            dateRange={filters.dateRange}
+            currency={filters.currency}
+            onDateChange={(r) => update({ dateRange: r })}
+            onCurrencyChange={(c) => update({ currency: c })}
+            onExport={handleExport}
+          />
         </div>
       </div>
 
@@ -208,9 +269,9 @@ export default function GelirlerPage() {
               <thead className="border-b border-border">
                 <tr className="bg-muted/50">
                   <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground sticky left-0 bg-muted/50 min-w-[220px]">Gelir Kalemi</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">Günlük (€)</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">MTD Actual (€)</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">MTD Budget (€)</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">Günlük</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">MTD Actual</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">MTD Budget</th>
                   <th className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground">MTD Var%</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">YTD Actual (€)</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">YTD Budget (€)</th>
@@ -220,12 +281,7 @@ export default function GelirlerPage() {
                 </tr>
               </thead>
               <tbody>
-                {/* Grand Total at top */}
-                {grandTotal && (
-                  <TableRow row={grandTotal} indent={0} />
-                )}
-
-                {/* Department groups */}
+                {grandTotal && <TableRow row={grandTotal} indent={0} currency={filters.currency} />}
                 {deptRows.map((g) => (
                   <>
                     {g.rows.map((row, ri) => (
@@ -236,18 +292,17 @@ export default function GelirlerPage() {
                         hasChildren={g.subrows.length > 0}
                         expanded={expanded.has(g.key)}
                         onToggle={() => toggleExpand(g.key)}
+                        currency={filters.currency}
                       />
                     ))}
                     {expanded.has(g.key) && g.subrows.map((row, ri) => (
-                      <TableRow key={`${g.key}-sub-${ri}`} row={row} indent={2} />
+                      <TableRow key={`${g.key}-sub-${ri}`} row={row} indent={2} currency={filters.currency} />
                     ))}
                   </>
                 ))}
-
-                {/* Other total rows not in any group */}
                 {totalRows
                   .filter((r) => !DEPT_GROUPS.some((g) => matchLabel(r.label, g.patterns)))
-                  .map((row, i) => <TableRow key={`other-${i}`} row={row} indent={1} />)
+                  .map((row, i) => <TableRow key={`other-${i}`} row={row} indent={1} currency={filters.currency} />)
                 }
               </tbody>
             </table>
@@ -255,7 +310,7 @@ export default function GelirlerPage() {
         </CardContent>
       </Card>
 
-      {/* Charts */}
+      {/* Charts row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* Stacked area — dept revenue over time */}
@@ -283,7 +338,7 @@ export default function GelirlerPage() {
                   <Tooltip formatter={(v: number) => fmtEUR(v)} contentStyle={TOOLTIP_STYLE} />
                   <Legend wrapperStyle={{ fontSize: 10 }} />
                   {DEPT_GROUPS.map((g, i) => (
-                    <Area key={g.key} type="monotone" dataKey={['Oda', 'F&B', 'Spa', 'Diğer'][i]}
+                    <Area key={g.key} type="monotone" dataKey={DEPT_KEYS[i]}
                       stroke={STACKED_COLORS[i]} fill={`url(#fill-${g.key})`} strokeWidth={2} dot={false} stackId="1" />
                   ))}
                 </AreaChart>
@@ -302,12 +357,13 @@ export default function GelirlerPage() {
               <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">Veri yok</div>
             ) : (
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={waterfallData} margin={{ left: 0, right: 32, top: 4, bottom: 0 }}>
+                <BarChart data={waterfallData} margin={{ left: 0, right: 40, top: 4, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                   <XAxis dataKey="dept" tick={{ fontSize: 10, fill: '#374151' }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${(v/1000).toFixed(0)}K`} />
-                  <Tooltip formatter={(v: number) => [fmtEUR(v), 'Sapma (Actual-Budget)']} contentStyle={TOOLTIP_STYLE} />
-                  <Bar dataKey="variance" radius={[3, 3, 0, 0]} label={{ position: 'top', fontSize: 10, formatter: (v: number) => `${v >= 0 ? '+' : ''}${(v/1000).toFixed(0)}K` }}>
+                  <YAxis tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${(v/1000).toFixed(0)}K€`} />
+                  <Tooltip formatter={(v: number) => [fmtEUR(v as number), 'Sapma (Actual-Budget)']} contentStyle={TOOLTIP_STYLE} />
+                  <Bar dataKey="variance" radius={[3, 3, 0, 0]}
+                    label={{ position: 'top', fontSize: 10, formatter: (v: number) => `${v >= 0 ? '+' : ''}${(v/1000).toFixed(0)}K` }}>
                     {waterfallData.map((d, i) => <Cell key={i} fill={d.variance >= 0 ? '#16a34a' : '#dc2626'} />)}
                   </Bar>
                 </BarChart>
@@ -316,6 +372,29 @@ export default function GelirlerPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Revenue Mix Evrimi — 100% stacked bar */}
+      {mixData.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Gelir Mix Evrimi — Departman Payı (%) — Son {days} Gün</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={mixData} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis dataKey="gun" tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${v}%`} />
+                <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`]} contentStyle={TOOLTIP_STYLE} />
+                <Legend wrapperStyle={{ fontSize: 10 }} />
+                {DEPT_KEYS.map((key, i) => (
+                  <Bar key={key} dataKey={key} stackId="mix" fill={STACKED_COLORS[i]} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {/* YoY comparison */}
       {grandTotal && grandTotal.lyMonthEUR > 0 && (

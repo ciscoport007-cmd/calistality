@@ -7,10 +7,16 @@ import { RefreshCw, TrendingUp, TrendingDown, CheckCircle, AlertTriangle, XCircl
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine,
 } from 'recharts';
+import { useFinanceFilters } from '@/hooks/use-finance-filters';
+import { FinanceFilterBar } from '@/components/finance/filter-bar';
+import { downloadCSV } from '@/lib/csv-export';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,10 +36,16 @@ interface TrendPoint {
 
 interface KapakData { reportDate: string; revenueData: RevenueRow[] }
 
+interface DeptSummary {
+  key: string; label: string; emoji: string; patterns: string[]; color: string;
+  actual: number; budget: number; today: number; ytd: number; ytdBudg: number; ly: number;
+  vPct: number; totalRows: RevenueRow[];
+}
+
 // ─── Department config ────────────────────────────────────────────────────────
 
 const DEPTS = [
-  { key: 'all',   label: 'Tümü',  emoji: '', patterns: [] as string[], color: '#4f46e5' },
+  { key: 'all',   label: 'Tümü',  emoji: '',   patterns: [] as string[], color: '#4f46e5' },
   { key: 'rooms', label: 'Rooms', emoji: '🏨', patterns: ['ALL.INC', 'HB ROOM'],  color: '#4f46e5' },
   { key: 'fb',    label: 'F&B',   emoji: '🍽️', patterns: ['F&B FOOD', 'F&B BEV'], color: '#0891b2' },
   { key: 'spa',   label: 'Spa',   emoji: '💆', patterns: ['SPA'],                 color: '#16a34a' },
@@ -41,7 +53,7 @@ const DEPTS = [
 ];
 
 const TOTAL_PATTERNS = ['TOTAL SALES REVENUE', 'TOTAL SALES', 'TOTALS', 'TOPLAM'];
-const PIE_COLORS = ['#4f46e5', '#0891b2', '#16a34a', '#f59e0b', '#db2777'];
+const PIE_COLORS     = ['#4f46e5', '#0891b2', '#16a34a', '#f59e0b', '#db2777'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -50,8 +62,9 @@ function matchLabel(label: string, patterns: string[]) {
   return patterns.some((p) => up.includes(p));
 }
 
-const fmt0 = (n: number) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(n);
+const fmt0   = (n: number) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(n);
 const fmtEUR = (n: number) => n === 0 ? '—' : `${fmt0(n)} €`;
+const fmtTL  = (n: number) => n === 0 ? '—' : `${fmt0(n)} ₺`;
 const fmtPct = (n: number, sign = false) => n === 0 ? '—' : `${sign && n > 0 ? '+' : ''}${n.toFixed(1)}%`;
 const varPct = (a: number, b: number) => b > 0 ? ((a - b) / b) * 100 : 0;
 const shortDate = (d: string) => format(new Date(d), 'd MMM', { locale: tr });
@@ -59,25 +72,156 @@ const shortDate = (d: string) => format(new Date(d), 'd MMM', { locale: tr });
 const TOOLTIP_STYLE = { fontSize: 11, borderRadius: 8, border: '1px solid #e5e7eb' };
 
 function TargetBadge({ pct }: { pct: number }) {
-  if (pct >= 5)  return <div className="flex items-center gap-1 text-green-600 text-xs"><CheckCircle className="h-4 w-4" />Hedef aşıldı</div>;
+  if (pct >= 5)  return <div className="flex items-center gap-1 text-green-600 text-xs"><CheckCircle  className="h-4 w-4" />Hedef aşıldı</div>;
   if (pct >= -5) return <div className="flex items-center gap-1 text-amber-600 text-xs"><AlertTriangle className="h-4 w-4" />Hedefe yakın</div>;
-  return <div className="flex items-center gap-1 text-red-600 text-xs"><XCircle className="h-4 w-4" />Hedefin altında</div>;
+  return               <div className="flex items-center gap-1 text-red-600 text-xs"><XCircle       className="h-4 w-4" />Hedefin altında</div>;
+}
+
+// ─── Detail Sheet ─────────────────────────────────────────────────────────────
+
+function DeptDetailSheet({ dept, subRows, trend, open, onClose, currency }: {
+  dept: DeptSummary; subRows: RevenueRow[]; trend: TrendPoint[];
+  open: boolean; onClose: () => void; currency: 'eur' | 'tl' | 'both';
+}) {
+  const deptSubRows = subRows.filter((r) => matchLabel(r.label, dept.patterns));
+  const trendKey = dept.key === 'rooms' ? 'roomsEUR' : dept.key === 'fb' ? 'fbEUR' : dept.key === 'spa' ? 'spaEUR' : 'otherEUR';
+  const getTrendVal = (d: TrendPoint) => trendKey === 'roomsEUR' ? d.roomsEUR : trendKey === 'fbEUR' ? d.fbEUR : trendKey === 'spaEUR' ? d.spaEUR : d.otherEUR;
+  const chartData = trend.map((d) => ({ gun: shortDate(d.date), Gelir: getTrendVal(d) }));
+
+  const fmtVal = (eur: number, tl: number) => {
+    if (currency === 'tl')   return fmtTL(tl);
+    if (currency === 'both') return `${fmtEUR(eur)} / ${fmtTL(tl)}`;
+    return fmtEUR(eur);
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onClose}>
+      <SheetContent className="w-[520px] sm:max-w-[520px] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2 text-lg">
+            <span>{dept.emoji}</span>
+            <span>{dept.label} Departmanı Detayları</span>
+          </SheetTitle>
+        </SheetHeader>
+
+        <div className="mt-6 space-y-5">
+          {/* Summary cards */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Bugün', value: fmtEUR(dept.today) },
+              { label: 'MTD Actual', value: fmtEUR(dept.actual) },
+              { label: 'MTD Budget', value: fmtEUR(dept.budget) },
+            ].map((m) => (
+              <div key={m.label} className="rounded-lg border p-3">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase">{m.label}</p>
+                <p className="text-base font-bold mt-0.5">{m.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* YTD + LY + Variance */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-lg border p-3">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase">YTD</p>
+              <p className="text-base font-bold mt-0.5">{fmtEUR(dept.ytd)}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase">LY MTD</p>
+              <p className="text-base font-bold mt-0.5 text-muted-foreground">{dept.ly > 0 ? fmtEUR(dept.ly) : '—'}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase">MTD Sapma</p>
+              <p className={`text-base font-bold mt-0.5 ${dept.vPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtPct(dept.vPct, true)}</p>
+            </div>
+          </div>
+
+          {/* Mini trend chart */}
+          {chartData.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">MTD Trend (€)</p>
+              <ResponsiveContainer width="100%" height={160}>
+                <LineChart data={chartData} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                  <XAxis dataKey="gun" tick={{ fontSize: 8, fill: '#6b7280' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 8, fill: '#6b7280' }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${(v/1000).toFixed(0)}K`} />
+                  <Tooltip formatter={(v: number) => fmtEUR(v)} contentStyle={TOOLTIP_STYLE} />
+                  <Line type="monotone" dataKey="Gelir" stroke={dept.color} strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Sub rows */}
+          {deptSubRows.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Alt Kategoriler</p>
+              <div className="rounded-lg border overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-semibold text-muted-foreground">Kalem</th>
+                      <th className="px-3 py-2 text-right font-semibold text-muted-foreground">Bugün</th>
+                      <th className="px-3 py-2 text-right font-semibold text-muted-foreground">MTD</th>
+                      <th className="px-3 py-2 text-right font-semibold text-muted-foreground">Sapma%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deptSubRows.map((r, i) => (
+                      <tr key={i} className="border-t border-border/40 hover:bg-muted/10">
+                        <td className="px-3 py-1.5 font-medium">{r.label}</td>
+                        <td className="px-3 py-1.5 text-right">{fmtVal(r.todayEUR, r.todayTL)}</td>
+                        <td className="px-3 py-1.5 text-right">{fmtVal(r.mtdActualEUR, r.mtdActualTL)}</td>
+                        <td className="px-3 py-1.5 text-right">
+                          {r.mtdBudgetEUR > 0 ? (
+                            <span className={varPct(r.mtdActualEUR, r.mtdBudgetEUR) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                              {fmtPct(varPct(r.mtdActualEUR, r.mtdBudgetEUR), true)}
+                            </span>
+                          ) : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function PageSkeleton() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-14 rounded-xl" />
+      <Skeleton className="h-48 rounded-xl" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Skeleton className="h-52 rounded-xl" />
+        <Skeleton className="h-52 rounded-xl" />
+      </div>
+    </div>
+  );
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function DepartmanPage() {
-  const [kapak, setKapak] = useState<KapakData | null>(null);
-  const [trend, setTrend] = useState<TrendPoint[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeDept, setActiveDept] = useState('all');
+  const { filters, update, days } = useFinanceFilters();
+  const [kapak, setKapak]         = useState<KapakData | null>(null);
+  const [trend, setTrend]         = useState<TrendPoint[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [activeDept, setActiveDept]     = useState('all');
+  const [selectedDept, setSelectedDept] = useState<DeptSummary | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const [kRes, tRes] = await Promise.all([
         fetch('/api/finance/kapak?latest=true'),
-        fetch('/api/finance/kapak/trend?days=30'),
+        fetch(`/api/finance/kapak/trend?days=${days}`),
       ]);
       const [kJson, tJson] = await Promise.all([kRes.json(), tRes.json()]);
       if (kJson.success) setKapak(kJson.data);
@@ -85,15 +229,22 @@ export default function DepartmanPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [days]);
 
   useEffect(() => { load(); }, [load]);
 
-  const rows = kapak?.revenueData ?? [];
+  const rows    = kapak?.revenueData ?? [];
+  const subRows = rows.filter((r) => !r.isTotal);
   const latestDate = kapak ? format(new Date(kapak.reportDate), 'd MMMM yyyy', { locale: tr }) : '';
 
+  const fmtVal = (eur: number, tl: number) => {
+    if (filters.currency === 'tl')   return fmtTL(tl);
+    if (filters.currency === 'both') return `${fmtEUR(eur)} / ${fmtTL(tl)}`;
+    return fmtEUR(eur);
+  };
+
   // Build dept summaries
-  const deptSummaries = DEPTS.filter((d) => d.key !== 'all').map((dept) => {
+  const deptSummaries: DeptSummary[] = DEPTS.filter((d) => d.key !== 'all').map((dept) => {
     const totalRows = rows.filter((r) => !matchLabel(r.label, TOTAL_PATTERNS) && matchLabel(r.label, dept.patterns));
     const actual  = totalRows.reduce((s, r) => s + r.mtdActualEUR, 0);
     const budget  = totalRows.reduce((s, r) => s + r.mtdBudgetEUR, 0);
@@ -101,47 +252,48 @@ export default function DepartmanPage() {
     const ytd     = totalRows.reduce((s, r) => s + r.ytdActualEUR, 0);
     const ytdBudg = totalRows.reduce((s, r) => s + r.ytdBudgetEUR, 0);
     const ly      = totalRows.reduce((s, r) => s + r.lyMonthEUR, 0);
-    const todayTL = totalRows.reduce((s, r) => s + r.todayTL, 0);
-    const vPct    = varPct(actual, budget);
-    return { ...dept, actual, budget, today, todayTL, ytd, ytdBudg, ly, vPct, totalRows };
+    return { ...dept, actual, budget, today, ytd, ytdBudg, ly, vPct: varPct(actual, budget), totalRows };
   });
 
-  // All non-total rows for details
-  const subRows = rows.filter((r) => !r.isTotal);
-
-  // Filter by active dept
   const visibleDepts = activeDept === 'all' ? deptSummaries : deptSummaries.filter((d) => d.key === activeDept);
 
-  // Total across all depts
-  const grandActual  = deptSummaries.reduce((s, d) => s + d.actual, 0);
-  const grandBudget  = deptSummaries.reduce((s, d) => s + d.budget, 0);
-  const grandToday   = deptSummaries.reduce((s, d) => s + d.today, 0);
-  const grandYTD     = deptSummaries.reduce((s, d) => s + d.ytd, 0);
-  const grandLY      = deptSummaries.reduce((s, d) => s + d.ly, 0);
+  const grandActual = deptSummaries.reduce((s, d) => s + d.actual, 0);
+  const grandBudget = deptSummaries.reduce((s, d) => s + d.budget, 0);
+  const grandToday  = deptSummaries.reduce((s, d) => s + d.today, 0);
+  const grandYTD    = deptSummaries.reduce((s, d) => s + d.ytd, 0);
+  const grandLY     = deptSummaries.reduce((s, d) => s + d.ly, 0);
 
-  // Pie chart — today
   const pieData = deptSummaries.filter((d) => d.today > 0).map((d, i) => ({
     name: `${d.emoji} ${d.label}`, value: d.today, color: PIE_COLORS[i],
   }));
 
-  // Budget variance bar
-  const varData = deptSummaries.filter((d) => d.budget > 0).map((d) => ({
-    dept: d.label, variance: d.vPct,
-  }));
+  const varData = deptSummaries.filter((d) => d.budget > 0).map((d) => ({ dept: d.label, variance: d.vPct }));
 
-  // Multi-line trend
   const lineData = trend.map((d) => ({
     gun: shortDate(d.date),
     Oda: d.roomsEUR, 'F&B': d.fbEUR, Spa: d.spaEUR, Diğer: d.otherEUR,
   }));
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Yükleniyor...
-      </div>
+  // YoY Radar — YoY% per dept
+  const yoyRadar = deptSummaries.map((d) => ({
+    dept: `${d.emoji} ${d.label}`,
+    'YoY %': d.ly > 0 ? +varPct(d.actual, d.ly).toFixed(1) : 0,
+  }));
+
+  // CSV export
+  const handleExport = () => {
+    downloadCSV(`departman-${latestDate || 'export'}.csv`,
+      ['Departman', 'Bugün (€)', 'MTD Actual (€)', 'MTD Budget (€)', 'Var%', 'YTD (€)', 'LY MTD (€)', 'YoY%'],
+      deptSummaries.map((d) => [
+        d.label, d.today, d.actual, d.budget,
+        `${d.vPct.toFixed(1)}%`, d.ytd,
+        d.ly > 0 ? d.ly : '',
+        d.ly > 0 ? `${varPct(d.actual, d.ly).toFixed(1)}%` : '',
+      ])
     );
-  }
+  };
+
+  if (loading) return <PageSkeleton />;
 
   if (!kapak) {
     return (
@@ -156,32 +308,36 @@ export default function DepartmanPage() {
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold">Departman Raporu</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Son veri: {latestDate}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4 mr-1" />Yenile</Button>
+        <div className="flex flex-col items-end gap-2">
+          <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4 mr-1" />Yenile</Button>
+          <FinanceFilterBar
+            dateRange={filters.dateRange}
+            currency={filters.currency}
+            onDateChange={(r) => update({ dateRange: r })}
+            onCurrencyChange={(c) => update({ currency: c })}
+            onExport={handleExport}
+          />
+        </div>
       </div>
 
       {/* Dept tabs */}
       <div className="flex gap-2 flex-wrap">
         {DEPTS.map((d) => (
-          <button
-            key={d.key}
-            onClick={() => setActiveDept(d.key)}
+          <button key={d.key} onClick={() => setActiveDept(d.key)}
             className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-              activeDept === d.key
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'border-border hover:bg-muted'
-            }`}
-          >
+              activeDept === d.key ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-muted'
+            }`}>
             {d.emoji} {d.label}
           </button>
         ))}
       </div>
 
-      {/* Grand total summary row */}
+      {/* Grand total summary */}
       <Card className="border-l-4 border-l-primary">
         <CardContent className="py-3 px-4">
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -207,7 +363,7 @@ export default function DepartmanPage() {
       {/* Dept performance table */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">Departman Performans Tablosu</CardTitle>
+          <CardTitle className="text-sm font-semibold">Departman Performans Tablosu — tıkla → detay</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -215,13 +371,12 @@ export default function DepartmanPage() {
               <thead className="border-b border-border">
                 <tr className="bg-muted/50">
                   <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground min-w-[120px]">Departman</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Bugün (€)</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">MTD Actual (€)</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">MTD Budget (€)</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Bugün</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">MTD Actual</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">MTD Budget</th>
                   <th className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground">Var%</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">YTD (€)</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">YTD Budget (€)</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">LY MTD (€)</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">YTD</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">LY MTD</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">YoY%</th>
                   <th className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground">Durum</th>
                 </tr>
@@ -229,9 +384,13 @@ export default function DepartmanPage() {
               <tbody>
                 {visibleDepts.map((dept) => (
                   <>
-                    <tr key={dept.key} className="border-b border-border/40 bg-muted/20 font-semibold">
+                    <tr
+                      key={dept.key}
+                      className="border-b border-border/40 bg-muted/20 font-semibold cursor-pointer hover:bg-muted/40 transition-colors"
+                      onClick={() => setSelectedDept(dept)}
+                    >
                       <td className="px-3 py-2 text-xs">{dept.emoji} {dept.label}</td>
-                      <td className="px-3 py-2 text-right text-xs">{fmtEUR(dept.today)}</td>
+                      <td className="px-3 py-2 text-right text-xs">{fmtVal(dept.today, dept.today)}</td>
                       <td className="px-3 py-2 text-right text-xs">{fmtEUR(dept.actual)}</td>
                       <td className="px-3 py-2 text-right text-xs text-muted-foreground">{fmtEUR(dept.budget)}</td>
                       <td className="px-3 py-2 text-center">
@@ -240,7 +399,6 @@ export default function DepartmanPage() {
                         </Badge>
                       </td>
                       <td className="px-3 py-2 text-right text-xs">{fmtEUR(dept.ytd)}</td>
-                      <td className="px-3 py-2 text-right text-xs text-muted-foreground">{fmtEUR(dept.ytdBudg)}</td>
                       <td className="px-3 py-2 text-right text-xs text-muted-foreground">{dept.ly > 0 ? fmtEUR(dept.ly) : '—'}</td>
                       <td className="px-3 py-2 text-right text-xs">
                         {dept.ly > 0 ? (
@@ -266,11 +424,10 @@ export default function DepartmanPage() {
                           ) : '—'}
                         </td>
                         <td className="px-3 py-1.5 text-right text-xs">{fmtEUR(sub.ytdActualEUR)}</td>
-                        <td className="px-3 py-1.5 text-right text-xs text-muted-foreground">{fmtEUR(sub.ytdBudgetEUR)}</td>
                         <td className="px-3 py-1.5 text-right text-xs text-muted-foreground">{sub.lyMonthEUR > 0 ? fmtEUR(sub.lyMonthEUR) : '—'}</td>
                         <td className="px-3 py-1.5 text-right text-xs">
                           {sub.lyMonthEUR > 0 ? (
-                            <span className={`${varPct(sub.mtdActualEUR, sub.lyMonthEUR) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            <span className={varPct(sub.mtdActualEUR, sub.lyMonthEUR) >= 0 ? 'text-green-600' : 'text-red-600'}>
                               {fmtPct(varPct(sub.mtdActualEUR, sub.lyMonthEUR), true)}
                             </span>
                           ) : '—'}
@@ -292,7 +449,6 @@ export default function DepartmanPage() {
                     </Badge>
                   </td>
                   <td className="px-3 py-2.5 text-right text-xs">{fmtEUR(grandYTD)}</td>
-                  <td className="px-3 py-2.5 text-right text-xs">{fmtEUR(deptSummaries.reduce((s,d) => s+d.ytdBudg, 0))}</td>
                   <td className="px-3 py-2.5 text-right text-xs">{grandLY > 0 ? fmtEUR(grandLY) : '—'}</td>
                   <td className="px-3 py-2.5 text-right text-xs">
                     {grandLY > 0 && (
@@ -309,7 +465,7 @@ export default function DepartmanPage() {
         </CardContent>
       </Card>
 
-      {/* Charts */}
+      {/* Charts row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* Pie — today's mix */}
@@ -376,31 +532,68 @@ export default function DepartmanPage() {
         </Card>
       </div>
 
-      {/* Multi-line trend */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">Departman Trend — MTD Son 30 Gün (€)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {lineData.length === 0 ? (
-            <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">Veri yok</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={lineData} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                <XAxis dataKey="gun" tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${(v/1000).toFixed(0)}K`} />
-                <Tooltip formatter={(v: number) => fmtEUR(v)} contentStyle={TOOLTIP_STYLE} />
-                <Legend wrapperStyle={{ fontSize: 10 }} />
-                <Line type="monotone" dataKey="Oda"   stroke="#4f46e5" strokeWidth={2.5} dot={false} />
-                <Line type="monotone" dataKey="F&B"   stroke="#0891b2" strokeWidth={2}   dot={false} />
-                <Line type="monotone" dataKey="Spa"   stroke="#16a34a" strokeWidth={2}   dot={false} />
-                <Line type="monotone" dataKey="Diğer" stroke="#f59e0b" strokeWidth={2}   dot={false} strokeDasharray="4 3" />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
+      {/* Charts row 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* Multi-line trend */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Departman Trend — MTD Son {days} Gün (€)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {lineData.length === 0 ? (
+              <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">Veri yok</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={lineData} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                  <XAxis dataKey="gun" tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${(v/1000).toFixed(0)}K`} />
+                  <Tooltip formatter={(v: number) => fmtEUR(v)} contentStyle={TOOLTIP_STYLE} />
+                  <Legend wrapperStyle={{ fontSize: 10 }} />
+                  <Line type="monotone" dataKey="Oda"   stroke="#4f46e5" strokeWidth={2.5} dot={false} />
+                  <Line type="monotone" dataKey="F&B"   stroke="#0891b2" strokeWidth={2}   dot={false} />
+                  <Line type="monotone" dataKey="Spa"   stroke="#16a34a" strokeWidth={2}   dot={false} />
+                  <Line type="monotone" dataKey="Diğer" stroke="#f59e0b" strokeWidth={2}   dot={false} strokeDasharray="4 3" />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* YoY Radar */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">YoY Büyüme — Departman Bazlı (%)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {yoyRadar.every((d) => d['YoY %'] === 0) ? (
+              <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">Geçen yıl verisi yok</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <RadarChart data={yoyRadar}>
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="dept" tick={{ fontSize: 10 }} />
+                  <Radar name="YoY %" dataKey="YoY %" stroke="#4f46e5" fill="#4f46e5" fillOpacity={0.25} />
+                  <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`, 'YoY Büyüme']} contentStyle={TOOLTIP_STYLE} />
+                </RadarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Dept Detail Sheet */}
+      {selectedDept && (
+        <DeptDetailSheet
+          dept={selectedDept}
+          subRows={subRows}
+          trend={trend}
+          open={selectedDept !== null}
+          onClose={() => setSelectedDept(null)}
+          currency={filters.currency}
+        />
+      )}
 
     </div>
   );

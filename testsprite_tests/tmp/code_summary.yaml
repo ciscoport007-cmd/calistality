@@ -1,0 +1,367 @@
+version: "2"
+type: frontend
+tech_stack:
+  - TypeScript
+  - Next.js 14
+  - React 18
+  - PostgreSQL
+  - Prisma ORM
+  - NextAuth.js
+  - TailwindCSS
+  - Radix UI
+  - Zustand
+  - React Query
+features:
+  - name: Authentication
+    description: Email/password login with NextAuth, session management, JWT
+    files:
+      - app/api/auth/[...nextauth]/route.ts
+      - app/login/page.tsx
+      - app/api/signup/route.ts
+    endpoints:
+      - method: POST
+        path: /api/auth/signin
+        description: User login
+        auth_required: false
+        response_schema:
+          "200": Session object
+          "401": Unauthorized
+      - method: POST
+        path: /api/signup
+        description: User registration
+        auth_required: false
+        response_schema:
+          "200": User created
+          "400": Validation error
+
+  - name: Document Management
+    description: Full document lifecycle - create, review, approve, version, download, acknowledge
+    files:
+      - app/api/documents/route.ts
+      - app/api/documents/[id]/route.ts
+      - app/api/documents/[id]/approve/route.ts
+      - app/api/documents/[id]/review/route.ts
+      - app/api/documents/[id]/versions/route.ts
+      - app/dashboard/documents/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/documents
+        description: List all documents
+        auth_required: true
+        response_schema:
+          "200": Document[]
+      - method: POST
+        path: /api/documents
+        description: Create new document
+        auth_required: true
+        request_schema:
+          body:
+            title: string
+            content: string
+            folderId: string
+        response_schema:
+          "200": Document
+          "400": Validation error
+      - method: GET
+        path: /api/documents/[id]
+        description: Get document detail
+        auth_required: true
+        response_schema:
+          "200": Document
+          "404": Not found
+      - method: PATCH
+        path: /api/documents/[id]
+        description: Update document
+        auth_required: true
+        response_schema:
+          "200": Document
+      - method: DELETE
+        path: /api/documents/[id]
+        description: Delete document
+        auth_required: true
+        response_schema:
+          "200": Success
+      - method: POST
+        path: /api/documents/[id]/approve
+        description: Approve document
+        auth_required: true
+        response_schema:
+          "200": Document
+      - method: POST
+        path: /api/documents/[id]/review
+        description: Send document for review
+        auth_required: true
+        response_schema:
+          "200": Document
+
+  - name: User Management
+    description: CRUD operations for users, roles, departments, positions
+    files:
+      - app/api/users/route.ts
+      - app/api/users/[id]/route.ts
+      - app/api/roles/route.ts
+      - app/api/departments/route.ts
+      - app/dashboard/users/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/users
+        description: List all users
+        auth_required: true
+        response_schema:
+          "200": User[]
+      - method: POST
+        path: /api/users
+        description: Create user
+        auth_required: true
+        response_schema:
+          "200": User
+      - method: GET
+        path: /api/roles
+        description: List roles
+        auth_required: true
+        response_schema:
+          "200": Role[]
+      - method: GET
+        path: /api/departments
+        description: List departments
+        auth_required: true
+        response_schema:
+          "200": Department[]
+
+  - name: Risk Management
+    description: Risk identification, assessment, actions, categorization
+    files:
+      - app/api/risks/route.ts
+      - app/api/risks/[id]/route.ts
+      - app/dashboard/risks/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/risks
+        description: List all risks
+        auth_required: true
+        response_schema:
+          "200": Risk[]
+      - method: POST
+        path: /api/risks
+        description: Create risk
+        auth_required: true
+        response_schema:
+          "200": Risk
+      - method: GET
+        path: /api/risks/[id]
+        description: Get risk detail
+        auth_required: true
+        response_schema:
+          "200": Risk
+          "404": Not found
+
+  - name: Audit Management
+    description: Internal/external audits, findings, checklists, attachments
+    files:
+      - app/api/audits/route.ts
+      - app/api/audits/[id]/route.ts
+      - app/dashboard/audits/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/audits
+        description: List audits
+        auth_required: true
+        response_schema:
+          "200": Audit[]
+      - method: POST
+        path: /api/audits
+        description: Create audit
+        auth_required: true
+        response_schema:
+          "200": Audit
+
+  - name: KPI Management
+    description: KPI tracking, measurements, categories, scorecards
+    files:
+      - app/api/kpis/route.ts
+      - app/api/kpis/[id]/route.ts
+      - app/dashboard/kpis/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/kpis
+        description: List KPIs
+        auth_required: true
+        response_schema:
+          "200": KPI[]
+      - method: POST
+        path: /api/kpis
+        description: Create KPI
+        auth_required: true
+        response_schema:
+          "200": KPI
+      - method: POST
+        path: /api/kpis/[id]/measurements
+        description: Add KPI measurement
+        auth_required: true
+        response_schema:
+          "200": Measurement
+
+  - name: Strategic Planning
+    description: Strategy periods, objectives, goals, SWOT, PESTEL, strategy maps
+    files:
+      - app/api/objectives/route.ts
+      - app/api/goals/route.ts
+      - app/api/strategic-actions/route.ts
+      - app/dashboard/strategy/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/objectives
+        description: List strategic objectives
+        auth_required: true
+        response_schema:
+          "200": Objective[]
+      - method: GET
+        path: /api/goals
+        description: List goals
+        auth_required: true
+        response_schema:
+          "200": Goal[]
+      - method: GET
+        path: /api/strategic-actions
+        description: List strategic actions
+        auth_required: true
+        response_schema:
+          "200": StrategicAction[]
+
+  - name: CAPA Management
+    description: Corrective and Preventive Actions tracking with action items
+    files:
+      - app/api/capas/route.ts
+      - app/api/capas/[id]/route.ts
+      - app/dashboard/capas/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/capas
+        description: List CAPAs
+        auth_required: true
+        response_schema:
+          "200": CAPA[]
+      - method: POST
+        path: /api/capas
+        description: Create CAPA
+        auth_required: true
+        response_schema:
+          "200": CAPA
+
+  - name: Supplier Management
+    description: Supplier data, contacts, evaluations, audits, contracts
+    files:
+      - app/api/suppliers/route.ts
+      - app/api/suppliers/[id]/route.ts
+      - app/dashboard/suppliers/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/suppliers
+        description: List suppliers
+        auth_required: true
+        response_schema:
+          "200": Supplier[]
+      - method: POST
+        path: /api/suppliers
+        description: Create supplier
+        auth_required: true
+        response_schema:
+          "200": Supplier
+
+  - name: OHS Management
+    description: Occupational Health and Safety - accidents, near-misses, PPE, emergency plans
+    files:
+      - app/api/ohs/accidents/route.ts
+      - app/api/ohs/risks/route.ts
+      - app/api/ohs/ppe/stock/route.ts
+      - app/dashboard/ohs/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/ohs/accidents
+        description: List accidents
+        auth_required: true
+        response_schema:
+          "200": Accident[]
+      - method: POST
+        path: /api/ohs/accidents
+        description: Report accident
+        auth_required: true
+        response_schema:
+          "200": Accident
+
+  - name: Meetings & Committees
+    description: Meeting scheduling, participants, action items, committee management
+    files:
+      - app/api/meetings/route.ts
+      - app/api/committees/route.ts
+      - app/dashboard/meetings/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/meetings
+        description: List meetings
+        auth_required: true
+        response_schema:
+          "200": Meeting[]
+      - method: POST
+        path: /api/meetings
+        description: Create meeting
+        auth_required: true
+        response_schema:
+          "200": Meeting
+
+  - name: Innovation Management
+    description: Idea submissions, voting, projects, milestones, kanban
+    files:
+      - app/api/innovation/ideas/route.ts
+      - app/api/innovation/projects/route.ts
+      - app/dashboard/innovation/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/innovation/ideas
+        description: List innovation ideas
+        auth_required: true
+        response_schema:
+          "200": Idea[]
+      - method: POST
+        path: /api/innovation/ideas
+        description: Submit idea
+        auth_required: true
+        response_schema:
+          "200": Idea
+
+  - name: Dashboard & Notifications
+    description: Main dashboard stats, notification center, audit logs
+    files:
+      - app/api/dashboard/stats/route.ts
+      - app/api/notifications/route.ts
+      - app/dashboard/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/dashboard/stats
+        description: Get dashboard statistics
+        auth_required: true
+        response_schema:
+          "200": DashboardStats
+      - method: GET
+        path: /api/notifications
+        description: List notifications
+        auth_required: true
+        response_schema:
+          "200": Notification[]
+
+known_limitations:
+  - issue: No rate limiting on API endpoints
+    location: app/api/
+    impact: Potential abuse of API endpoints
+  - issue: Selective middleware protection - only 5 route patterns protected
+    location: middleware.ts
+    impact: Other routes rely on per-route session checks
+  - issue: prisma db push --accept-data-loss in postinstall
+    location: package.json
+    impact: Potential data loss on deployments
+  - issue: No unified error handling middleware
+    location: app/api/
+    impact: Inconsistent error response formats across endpoints
+  - issue: No API versioning
+    location: app/api/
+    impact: Breaking changes affect all clients immediately

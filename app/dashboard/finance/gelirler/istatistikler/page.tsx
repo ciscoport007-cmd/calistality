@@ -7,11 +7,15 @@ import { RefreshCw, TrendingUp, TrendingDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   LineChart, Line, BarChart, Bar, RadarChart, Radar, PolarGrid,
   PolarAngleAxis, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  Legend,
+  Legend, Cell,
 } from 'recharts';
+import { useFinanceFilters } from '@/hooks/use-finance-filters';
+import { FinanceFilterBar } from '@/components/finance/filter-bar';
+import { downloadCSV } from '@/lib/csv-export';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,7 +45,7 @@ interface KapakData { reportDate: string; statistics: Statistics | null }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const fmt0 = (n: number) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(n);
+const fmt0   = (n: number) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(n);
 const fmtEUR = (n: number) => n === 0 ? '—' : `${fmt0(n)} €`;
 const fmtPct = (n: number, sign = false) => n === 0 ? '—' : `${sign && n > 0 ? '+' : ''}${n.toFixed(1)}%`;
 const varPct = (a: number, b: number) => b > 0 ? ((a - b) / b) * 100 : 0;
@@ -49,21 +53,96 @@ const shortDate = (d: string) => format(new Date(d), 'd MMM', { locale: tr });
 const TOOLTIP_STYLE = { fontSize: 11, borderRadius: 8, border: '1px solid #e5e7eb' };
 const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
+// ─── Heatmap ──────────────────────────────────────────────────────────────────
+
+function OccupancyHeatmap({ trend }: { trend: TrendPoint[] }) {
+  const occMap = new Map(trend.map((d) => [d.date, d.occupancyToday]));
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const days = Array.from({ length: daysInMonth }, (_, i) => {
+    const date = new Date(year, month, i + 1);
+    const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`;
+    return { day: i + 1, dateStr, occ: occMap.get(dateStr) ?? null };
+  });
+
+  const firstDow = new Date(year, month, 1).getDay();
+  const firstMon = (firstDow + 6) % 7; // Mon=0
+
+  const getColor = (occ: number | null) => {
+    if (occ === null) return '#f3f4f6';
+    if (occ >= 90) return '#15803d';
+    if (occ >= 80) return '#16a34a';
+    if (occ >= 70) return '#4ade80';
+    if (occ >= 60) return '#fbbf24';
+    if (occ >= 50) return '#f97316';
+    return '#dc2626';
+  };
+  const getTextColor = (occ: number | null) => (occ !== null && occ >= 60 ? 'white' : '#374151');
+
+  return (
+    <div>
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'].map((d) => (
+          <div key={d} className="text-center text-[9px] font-medium text-muted-foreground">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {Array.from({ length: firstMon }, (_, i) => <div key={`e-${i}`} />)}
+        {days.map(({ day, dateStr, occ }) => (
+          <div key={dateStr}
+            className="aspect-square rounded flex items-center justify-center text-[9px] font-medium cursor-default select-none"
+            style={{ backgroundColor: getColor(occ), color: getTextColor(occ) }}
+            title={occ !== null ? `${dateStr}: ${occ.toFixed(1)}%` : 'Veri yok'}>
+            {day}
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 mt-3 flex-wrap">
+        {[
+          { color: '#15803d', label: '90%+' },
+          { color: '#16a34a', label: '80-89%' },
+          { color: '#4ade80', label: '70-79%' },
+          { color: '#fbbf24', label: '60-69%' },
+          { color: '#f97316', label: '50-59%' },
+          { color: '#dc2626', label: '<50%'   },
+          { color: '#f3f4f6', label: 'Yok'    },
+        ].map(({ color, label }) => (
+          <div key={label} className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded border border-gray-200" style={{ backgroundColor: color }} />
+            <span className="text-[10px] text-muted-foreground">{label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Stat Row ─────────────────────────────────────────────────────────────────
 
-function StatTableRow({ label, today, mtdActual, mtdBudget, ytdActual, lyToday, lyMTD, isPct = false, isEUR = false }: {
+function StatTableRow({ label, today, mtdActual, mtdBudget, ytdActual, lyToday, lyMTD, isPct = false, isEUR = false, occColor = false }: {
   label: string; today: number; mtdActual: number; mtdBudget: number;
-  ytdActual: number; lyToday: number; lyMTD: number; isPct?: boolean; isEUR?: boolean;
+  ytdActual: number; lyToday: number; lyMTD: number;
+  isPct?: boolean; isEUR?: boolean; occColor?: boolean;
 }) {
-  const fmt = isPct ? (n: number) => fmtPct(n) : isEUR ? (n: number) => fmtEUR(n) : (n: number) => fmt0(n);
+  const fmt = isPct ? fmtPct : isEUR ? fmtEUR : (n: number) => fmt0(n);
   const mtdVar = varPct(mtdActual, mtdBudget);
   const yoyMTD = lyMTD > 0 ? ((mtdActual - lyMTD) / lyMTD) * 100 : 0;
+
+  const occCellColor = (v: number) => {
+    if (!occColor || !isPct) return '';
+    if (v >= 80) return 'text-green-700 font-semibold';
+    if (v >= 70) return 'text-amber-600 font-semibold';
+    return 'text-red-600 font-semibold';
+  };
 
   return (
     <tr className="border-b border-border/40 hover:bg-muted/20">
       <td className="px-3 py-2 text-xs font-medium sticky left-0 bg-inherit min-w-[180px]">{label}</td>
-      <td className="px-3 py-2 text-right text-xs">{fmt(today)}</td>
-      <td className="px-3 py-2 text-right text-xs">{fmt(mtdActual)}</td>
+      <td className={`px-3 py-2 text-right text-xs ${occCellColor(today)}`}>{fmt(today)}</td>
+      <td className={`px-3 py-2 text-right text-xs ${occCellColor(mtdActual)}`}>{fmt(mtdActual)}</td>
       <td className="px-3 py-2 text-right text-xs text-muted-foreground">{fmt(mtdBudget)}</td>
       <td className="px-3 py-2 text-center text-xs">
         {mtdBudget > 0 ? (
@@ -72,7 +151,7 @@ function StatTableRow({ label, today, mtdActual, mtdBudget, ytdActual, lyToday, 
           </Badge>
         ) : <span className="text-muted-foreground">—</span>}
       </td>
-      <td className="px-3 py-2 text-right text-xs">{fmt(ytdActual)}</td>
+      <td className={`px-3 py-2 text-right text-xs ${occCellColor(ytdActual)}`}>{fmt(ytdActual)}</td>
       <td className="px-3 py-2 text-right text-xs text-muted-foreground">{lyToday > 0 ? fmt(lyToday) : '—'}</td>
       <td className="px-3 py-2 text-right text-xs text-muted-foreground">{lyMTD > 0 ? fmt(lyMTD) : '—'}</td>
       <td className="px-3 py-2 text-center text-xs">
@@ -86,12 +165,30 @@ function StatTableRow({ label, today, mtdActual, mtdBudget, ytdActual, lyToday, 
   );
 }
 
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function PageSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1,2,3,4].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+      </div>
+      <Skeleton className="h-56 rounded-xl" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Skeleton className="h-56 rounded-xl" />
+        <Skeleton className="h-56 rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function IstatistiklerPage() {
-  const [kapak, setKapak] = useState<KapakData | null>(null);
-  const [trend, setTrend] = useState<TrendPoint[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { filters, update, days } = useFinanceFilters();
+  const [kapak, setKapak]   = useState<KapakData | null>(null);
+  const [trend, setTrend]   = useState<TrendPoint[]>([]);
+  const [loading, setLoading]   = useState(true);
   const [activeChart, setActiveChart] = useState<'occ' | 'adr'>('occ');
 
   const load = useCallback(async () => {
@@ -99,7 +196,7 @@ export default function IstatistiklerPage() {
     try {
       const [kRes, tRes] = await Promise.all([
         fetch('/api/finance/kapak?latest=true'),
-        fetch('/api/finance/kapak/trend?days=30'),
+        fetch(`/api/finance/kapak/trend?days=${days}`),
       ]);
       const [kJson, tJson] = await Promise.all([kRes.json(), tRes.json()]);
       if (kJson.success) setKapak(kJson.data);
@@ -107,7 +204,7 @@ export default function IstatistiklerPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [days]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -117,8 +214,8 @@ export default function IstatistiklerPage() {
   const occTrend = trend.map((d) => ({
     gun: shortDate(d.date),
     'Bu Yıl MTD': d.occupancyMTD,
-    'Geçen Yıl': d.lyOccupancyToday,
-    'Bütçe': d.occupancyBudget,
+    'Geçen Yıl':  d.lyOccupancyToday,
+    'Bütçe':      d.occupancyBudget,
   }));
 
   const adrTrend = trend.map((d) => ({
@@ -127,24 +224,49 @@ export default function IstatistiklerPage() {
     'Satılan Oda': d.soldRoomToday,
   }));
 
-  const weekdayOcc: Record<number, number[]> = { 0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[] };
-  trend.forEach((d) => {
-    const dow = getDay(new Date(d.date));
-    weekdayOcc[dow].push(d.occupancyToday);
-  });
+  // Weekday radar
+  const weekdayOcc: Record<number, number[]> = { 0:[],1:[],2:[],3:[],4:[],5:[],6:[] };
+  trend.forEach((d) => weekdayOcc[getDay(new Date(d.date))].push(d.occupancyToday));
   const radarData = [1,2,3,4,5,6,0].map((dow, i) => ({
     day: WEEKDAYS[i],
     'Doluluk %': weekdayOcc[dow].length > 0
       ? +(weekdayOcc[dow].reduce((a, b) => a + b, 0) / weekdayOcc[dow].length).toFixed(1) : 0,
   }));
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Yükleniyor...
-      </div>
+  // Monthly RevPAR grouped bar — group trend by month, take last entry per month
+  const monthMap = new Map<string, { month: string; revpar: number; lyRevpar: number }>();
+  trend.forEach((d) => {
+    const m = d.date.slice(0, 7); // 'YYYY-MM'
+    const revpar   = d.adrMTD > 0 && d.occupancyMTD > 0 ? d.adrMTD * (d.occupancyMTD / 100) : 0;
+    const lyRevpar = 0; // LY RevPAR from trend not available — placeholder
+    monthMap.set(m, {
+      month: format(new Date(d.date), 'MMM yy', { locale: tr }),
+      revpar,
+      lyRevpar,
+    });
+  });
+  const monthlyRevpar = Array.from(monthMap.values());
+
+  // CSV export
+  const handleExport = () => {
+    if (!stat) return;
+    const revpar   = stat.adrMTD > 0 && stat.occupancyMTD > 0 ? stat.adrMTD * (stat.occupancyMTD / 100) : 0;
+    const lyRevpar = stat.lyAdrMTD > 0 && stat.lyOccupancyMTD > 0 ? stat.lyAdrMTD * (stat.lyOccupancyMTD / 100) : 0;
+    downloadCSV(`istatistikler-${latestDate || 'export'}.csv`,
+      ['Metrik', 'Bugün', 'MTD', 'MTD Bütçe', 'YTD'],
+      [
+        ['Müsait Oda', stat.availRoomToday, stat.availRoomMTD, stat.availRoomBudget, stat.availRoomYTD],
+        ['Satılan Oda', stat.soldRoomToday, stat.soldRoomMTD, stat.soldRoomBudget, stat.soldRoomYTD],
+        ['Ücretsiz Oda', stat.compRoomToday, stat.compRoomMTD, 0, 0],
+        ['Doluluk %', `${stat.occupancyToday.toFixed(1)}%`, `${stat.occupancyMTD.toFixed(1)}%`, `${stat.occupancyBudget.toFixed(1)}%`, `${stat.occupancyYTD.toFixed(1)}%`],
+        ['ADR (€)', stat.adrToday, stat.adrMTD, stat.adrBudget, stat.adrYTD],
+        ['RevPAR (€)', revpar.toFixed(2), revpar.toFixed(2), 0, 0],
+        ['PAX', stat.paxToday, stat.paxMTD, stat.paxBudget, stat.paxYTD],
+      ]
     );
-  }
+  };
+
+  if (loading) return <PageSkeleton />;
 
   if (!stat) {
     return (
@@ -156,27 +278,36 @@ export default function IstatistiklerPage() {
   }
 
   const revpar   = stat.adrMTD    > 0 && stat.occupancyMTD   > 0 ? stat.adrMTD    * (stat.occupancyMTD   / 100) : 0;
-  const lyRevpar = stat.lyAdrMTD > 0 && stat.lyOccupancyMTD > 0 ? stat.lyAdrMTD * (stat.lyOccupancyMTD / 100) : 0;
+  const lyRevpar = stat.lyAdrMTD  > 0 && stat.lyOccupancyMTD > 0 ? stat.lyAdrMTD  * (stat.lyOccupancyMTD / 100) : 0;
 
   return (
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold">İstatistikler</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Son veri: {latestDate}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4 mr-1" />Yenile</Button>
+        <div className="flex flex-col items-end gap-2">
+          <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4 mr-1" />Yenile</Button>
+          <FinanceFilterBar
+            dateRange={filters.dateRange}
+            currency={filters.currency}
+            onDateChange={(r) => update({ dateRange: r })}
+            onCurrencyChange={(c) => update({ currency: c })}
+            onExport={handleExport}
+          />
+        </div>
       </div>
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Doluluk MTD', value: fmtPct(stat.occupancyMTD), sub: `Bütçe: ${fmtPct(stat.occupancyBudget)}`, ly: `LY: ${fmtPct(stat.lyOccupancyMTD)}`, up: stat.occupancyMTD >= stat.lyOccupancyMTD, color: '#7c3aed' },
-          { label: 'ADR MTD',     value: fmtEUR(stat.adrMTD),       sub: `Bütçe: ${fmtEUR(stat.adrBudget)}`,       ly: `LY: ${fmtEUR(stat.lyAdrMTD)}`,       up: stat.adrMTD >= stat.lyAdrMTD,       color: '#0891b2' },
-          { label: 'RevPAR MTD',  value: fmtEUR(revpar),            sub: `Occ × ADR`,                               ly: `LY: ${fmtEUR(lyRevpar)}`,             up: revpar >= lyRevpar,                  color: '#0f766e' },
-          { label: 'PAX MTD',     value: fmt0(stat.paxMTD),         sub: `Bütçe: ${fmt0(stat.paxBudget)}`,          ly: `LY: ${fmt0(stat.lyPaxMTD)}`,          up: stat.paxMTD >= stat.lyPaxMTD,       color: '#db2777' },
+          { label: 'ADR MTD',     value: fmtEUR(stat.adrMTD),       sub: `Bütçe: ${fmtEUR(stat.adrBudget)}`,       ly: `LY: ${fmtEUR(stat.lyAdrMTD)}`,       up: stat.adrMTD >= stat.lyAdrMTD,            color: '#0891b2' },
+          { label: 'RevPAR MTD',  value: fmtEUR(revpar),            sub: 'ADR × Occ%',                              ly: `LY: ${fmtEUR(lyRevpar)}`,             up: revpar >= lyRevpar,                      color: '#0f766e' },
+          { label: 'PAX MTD',     value: fmt0(stat.paxMTD),         sub: `Bütçe: ${fmt0(stat.paxBudget)}`,          ly: `LY: ${fmt0(stat.lyPaxMTD)}`,          up: stat.paxMTD >= stat.lyPaxMTD,            color: '#db2777' },
         ].map((m) => (
           <Card key={m.label} className="border-l-4" style={{ borderLeftColor: m.color }}>
             <CardContent className="pt-4 pb-4">
@@ -217,8 +348,9 @@ export default function IstatistiklerPage() {
                 <StatTableRow label="Müsait Oda"    today={stat.availRoomToday}    mtdActual={stat.availRoomMTD}    mtdBudget={stat.availRoomBudget}    ytdActual={stat.availRoomYTD}    lyToday={0}                   lyMTD={0} />
                 <StatTableRow label="Satılan Oda"   today={stat.soldRoomToday}     mtdActual={stat.soldRoomMTD}     mtdBudget={stat.soldRoomBudget}     ytdActual={stat.soldRoomYTD}     lyToday={stat.lySoldRoomToday} lyMTD={stat.lySoldRoomMTD} />
                 <StatTableRow label="Ücretsiz Oda"  today={stat.compRoomToday}     mtdActual={stat.compRoomMTD}     mtdBudget={0}                       ytdActual={0}                    lyToday={0}                   lyMTD={0} />
-                <StatTableRow label="Doluluk %"     today={stat.occupancyToday}    mtdActual={stat.occupancyMTD}    mtdBudget={stat.occupancyBudget}    ytdActual={stat.occupancyYTD}    lyToday={stat.lyOccupancyToday} lyMTD={stat.lyOccupancyMTD} isPct />
+                <StatTableRow label="Doluluk %"     today={stat.occupancyToday}    mtdActual={stat.occupancyMTD}    mtdBudget={stat.occupancyBudget}    ytdActual={stat.occupancyYTD}    lyToday={stat.lyOccupancyToday} lyMTD={stat.lyOccupancyMTD} isPct occColor />
                 <StatTableRow label="ADR (€)"       today={stat.adrToday}          mtdActual={stat.adrMTD}          mtdBudget={stat.adrBudget}          ytdActual={stat.adrYTD}          lyToday={stat.lyAdrToday}      lyMTD={stat.lyAdrMTD} isEUR />
+                <StatTableRow label="RevPAR (€)"    today={stat.adrToday * (stat.occupancyToday/100)} mtdActual={revpar} mtdBudget={0} ytdActual={0} lyToday={0} lyMTD={lyRevpar} isEUR />
                 <StatTableRow label="Ort. Satış F." today={stat.avgSalesRateToday} mtdActual={stat.avgSalesRateMTD} mtdBudget={stat.avgSalesRateBudget} ytdActual={stat.avgSalesRateYTD} lyToday={0}                   lyMTD={0} isEUR />
                 <StatTableRow label="PAX"           today={stat.paxToday}          mtdActual={stat.paxMTD}          mtdBudget={stat.paxBudget}          ytdActual={stat.paxYTD}          lyToday={stat.lyPaxToday}      lyMTD={stat.lyPaxMTD} />
                 <StatTableRow label="OoO Oda"       today={stat.outOfOrderToday}   mtdActual={stat.outOfOrderMTD}   mtdBudget={0}                       ytdActual={0}                    lyToday={0}                   lyMTD={0} />
@@ -228,11 +360,11 @@ export default function IstatistiklerPage() {
         </CardContent>
       </Card>
 
-      {/* Charts */}
+      {/* Charts row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2 flex-row items-center justify-between">
-            <CardTitle className="text-sm font-semibold">Trend — Son 30 Gün</CardTitle>
+            <CardTitle className="text-sm font-semibold">Trend — Son {days} Gün</CardTitle>
             <div className="flex rounded-lg border overflow-hidden text-xs">
               <button onClick={() => setActiveChart('occ')}
                 className={`px-2 py-1 transition-colors ${activeChart === 'occ' ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}>
@@ -263,12 +395,12 @@ export default function IstatistiklerPage() {
                 <BarChart data={adrTrend} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
                   <XAxis dataKey="gun" tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} />
+                  <YAxis yAxisId="left"  tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} />
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} />
                   <Tooltip contentStyle={TOOLTIP_STYLE} />
                   <Legend wrapperStyle={{ fontSize: 10 }} />
-                  <Bar yAxisId="right" dataKey="Satılan Oda" fill="#e0e7ff" radius={[2,2,0,0]} />
-                  <Line yAxisId="left" type="monotone" dataKey="ADR MTD (€)" stroke="#0891b2" strokeWidth={2.5} dot={false} />
+                  <Bar  yAxisId="right" dataKey="Satılan Oda" fill="#e0e7ff" radius={[2,2,0,0]} />
+                  <Line yAxisId="left"  type="monotone" dataKey="ADR MTD (€)" stroke="#0891b2" strokeWidth={2.5} dot={false} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -296,6 +428,39 @@ export default function IstatistiklerPage() {
         </Card>
       </div>
 
+      {/* Heatmap */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">Doluluk Isı Haritası — {format(new Date(), 'MMMM yyyy', { locale: tr })}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <OccupancyHeatmap trend={trend} />
+        </CardContent>
+      </Card>
+
+      {/* Monthly RevPAR comparison */}
+      {monthlyRevpar.length > 1 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Aylık RevPAR MTD Trendi (€)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={monthlyRevpar} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#374151' }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${fmt0(v)}€`} />
+                <Tooltip formatter={(v: number) => [fmtEUR(v), 'RevPAR']} contentStyle={TOOLTIP_STYLE} />
+                <Bar dataKey="revpar" fill="#0f766e" radius={[3,3,0,0]}
+                  label={{ position: 'top', fontSize: 10, formatter: (v: number) => v > 0 ? fmtEUR(v) : '' }}>
+                  {monthlyRevpar.map((_, i) => <Cell key={i} fill={i === monthlyRevpar.length - 1 ? '#0f766e' : '#99f6e4'} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Performance indicators */}
       <Card>
         <CardHeader className="pb-2">
@@ -304,12 +469,12 @@ export default function IstatistiklerPage() {
         <CardContent>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              { label: 'ADR YoY Büyüme',        value: fmtPct(varPct(stat.adrMTD, stat.lyAdrMTD), true),     good: stat.adrMTD >= stat.lyAdrMTD },
-              { label: 'RevPAR YoY Büyüme',     value: fmtPct(varPct(revpar, lyRevpar), true),               good: revpar >= lyRevpar },
-              { label: 'Doluluk vs Bütçe (pp)', value: `${(stat.occupancyMTD - stat.occupancyBudget).toFixed(1)} pp`, good: stat.occupancyMTD >= stat.occupancyBudget },
-              { label: 'Ort. Satış Fiyatı MTD', value: fmtEUR(stat.avgSalesRateMTD),                         good: stat.avgSalesRateMTD >= stat.avgSalesRateBudget },
+              { label: 'ADR YoY Büyüme',          value: fmtPct(varPct(stat.adrMTD, stat.lyAdrMTD), true),         good: stat.adrMTD >= stat.lyAdrMTD },
+              { label: 'RevPAR YoY Büyüme',        value: fmtPct(varPct(revpar, lyRevpar), true),                   good: revpar >= lyRevpar },
+              { label: 'Doluluk vs Bütçe (pp)',    value: `${(stat.occupancyMTD - stat.occupancyBudget).toFixed(1)} pp`, good: stat.occupancyMTD >= stat.occupancyBudget },
+              { label: 'Ort. Satış Fiyatı MTD',   value: fmtEUR(stat.avgSalesRateMTD),                             good: stat.avgSalesRateMTD >= stat.avgSalesRateBudget },
               { label: 'Bütçe Gerçekleşme (Occ)', value: stat.occupancyBudget > 0 ? `${((stat.occupancyMTD / stat.occupancyBudget) * 100).toFixed(0)}%` : '—', good: stat.occupancyMTD >= stat.occupancyBudget },
-              { label: 'Doluluk YTD',            value: fmtPct(stat.occupancyYTD),                            good: stat.occupancyYTD >= stat.lyOccupancyYTD },
+              { label: 'Doluluk YTD',              value: fmtPct(stat.occupancyYTD),                                good: stat.occupancyYTD >= stat.lyOccupancyYTD },
             ].map((m) => (
               <div key={m.label} className="flex flex-col gap-0.5">
                 <p className="text-xs text-muted-foreground">{m.label}</p>

@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "post api signup user registration",
+    "description": "Test the user registration endpoint POST /api/signup with valid and invalid data to ensure users can be created successfully and validation errors are handled properly."
+  },
+  {
+    "id": "TC002",
+    "title": "post api auth signin user login",
+    "description": "Test the user login endpoint POST /api/auth/signin with valid and invalid credentials to verify successful authentication and proper handling of unauthorized access."
+  },
+  {
+    "id": "TC003",
+    "title": "post api documents create new document",
+    "description": "Test the document creation endpoint POST /api/documents with valid authorization and required fields to ensure documents are created, and test with missing fields to verify validation errors."
+  },
+  {
+    "id": "TC004",
+    "title": "post api documents id review send document for review",
+    "description": "Test the document review endpoint POST /api/documents/{id}/review with valid authorization to confirm document status changes to 'in review' and proper response is returned."
+  },
+  {
+    "id": "TC005",
+    "title": "post api documents id approve approve document",
+    "description": "Test the document approval endpoint POST /api/documents/{id}/approve with valid authorization to confirm document status changes to 'published' and handle invalid state errors appropriately."
+  },
+  {
+    "id": "TC006",
+    "title": "get api documents list all documents",
+    "description": "Test the document listing endpoint GET /api/documents with valid authorization to retrieve all documents and verify the response structure."
+  },
+  {
+    "id": "TC007",
+    "title": "get api documents id get document detail",
+    "description": "Test the document detail endpoint GET /api/documents/{id} with valid authorization for existing and non-existing document IDs to verify correct document retrieval and 404 handling."
+  },
+  {
+    "id": "TC008",
+    "title": "post api users create user",
+    "description": "Test the user creation endpoint POST /api/users with admin authorization to ensure users can be created and unauthorized access is properly restricted."
+  },
+  {
+    "id": "TC009",
+    "title": "get api users list all users",
+    "description": "Test the user listing endpoint GET /api/users with valid authorization to retrieve all users and verify the response structure."
+  },
+  {
+    "id": "TC010",
+    "title": "get api roles list roles",
+    "description": "Test the roles listing endpoint GET /api/roles with valid authorization to retrieve all roles and verify the response structure."
+  }
+]

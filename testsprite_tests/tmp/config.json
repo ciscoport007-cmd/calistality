@@ -1,0 +1,21 @@
+{
+  "status": "commited",
+  "type": "backend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "backendAuthType": "basic token",
+  "backendUsername": "john@doe.com ",
+  "backendPassword": "johndoe123",
+  "executionArgs": {
+    "projectName": "nextjs_space",
+    "projectPath": "C:\\Users\\Cinema\\Desktop\\Calistality\\nextjs_space",
+    "testIds": [],
+    "additionalInstruction": "",
+    "serverMode": "production",
+    "envs": {
+      "API_KEY": "sk-user-Asv_Clb2HpA4NcFNJ5qrQqAxQrtLg8-i2obg5QNFtbFJTv7Rn7SGvn7LBblT_R23h-oF3WMcp8Uv1tXiaHkndLedcus9fScSYdfmmv4EbsVGAivLnMw_YrCmO4o_wavCxvs"
+    }
+  },
+  "serverPort": 30823,
+  "proxy": "http://0f04a8c7-309f-43f9-8f55-a3889896cc9c:npMk2gWXLfb5hX9Vyii8ewgbKoLkE4gZ@tun.testsprite.com:8080"
+}

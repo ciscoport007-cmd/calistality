@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CALISTALITY – Entegre Kalite Yönetim Platformu</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --blue:   #2563eb; --blue-l: #eff6ff; --blue-d: #1e3a8a;
+  --green:  #16a34a; --green-l:#f0fdf4;
+  --orange: #ea580c; --orange-l:#fff7ed;
+  --purple: #7c3aed; --purple-l:#f5f3ff;
+  --red:    #dc2626; --red-l:  #fef2f2;
+  --teal:   #0d9488; --teal-l: #f0fdfa;
+  --indigo: #4f46e5; --indigo-l:#eef2ff;
+  --pink:   #db2777; --pink-l: #fdf2f8;
+  --yellow: #ca8a04; --yellow-l:#fefce8;
+  --cyan:   #0891b2; --cyan-l: #ecfeff;
+  --lime:   #65a30d; --lime-l: #f7fee7;
+  --slate:  #475569;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background: #0a0f1e;
+  color: #1e293b;
+  overflow-x: hidden;
+}
+
+/* ─── SLIDE CONTAINER ─── */
+.slide {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 60px 40px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ─── NAV ─── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0;
+  z-index: 1000;
+  background: rgba(10,15,30,0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 0 48px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 56px;
+}
+nav .logo {
+  font-size: 15px; font-weight: 800; color: white;
+  letter-spacing: -0.5px;
+  display: flex; align-items: center; gap: 8px;
+}
+nav .logo-dot { width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; }
+nav .nav-links {
+  display: flex; gap: 4px;
+}
+nav .nav-links a {
+  color: rgba(255,255,255,0.55); font-size: 11.5px; font-weight: 500;
+  text-decoration: none; padding: 5px 12px; border-radius: 6px;
+  transition: all .2s;
+  white-space: nowrap;
+}
+nav .nav-links a:hover { color: white; background: rgba(255,255,255,0.08); }
+
+/* ─── SLIDE 1: COVER ─── */
+#s1 {
+  background: linear-gradient(135deg, #0a0f1e 0%, #0f1f4a 40%, #0d2561 70%, #091840 100%);
+  min-height: 100vh;
+}
+.cover-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+}
+.orb1 { width: 600px; height: 600px; background: rgba(37,99,235,0.25); top: -200px; right: -150px; }
+.orb2 { width: 400px; height: 400px; background: rgba(124,58,237,0.18); bottom: -100px; left: -80px; }
+.orb3 { width: 300px; height: 300px; background: rgba(14,165,233,0.12); top: 50%; left: 30%; }
+
+.cover-inner {
+  position: relative; z-index: 2;
+  text-align: center; max-width: 820px;
+}
+.cover-badge-top {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(59,130,246,0.15);
+  border: 1px solid rgba(59,130,246,0.35);
+  color: #93c5fd; font-size: 11px; font-weight: 600;
+  padding: 6px 16px; border-radius: 30px;
+  letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 28px;
+}
+.cover-badge-top .pulse {
+  width: 6px; height: 6px; background: #3b82f6; border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .5; transform: scale(1.4); }
+}
+.cover-title {
+  font-size: 80px; font-weight: 900;
+  color: white; letter-spacing: -4px;
+  line-height: 1; margin-bottom: 8px;
+  background: linear-gradient(135deg, #fff 40%, #93c5fd 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.cover-sub {
+  font-size: 20px; font-weight: 400;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 24px; letter-spacing: 0.5px;
+}
+.cover-desc {
+  font-size: 15px; color: rgba(255,255,255,0.5);
+  max-width: 580px; margin: 0 auto 48px; line-height: 1.8;
+}
+
+.cover-stats {
+  display: flex; justify-content: center; gap: 20px;
+  margin-bottom: 48px;
+}
+.cstat {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px; padding: 20px 28px;
+  text-align: center; backdrop-filter: blur(8px);
+  min-width: 120px;
+}
+.cstat .num {
+  font-size: 38px; font-weight: 900; color: white;
+  letter-spacing: -2px; display: block;
+}
+.cstat .lbl { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 3px; }
+
+.cover-chips {
+  display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+}
+.chip {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.7);
+  font-size: 12px; font-weight: 500;
+  padding: 7px 18px; border-radius: 30px;
+}
+
+/* ─── SECTION SLIDES ─── */
+.section-slide {
+  background: #f1f5f9;
+  align-items: stretch;
+  padding: 80px 72px 60px;
+}
+.section-slide .slide-inner {
+  width: 100%; max-width: 1200px; margin: 0 auto;
+}
+
+/* ─── SLIDE HEADER ─── */
+.sh {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 40px;
+}
+.sh-icon {
+  width: 52px; height: 52px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.sh-icon svg { width: 26px; height: 26px; }
+.sh h2 { font-size: 28px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+.sh p  { font-size: 13px; color: #64748b; margin-top: 2px; }
+.sh-line {
+  flex: 1; height: 1px; background: linear-gradient(90deg, #e2e8f0, transparent);
+}
+
+/* ─── DARK SECTION ─── */
+.dark-slide {
+  background: linear-gradient(135deg, #0f172a, #1e1b4b);
+  color: white;
+}
+.dark-slide .sh h2 { color: white; }
+.dark-slide .sh p  { color: rgba(255,255,255,0.5); }
+.dark-slide .sh-line { background: linear-gradient(90deg, rgba(255,255,255,0.15), transparent); }
+
+/* ─── MODULE CARDS ─── */
+.mgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+.mgrid-3 { grid-template-columns: repeat(3, 1fr); }
+.mgrid-2 { grid-template-columns: repeat(2, 1fr); }
+
+.mcard {
+  background: white;
+  border: 1px solid #e8ecf0;
+  border-radius: 18px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  transition: transform .2s, box-shadow .2s;
+}
+.mcard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.1);
+}
+.mcard-accent {
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  border-radius: 18px 18px 0 0;
+}
+.mcard-head {
+  display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px;
+}
+.mcard-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.mcard-icon svg { width: 22px; height: 22px; }
+.mcard-title { font-size: 14.5px; font-weight: 700; color: #0f172a; margin-bottom: 2px; }
+.mcard-sub { font-size: 11px; color: #94a3b8; font-weight: 400; }
+.mcard-features {
+  list-style: none; display: flex; flex-direction: column; gap: 7px;
+  padding-top: 4px; border-top: 1px solid #f1f5f9; margin-top: 4px;
+}
+.mcard-features li {
+  font-size: 12px; color: #475569;
+  display: flex; align-items: flex-start; gap: 8px; line-height: 1.5;
+}
+.mcard-features li .tick {
+  width: 16px; height: 16px; border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 1px;
+  font-size: 9px; font-weight: 700;
+}
+
+/* color helpers */
+.c-blue   { color: var(--blue);   } .bg-blue   { background: var(--blue-l);  }
+.c-green  { color: var(--green);  } .bg-green  { background: var(--green-l); }
+.c-orange { color: var(--orange); } .bg-orange { background: var(--orange-l);}
+.c-purple { color: var(--purple); } .bg-purple { background: var(--purple-l);}
+.c-red    { color: var(--red);    } .bg-red    { background: var(--red-l);   }
+.c-teal   { color: var(--teal);   } .bg-teal   { background: var(--teal-l);  }
+.c-indigo { color: var(--indigo); } .bg-indigo { background: var(--indigo-l);}
+.c-pink   { color: var(--pink);   } .bg-pink   { background: var(--pink-l);  }
+.c-yellow { color: var(--yellow); } .bg-yellow { background: var(--yellow-l);}
+.c-cyan   { color: var(--cyan);   } .bg-cyan   { background: var(--cyan-l);  }
+.c-lime   { color: var(--lime);   } .bg-lime   { background: var(--lime-l);  }
+
+/* ─── TECH GRID ─── */
+.tech-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+}
+.tech-card {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px; padding: 20px 16px; text-align: center;
+  transition: transform .2s;
+}
+.tech-card:hover { transform: translateY(-3px); }
+.tech-icon { font-size: 28px; margin-bottom: 10px; }
+.tech-name { font-size: 13px; font-weight: 700; color: white; }
+.tech-desc { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 3px; }
+
+/* ─── SECURITY / FEATURE LISTS ─── */
+.feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 32px; }
+.feat-box {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px; padding: 24px;
+}
+.feat-box h4 { font-size: 13px; font-weight: 700; color: white; margin-bottom: 14px; }
+.feat-box ul { list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.feat-box ul li {
+  font-size: 12.5px; color: rgba(255,255,255,0.65);
+  display: flex; align-items: center; gap: 10px;
+}
+.feat-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+/* ─── ROLES TABLE ─── */
+.rtable-wrap { overflow: hidden; border-radius: 16px; border: 1px solid #e2e8f0; margin-top: 8px; }
+.rtable { width: 100%; border-collapse: collapse; }
+.rtable th {
+  background: #1e3a8a; color: white;
+  padding: 12px 16px; text-align: left;
+  font-size: 12px; font-weight: 600;
+}
+.rtable td {
+  padding: 11px 16px; font-size: 12px; color: #374151;
+  border-bottom: 1px solid #f1f5f9;
+}
+.rtable tr:last-child td { border-bottom: none; }
+.rtable tr:nth-child(even) td { background: #f8fafc; }
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 12px;
+  font-size: 10px; font-weight: 600;
+}
+.bg-badge-green  { background: #dcfce7; color: #15803d; }
+.bg-badge-blue   { background: #dbeafe; color: #1d4ed8; }
+.bg-badge-orange { background: #fed7aa; color: #c2410c; }
+.bg-badge-purple { background: #ede9fe; color: #6d28d9; }
+.bg-badge-red    { background: #fecaca; color: #b91c1c; }
+.bg-badge-teal   { background: #ccfbf1; color: #0f766e; }
+
+/* ─── COMPLIANCE WALL ─── */
+.compliance-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.comp-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px; padding: 20px; text-align: center;
+}
+.comp-logo { font-size: 30px; margin-bottom: 8px; }
+.comp-name { font-size: 13px; font-weight: 700; color: white; }
+.comp-desc { font-size: 10.5px; color: rgba(255,255,255,0.5); margin-top: 3px; line-height: 1.5; }
+
+/* ─── WORKFLOW STEPS ─── */
+.workflow { display: flex; align-items: center; gap: 0; margin: 32px 0; }
+.wstep {
+  flex: 1; text-align: center; padding: 20px 16px;
+  background: white; border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  position: relative;
+}
+.wstep-num {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; color: white;
+  margin: 0 auto 8px;
+}
+.wstep-title { font-size: 12px; font-weight: 700; color: #0f172a; }
+.wstep-sub   { font-size: 10.5px; color: #64748b; margin-top: 3px; }
+.warrow {
+  width: 32px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #94a3b8; font-size: 18px; z-index: 1;
+}
+
+/* ─── FOOTER ─── */
+.slide-footer {
+  position: absolute; bottom: 20px; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 72px;
+  font-size: 11px; color: rgba(0,0,0,0.25);
+}
+.dark-slide .slide-footer { color: rgba(255,255,255,0.2); }
+
+/* ─── MINI INFO CARDS ─── */
+.info-row { display: flex; gap: 16px; margin-top: 28px; }
+.info-card {
+  flex: 1; background: white; border: 1px solid #e8ecf0;
+  border-radius: 14px; padding: 18px 20px;
+  display: flex; align-items: flex-start; gap: 14px;
+}
+.info-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.info-icon svg { width: 18px; height: 18px; }
+.info-title { font-size: 12.5px; font-weight: 700; color: #0f172a; }
+.info-desc  { font-size: 11px; color: #64748b; margin-top: 3px; line-height: 1.5; }
+
+/* ─── BIG NUMBER ROW ─── */
+.bnum-row { display: flex; gap: 20px; margin-top: 32px; }
+.bnum-card {
+  flex: 1; background: white; border: 1px solid #e8ecf0;
+  border-radius: 18px; padding: 24px;
+  text-align: center; transition: transform .2s;
+}
+.bnum-card:hover { transform: translateY(-3px); }
+.bnum-val { font-size: 42px; font-weight: 900; letter-spacing: -2px; }
+.bnum-label { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+/* ─── HERO INTRO CARD ─── */
+.hero-intro {
+  background: linear-gradient(135deg, #eff6ff, #f0f9ff);
+  border: 1px solid #bfdbfe; border-radius: 20px;
+  padding: 28px 32px; display: flex; gap: 24px;
+  align-items: flex-start; margin-bottom: 36px;
+}
+.hero-intro-icon {
+  width: 56px; height: 56px; background: #2563eb;
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.hero-intro-icon svg { width: 28px; height: 28px; stroke: white; fill: none; }
+.hero-intro h3 { font-size: 17px; font-weight: 800; color: #1e3a8a; margin-bottom: 7px; }
+.hero-intro p  { font-size: 13px; color: #1e40af; line-height: 1.8; }
+
+/* ─── SCROLL INDICATOR ─── */
+.scroll-hint {
+  position: absolute; bottom: 50px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  color: rgba(255,255,255,0.35); font-size: 11px;
+  animation: fadeInUp 2s ease 1.5s both;
+}
+.scroll-arrow { animation: bounce 2s infinite; font-size: 20px; }
+@keyframes bounce {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(6px); }
+}
+@keyframes fadeInUp {
+  from { opacity:0; transform: translateX(-50%) translateY(16px); }
+  to   { opacity:1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ─── RESPONSIVE PRINT ─── */
+@media print {
+  nav { display: none; }
+  .slide { min-height: auto; page-break-after: always; }
+  body { background: white; }
+}
+</style>
+</head>
+<body>
+
+<!-- ─────────────────── NAV ─────────────────── -->
+<nav>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    CALISTALITY
+  </div>
+  <div class="nav-links">
+    <a href="#s1">Anasayfa</a>
+    <a href="#s2">Platform</a>
+    <a href="#s3">Kalite</a>
+    <a href="#s4">HACCP & İSG</a>
+    <a href="#s5">Strateji & HR</a>
+    <a href="#s6">İnovasyon</a>
+    <a href="#s7">Yönetim</a>
+    <a href="#s8">Teknoloji</a>
+    <a href="#s9">Standartlar</a>
+    <a href="#s10">Roller</a>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 1 — KAPAK
+═══════════════════════════════════════════════════ -->
+<section class="slide" id="s1" style="padding-top:80px">
+  <div class="cover-orb orb1"></div>
+  <div class="cover-orb orb2"></div>
+  <div class="cover-orb orb3"></div>
+
+  <div class="cover-inner">
+    <div class="cover-badge-top">
+      <div class="pulse"></div>
+      Entegre Kurumsal Yönetim Platformu
+    </div>
+
+    <h1 class="cover-title">CALISTALITY</h1>
+    <p class="cover-sub">Kalite · Güvenlik · Strateji · Uyum</p>
+
+    <p class="cover-desc">
+      Doküman yönetiminden gıda güvenliğine, iş sağlığından stratejik planlamaya —
+      kurumunuzun tüm kalite ve uyum süreçlerini tek bir akıllı platformda yönetin.
+    </p>
+
+    <div class="cover-stats">
+      <div class="cstat"><span class="num">19</span><span class="lbl">Ana Modül</span></div>
+      <div class="cstat"><span class="num">90+</span><span class="lbl">API Endpoint</span></div>
+      <div class="cstat"><span class="num">150+</span><span class="lbl">Veri Modeli</span></div>
+      <div class="cstat"><span class="num">100%</span><span class="lbl">Web Tabanlı</span></div>
+    </div>
+
+    <div class="cover-chips">
+      <span class="chip">Next.js 14</span>
+      <span class="chip">TypeScript</span>
+      <span class="chip">PostgreSQL</span>
+      <span class="chip">AWS S3</span>
+      <span class="chip">REST API</span>
+      <span class="chip">PDF & XLSX Export</span>
+      <span class="chip">Bildirim Sistemi</span>
+      <span class="chip">Rol Tabanlı Yetki</span>
+    </div>
+  </div>
+
+  <div class="scroll-hint">
+    <span>Aşağı kaydır</span>
+    <span class="scroll-arrow">↓</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 2 — PLATFORM GENEL BAKIŞ
+═══════════════════════════════════════════════════ -->
+<section class="slide section-slide" id="s2" style="background:#f8fafc; padding-top:100px">
+  <div class="slide-inner" style="max-width:1100px; width:100%">
+
+    <div class="sh">
+      <div class="sh-icon" style="background:#eff6ff">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+        </svg>
+      </div>
+      <div><h2>Platform Genel Bakış</h2><p>CALISTALITY nedir ve ne işe yarar?</p></div>
+      <div class="sh-line"></div>
+    </div>
+
+    <div class="hero-intro">
+      <div class="hero-intro-icon">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      </div>
+      <div>
+        <h3>Kurumsal Kalite & Uyum Yönetimini Tek Platformda Birleştirin</h3>
+        <p>
+          CALISTALITY; doküman yönetimi, kalite güvencesi, gıda güvenliği (HACCP), iş sağlığı ve güvenliği,
+          risk yönetimi, tedarikçi takibi, stratejik planlama, insan kaynakları ve sürdürülebilirlik gibi
+          kurumsal ihtiyaçları tek bir web tabanlı platformda birleştirir. Rol bazlı yetki sistemi, onay iş
+          akışları ve gerçek zamanlı bildirimler ile tüm süreçleri dijitalleştirir.
+        </p>
+      </div>
+    </div>
+
+    <div class="bnum-row">
+      <div class="bnum-card">
+        <div class="bnum-val c-blue">19</div>
+        <div class="bnum-label">Entegre Modül</div>
+      </div>
+      <div class="bnum-card">
+        <div class="bnum-val c-green">90+</div>
+        <div class="bnum-label">REST API Endpoint</div>
+      </div>
+      <div class="bnum-card">
+        <div class="bnum-val c-purple">∞</div>
+        <div class="bnum-label">Sınırsız Kullanıcı</div>
+      </div>
+      <div class="bnum-card">
+        <div class="bnum-val c-orange">7/24</div>
+        <div class="bnum-label">Gerçek Zamanlı Takip</div>
+      </div>
+      <div class="bnum-card">
+        <div class="bnum-val c-teal">PDF</div>
+        <div class="bnum-label">Otomatik Rapor</div>
+      </div>
+    </div>
+
+    <div class="workflow">
+      <div class="wstep">
+        <div class="wstep-num" style="background:#2563eb">1</div>
+        <div class="wstep-title">Giriş & Kayıt</div>
+        <div class="wstep-sub">Yönetici onaylı hesap oluşturma</div>
+      </div>
+      <div class="warrow">›</div>
+      <div class="wstep">
+        <div class="wstep-num" style="background:#7c3aed">2</div>
+        <div class="wstep-title">Rol Atama</div>
+        <div class="wstep-sub">Departman & yetki tanımı</div>
+      </div>
+      <div class="warrow">›</div>
+      <div class="wstep">
+        <div class="wstep-num" style="background:#0d9488">3</div>
+        <div class="wstep-title">Modül Erişimi</div>
+        <div class="wstep-sub">Kişi/departman bazlı erişim</div>
+      </div>
+      <div class="warrow">›</div>
+      <div class="wstep">
+        <div class="wstep-num" style="background:#16a34a">4</div>
+        <div class="wstep-title">Kayıt & Onay</div>
+        <div class="wstep-sub">İş akışları & bildirimler</div>
+      </div>
+      <div class="warrow">›</div>
+      <div class="wstep">
+        <div class="wstep-num" style="background:#ea580c">5</div>
+        <div class="wstep-title">Raporlama</div>
+        <div class="wstep-sub">PDF/XLSX & dashboard</div>
+      </div>
+    </div>
+
+  </div>
+  <div class="slide-footer">
+    <span>CALISTALITY – Entegre Kalite Yönetim Platformu</span>
+    <span>Sayfa 2 / 10</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 3 — KALİTE & UYUM MODÜLLERİ
+═══════════════════════════════════════════════════ -->
+<section class="slide section-slide" id="s3" style="background:#ffffff; padding-top:100px">
+  <div class="slide-inner" style="max-width:1100px; width:100%">
+
+    <div class="sh">
+      <div class="sh-icon" style="background:#eff6ff">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+        </svg>
+      </div>
+      <div><h2>Kalite ve Uyum Modülleri</h2><p>Doküman, şikayet, CAPA, denetim ve risk yönetimi</p></div>
+      <div class="sh-line"></div>
+    </div>
+
+    <div class="mgrid mgrid-3">
+
+      <!-- DOKÜMAN -->
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#2563eb,#3b82f6)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Doküman Yönetimi</div>
+            <div class="mcard-sub">Versiyon kontrolü & onay iş akışları</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-blue" style="color:#2563eb">✓</span> Çok adımlı onay iş akışları</li>
+          <li><span class="tick bg-blue" style="color:#2563eb">✓</span> Versiyon geçmişi ve karşılaştırma</li>
+          <li><span class="tick bg-blue" style="color:#2563eb">✓</span> Okuma onayı (acknowledgment) takibi</li>
+          <li><span class="tick bg-blue" style="color:#2563eb">✓</span> Periyodik gözden geçirme hatırlatmaları</li>
+          <li><span class="tick bg-blue" style="color:#2563eb">✓</span> Klasör bazlı organizasyon & etiket</li>
+          <li><span class="tick bg-blue" style="color:#2563eb">✓</span> Doküman tipi & şablon yönetimi</li>
+        </ul>
+      </div>
+
+      <!-- ŞİKAYET -->
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#ea580c,#f97316)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-orange">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Müşteri / Misafir Şikayetleri</div>
+            <div class="mcard-sub">Şikayet takibi ve çözüm yönetimi</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-orange" style="color:#ea580c">✓</span> Kategorilere göre sınıflandırma</li>
+          <li><span class="tick bg-orange" style="color:#ea580c">✓</span> Çok aşamalı durum takibi</li>
+          <li><span class="tick bg-orange" style="color:#ea580c">✓</span> Sorumlu kişi & departman atama</li>
+          <li><span class="tick bg-orange" style="color:#ea580c">✓</span> Kanıt ve ek dosya yükleme</li>
+          <li><span class="tick bg-orange" style="color:#ea580c">✓</span> Çözüm süresi takibi & SLA</li>
+          <li><span class="tick bg-orange" style="color:#ea580c">✓</span> Yinelenen şikayet analizi</li>
+        </ul>
+      </div>
+
+      <!-- CAPA -->
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#16a34a,#22c55e)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">CAPA / DÖF</div>
+            <div class="mcard-sub">Düzeltici ve önleyici faaliyetler</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-green" style="color:#16a34a">✓</span> Kök neden analizi (RCA)</li>
+          <li><span class="tick bg-green" style="color:#16a34a">✓</span> Düzeltici / önleyici aksiyon planı</li>
+          <li><span class="tick bg-green" style="color:#16a34a">✓</span> Sorumluluk ve termin takibi</li>
+          <li><span class="tick bg-green" style="color:#16a34a">✓</span> Etkinlik doğrulama ve kapama</li>
+          <li><span class="tick bg-green" style="color:#16a34a">✓</span> Şikayet & denetim bulgusu bağlantısı</li>
+          <li><span class="tick bg-green" style="color:#16a34a">✓</span> Önleyici faaliyet yönetimi</li>
+        </ul>
+      </div>
+
+      <!-- DENETİM -->
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#7c3aed,#8b5cf6)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Denetim Yönetimi</div>
+            <div class="mcard-sub">İç ve dış denetim süreçleri</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> Denetim planlaması ve takvim</li>
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> Denetçi ekip ataması</li>
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> Kontrol listesi yönetimi</li>
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> Bulgu ve uygunsuzluk kaydı</li>
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> CAPA'ya otomatik bağlantı</li>
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> Denetim logu ve geçmişi</li>
+        </ul>
+      </div>
+
+      <!-- RİSK -->
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#dc2626,#ef4444)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-red">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Risk Değerlendirmesi</div>
+            <div class="mcard-sub">Risk tanımlama ve azaltma</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> Risk matrisi ve ısı haritası</li>
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> Olasılık × etki değerlendirmesi</li>
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> Risk aksiyon planları & yorumlar</li>
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> Sürekli izleme ve güncelleme</li>
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> Departman bazlı risk görünümü</li>
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> Risk sahibi atama</li>
+        </ul>
+      </div>
+
+      <!-- TEDARİKÇİ -->
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#ca8a04,#eab308)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-yellow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#ca8a04" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Tedarikçi Yönetimi</div>
+            <div class="mcard-sub">Değerlendirme ve onaylama</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-yellow" style="color:#ca8a04">✓</span> Tedarikçi onaylama süreci</li>
+          <li><span class="tick bg-yellow" style="color:#ca8a04">✓</span> Performans değerlendirme kriterleri</li>
+          <li><span class="tick bg-yellow" style="color:#ca8a04">✓</span> Tedarikçi denetim planlaması</li>
+          <li><span class="tick bg-yellow" style="color:#ca8a04">✓</span> Sözleşme ve belge yönetimi</li>
+          <li><span class="tick bg-yellow" style="color:#ca8a04">✓</span> Tedarikçi skor kartı</li>
+          <li><span class="tick bg-yellow" style="color:#ca8a04">✓</span> Kategori bazlı tedarikçi listesi</li>
+        </ul>
+      </div>
+
+    </div>
+
+  </div>
+  <div class="slide-footer">
+    <span>CALISTALITY – Entegre Kalite Yönetim Platformu</span>
+    <span>Sayfa 3 / 10</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 4 — HACCP & İSG
+═══════════════════════════════════════════════════ -->
+<section class="slide section-slide" id="s4" style="background:#f8fafc; padding-top:100px">
+  <div class="slide-inner" style="max-width:1100px; width:100%">
+
+    <div class="sh">
+      <div class="sh-icon" style="background:#f0fdfa">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+      <div><h2>HACCP & İş Sağlığı ve Güvenliği</h2><p>Gıda güvenliği, kaza yönetimi, KKD ve ISG risk kontrolü</p></div>
+      <div class="sh-line"></div>
+    </div>
+
+    <div class="mgrid" style="grid-template-columns: repeat(2,1fr); gap:20px">
+
+      <!-- HACCP -->
+      <div class="mcard" style="grid-column: span 2">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#0d9488,#14b8a6)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-teal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">HACCP & Gıda Güvenliği</div>
+            <div class="mcard-sub">Kritik kontrol noktaları, sıcaklık takibi, haşere kontrolü, üretim ve depo kayıtları</div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(5,1fr); gap:16px; padding-top:12px; border-top:1px solid #f1f5f9">
+          <div>
+            <div style="font-size:11px; font-weight:700; color:#0f172a; margin-bottom:8px">🌡 Sıcaklık Takibi</div>
+            <ul class="mcard-features" style="border:none; padding:0; margin:0">
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Ekipman bazlı ölçüm kaydı</li>
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Min/max limit kontrolü</li>
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Anlık uyarı bildirimleri</li>
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Düzeltici faaliyet kaydı</li>
+            </ul>
+          </div>
+          <div>
+            <div style="font-size:11px; font-weight:700; color:#0f172a; margin-bottom:8px">🐛 Haşere Kontrolü</div>
+            <ul class="mcard-features" style="border:none; padding:0; margin:0">
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> İstasyon bazlı kontrol</li>
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Alınması gereken aksiyon</li>
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Aksiyon durumu takibi</li>
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Aktivite fotoğrafı</li>
+            </ul>
+          </div>
+          <div>
+            <div style="font-size:11px; font-weight:700; color:#0f172a; margin-bottom:8px">🍽 Gıda Numunesi</div>
+            <ul class="mcard-features" style="border:none; padding:0; margin:0">
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Numune kayıt ve takibi</li>
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Saklama süresi hesaplama</li>
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Sonuç & karar kaydı</li>
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Bitiş tarihi uyarısı</li>
+            </ul>
+          </div>
+          <div>
+            <div style="font-size:11px; font-weight:700; color:#0f172a; margin-bottom:8px">🏭 Üretim Kayıtları</div>
+            <ul class="mcard-features" style="border:none; padding:0; margin:0">
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Günlük üretim formu</li>
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Ürün & miktar takibi</li>
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Vardiya & sorumlu kaydı</li>
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Notlar ve ek bilgi</li>
+            </ul>
+          </div>
+          <div>
+            <div style="font-size:11px; font-weight:700; color:#0f172a; margin-bottom:8px">📦 Depo Hareketleri</div>
+            <ul class="mcard-features" style="border:none; padding:0; margin:0">
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Giriş/çıkış hareketi</li>
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Stok miktarı takibi</li>
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Tedarikçi bağlantısı</li>
+              <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Lot / parti numarası</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- İSG -->
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#dc2626,#f87171)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-red">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4.5 12.5l3 3 8-8"/><circle cx="12" cy="12" r="10"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">İş Sağlığı ve Güvenliği (İSG)</div>
+            <div class="mcard-sub">Risk, kaza, ramak kala ve KKD yönetimi</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> İSG risk değerlendirmesi & takibi</li>
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> İş kazası kaydı ve raporu</li>
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> Ramak kala olay bildirimi</li>
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> KKD (Kişisel Koruyucu Donanım) takibi</li>
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> İSG denetim yönetimi</li>
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> Kaza ve önlem bildirim sistemi</li>
+        </ul>
+      </div>
+
+      <!-- EKİPMAN -->
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#0891b2,#06b6d4)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-cyan">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#0891b2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Ekipman Yönetimi</div>
+            <div class="mcard-sub">Bakım, kalibrasyon ve takvim yönetimi</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-cyan" style="color:#0891b2">✓</span> Ekipman kaydı ve envanter</li>
+          <li><span class="tick bg-cyan" style="color:#0891b2">✓</span> Bakım takvimi (takvim görünümü)</li>
+          <li><span class="tick bg-cyan" style="color:#0891b2">✓</span> Kalibrasyon yönetimi & sertifikalar</li>
+          <li><span class="tick bg-cyan" style="color:#0891b2">✓</span> Arıza ve duruş kaydı</li>
+          <li><span class="tick bg-cyan" style="color:#0891b2">✓</span> Ekipman geçmiş raporu</li>
+          <li><span class="tick bg-cyan" style="color:#0891b2">✓</span> Bakım hatırlatma bildirimleri</li>
+        </ul>
+      </div>
+
+    </div>
+
+  </div>
+  <div class="slide-footer">
+    <span>CALISTALITY – Entegre Kalite Yönetim Platformu</span>
+    <span>Sayfa 4 / 10</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 5 — STRATEJİ, İK & EĞİTİM
+═══════════════════════════════════════════════════ -->
+<section class="slide section-slide" id="s5" style="background:#ffffff; padding-top:100px">
+  <div class="slide-inner" style="max-width:1100px; width:100%">
+
+    <div class="sh">
+      <div class="sh-icon" style="background:#f5f3ff">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+      </div>
+      <div><h2>Strateji, İnsan Kaynakları & Eğitim</h2><p>KPI yönetimi, stratejik planlama, toplantılar ve eğitim takibi</p></div>
+      <div class="sh-line"></div>
+    </div>
+
+    <div class="mgrid mgrid-3">
+
+      <!-- STRATEJİK PLANLAMA -->
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#7c3aed,#a78bfa)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Stratejik Planlama</div>
+            <div class="mcard-sub">Strateji, hedefler, SWOT & PESTEL</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> Stratejik hedef tanımlama</li>
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> SWOT analizi modülü</li>
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> PESTEL analizi modülü</li>
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> Strateji haritası ve BSC</li>
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> Hedef-KPI bağlantısı</li>
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> Dönemsel strateji gözden geçirme</li>
+        </ul>
+      </div>
+
+      <!-- KPI -->
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#4f46e5,#6366f1)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-indigo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Ölçüm Yönetimi (KPI)</div>
+            <div class="mcard-sub">Performans göstergesi ve hedef takibi</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-indigo" style="color:#4f46e5">✓</span> KPI tanımlama ve hedef belirleme</li>
+          <li><span class="tick bg-indigo" style="color:#4f46e5">✓</span> Aylık / yıllık ölçüm kaydı</li>
+          <li><span class="tick bg-indigo" style="color:#4f46e5">✓</span> Departman bazlı KPI görünümü</li>
+          <li><span class="tick bg-indigo" style="color:#4f46e5">✓</span> Bireysel performans karnesi</li>
+          <li><span class="tick bg-indigo" style="color:#4f46e5">✓</span> 3 boyutlu performans hesaplama</li>
+          <li><span class="tick bg-indigo" style="color:#4f46e5">✓</span> KPI grafiği ve trend analizi</li>
+        </ul>
+      </div>
+
+      <!-- EĞİTİM -->
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#0891b2,#38bdf8)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-cyan">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#0891b2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Eğitim Yönetimi</div>
+            <div class="mcard-sub">Eğitim planları ve sertifika takibi</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-cyan" style="color:#0891b2">✓</span> Eğitim planı oluşturma</li>
+          <li><span class="tick bg-cyan" style="color:#0891b2">✓</span> Katılımcı takibi ve yoklama</li>
+          <li><span class="tick bg-cyan" style="color:#0891b2">✓</span> Sertifika ve belge yükleme</li>
+          <li><span class="tick bg-cyan" style="color:#0891b2">✓</span> Eğitim süresi ve maliyet kaydı</li>
+          <li><span class="tick bg-cyan" style="color:#0891b2">✓</span> Yetkinlik bazlı eğitim takibi</li>
+          <li><span class="tick bg-cyan" style="color:#0891b2">✓</span> Eğitim hatırlatma bildirimleri</li>
+        </ul>
+      </div>
+
+      <!-- TOPLANTI -->
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#4f46e5,#818cf8)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-indigo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Toplantı Yönetimi</div>
+            <div class="mcard-sub">Planlama, karar ve aksiyon takibi</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-indigo" style="color:#4f46e5">✓</span> Toplantı oluşturma ve davet</li>
+          <li><span class="tick bg-indigo" style="color:#4f46e5">✓</span> Ajanda ve gündem yönetimi</li>
+          <li><span class="tick bg-indigo" style="color:#4f46e5">✓</span> Karar ve aksiyon takibi</li>
+          <li><span class="tick bg-indigo" style="color:#4f46e5">✓</span> Toplantı tutanağı</li>
+          <li><span class="tick bg-indigo" style="color:#4f46e5">✓</span> Katılımcı & devam durumu</li>
+          <li><span class="tick bg-indigo" style="color:#4f46e5">✓</span> Toplantı şablonları</li>
+        </ul>
+      </div>
+
+      <!-- KOMİTE -->
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#db2777,#f472b6)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-pink">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#db2777" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Komite Yönetimi</div>
+            <div class="mcard-sub">Komite ve üye yönetimi</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-pink" style="color:#db2777">✓</span> Komite oluşturma ve üye atama</li>
+          <li><span class="tick bg-pink" style="color:#db2777">✓</span> Komite toplantı yönetimi</li>
+          <li><span class="tick bg-pink" style="color:#db2777">✓</span> Görev ve rol dağılımı</li>
+          <li><span class="tick bg-pink" style="color:#db2777">✓</span> Komite raporları</li>
+          <li><span class="tick bg-pink" style="color:#db2777">✓</span> Üye davet sistemi</li>
+        </ul>
+      </div>
+
+      <!-- LQA -->
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#65a30d,#84cc16)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-lime">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#65a30d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">LQA Kalite Değerlendirme</div>
+            <div class="mcard-sub">Laboratuvar kalite değerlendirmesi</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-lime" style="color:#65a30d">✓</span> LQA form ve şablon yönetimi</li>
+          <li><span class="tick bg-lime" style="color:#65a30d">✓</span> Değerlendirme puanlama sistemi</li>
+          <li><span class="tick bg-lime" style="color:#65a30d">✓</span> Dönemsel LQA raporu</li>
+          <li><span class="tick bg-lime" style="color:#65a30d">✓</span> Kriterler ve ağırlık yönetimi</li>
+          <li><span class="tick bg-lime" style="color:#65a30d">✓</span> Tarihsel karşılaştırma</li>
+        </ul>
+      </div>
+
+    </div>
+
+  </div>
+  <div class="slide-footer">
+    <span>CALISTALITY – Entegre Kalite Yönetim Platformu</span>
+    <span>Sayfa 5 / 10</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 6 — İNOVASYON & SÜRDÜRÜLEBİLİRLİK
+═══════════════════════════════════════════════════ -->
+<section class="slide section-slide" id="s6" style="background:#f8fafc; padding-top:100px">
+  <div class="slide-inner" style="max-width:1100px; width:100%">
+
+    <div class="sh">
+      <div class="sh-icon" style="background:#f0fdf4">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+        </svg>
+      </div>
+      <div><h2>İnovasyon & Sürdürülebilirlik</h2><p>Fikir yönetimi, kanban, enerji ve çevre takibi</p></div>
+      <div class="sh-line"></div>
+    </div>
+
+    <div class="mgrid mgrid-2">
+
+      <!-- İNOVASYON -->
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#f59e0b,#fbbf24)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon" style="background:#fffbeb">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">İnovasyon Yönetimi</div>
+            <div class="mcard-sub">Fikirler, projeler, kanban ve girişimler</div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; padding-top:12px; border-top:1px solid #f1f5f9; margin-top:4px">
+          <ul class="mcard-features" style="border:none; padding:0; margin:0">
+            <li><span class="tick" style="background:#fffbeb; color:#f59e0b">✓</span> Fikir toplama ve oylama</li>
+            <li><span class="tick" style="background:#fffbeb; color:#f59e0b">✓</span> Proje başlatma ve yönetimi</li>
+            <li><span class="tick" style="background:#fffbeb; color:#f59e0b">✓</span> Kanban tablosu</li>
+          </ul>
+          <ul class="mcard-features" style="border:none; padding:0; margin:0">
+            <li><span class="tick" style="background:#fffbeb; color:#f59e0b">✓</span> Girişim takip sistemi</li>
+            <li><span class="tick" style="background:#fffbeb; color:#f59e0b">✓</span> Personel inovasyon katkısı</li>
+            <li><span class="tick" style="background:#fffbeb; color:#f59e0b">✓</span> İnovasyon raporları</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- SÜRDÜRÜLEBİLİRLİK -->
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#16a34a,#4ade80)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Enerji & Çevre Yönetimi</div>
+            <div class="mcard-sub">Enerji, su, atık ve karbon ayak izi takibi</div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; padding-top:12px; border-top:1px solid #f1f5f9; margin-top:4px">
+          <ul class="mcard-features" style="border:none; padding:0; margin:0">
+            <li><span class="tick bg-green" style="color:#16a34a">✓</span> Enerji tüketim takibi</li>
+            <li><span class="tick bg-green" style="color:#16a34a">✓</span> Su kullanımı kaydı</li>
+            <li><span class="tick bg-green" style="color:#16a34a">✓</span> Atık yönetimi ve takip</li>
+          </ul>
+          <ul class="mcard-features" style="border:none; padding:0; margin:0">
+            <li><span class="tick bg-green" style="color:#16a34a">✓</span> Karbon ayak izi hesaplama</li>
+            <li><span class="tick bg-green" style="color:#16a34a">✓</span> Çevre hedefleri izleme</li>
+            <li><span class="tick bg-green" style="color:#16a34a">✓</span> Dönemsel çevre raporu</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Operasyonel Özet -->
+    <div style="margin-top:28px">
+      <div style="font-size:14px; font-weight:700; color:#0f172a; margin-bottom:16px">Tüm Modüllerde Ortak Özellikler</div>
+      <div class="info-row">
+        <div class="info-card">
+          <div class="info-icon" style="background:#eff6ff">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/>
+              <line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/>
+            </svg>
+          </div>
+          <div><div class="info-title">Bildirim Sistemi</div><div class="info-desc">Anlık uygulama içi bildirimler ve e-posta uyarıları</div></div>
+        </div>
+        <div class="info-card">
+          <div class="info-icon" style="background:#f0fdf4">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+            </svg>
+          </div>
+          <div><div class="info-title">PDF & Excel Export</div><div class="info-desc">Her modülden profesyonel rapor oluşturma</div></div>
+        </div>
+        <div class="info-card">
+          <div class="info-icon" style="background:#fff7ed">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div><div class="info-title">Rol Bazlı Erişim</div><div class="info-desc">Her kullanıcıya özel modül & yetki kontrolü</div></div>
+        </div>
+        <div class="info-card">
+          <div class="info-icon" style="background:#f5f3ff">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </div>
+          <div><div class="info-title">Dashboard & Grafikler</div><div class="info-desc">Tüm modüller için gerçek zamanlı görselleştirme</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="slide-footer">
+    <span>CALISTALITY – Entegre Kalite Yönetim Platformu</span>
+    <span>Sayfa 6 / 10</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 7 — YÖNETİM & SİSTEM
+═══════════════════════════════════════════════════ -->
+<section class="slide section-slide" id="s7" style="background:#ffffff; padding-top:100px">
+  <div class="slide-inner" style="max-width:1100px; width:100%">
+
+    <div class="sh">
+      <div class="sh-icon" style="background:#f1f5f9">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 19.07a10 10 0 010-14.14"/>
+        </svg>
+      </div>
+      <div><h2>Sistem Yönetimi</h2><p>Kullanıcılar, roller, departmanlar, denetim logu ve ayarlar</p></div>
+      <div class="sh-line"></div>
+    </div>
+
+    <div class="mgrid mgrid-3">
+
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#475569,#64748b)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon" style="background:#f8fafc">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Kullanıcı Yönetimi</div>
+            <div class="mcard-sub">Hesap, profil ve yetki yönetimi</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick" style="background:#f8fafc; color:#475569">✓</span> Kullanıcı oluşturma ve silme</li>
+          <li><span class="tick" style="background:#f8fafc; color:#475569">✓</span> Yönetici onaylı kayıt akışı</li>
+          <li><span class="tick" style="background:#f8fafc; color:#475569">✓</span> Departman & pozisyon atama</li>
+          <li><span class="tick" style="background:#f8fafc; color:#475569">✓</span> Modül bazlı erişim kontrolü</li>
+          <li><span class="tick" style="background:#f8fafc; color:#475569">✓</span> Kullanıcı grubu yönetimi</li>
+          <li><span class="tick" style="background:#f8fafc; color:#475569">✓</span> Şifre sıfırlama & hesap kilitleme</li>
+        </ul>
+      </div>
+
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#2563eb,#60a5fa)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Rol & Yetki Yönetimi</div>
+            <div class="mcard-sub">Özelleştirilebilir rol sistemi</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-blue" style="color:#2563eb">✓</span> Özel rol oluşturma</li>
+          <li><span class="tick bg-blue" style="color:#2563eb">✓</span> Modül bazlı izin atama</li>
+          <li><span class="tick bg-blue" style="color:#2563eb">✓</span> Tam erişim (Full Access) rolleri</li>
+          <li><span class="tick bg-blue" style="color:#2563eb">✓</span> Departman müdürü yetkileri</li>
+          <li><span class="tick bg-blue" style="color:#2563eb">✓</span> Rol hiyerarşisi</li>
+        </ul>
+      </div>
+
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#dc2626,#f87171)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-red">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Denetim & Erişim Logu</div>
+            <div class="mcard-sub">Tüm sistem hareketleri kayıt altında</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> Tüm kullanıcı işlemleri logu</li>
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> Giriş / çıkış kaydı</li>
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> IP adresi ve tarayıcı bilgisi</li>
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> Filtrelenebilir log görünümü</li>
+          <li><span class="tick bg-red" style="color:#dc2626">✓</span> CSV export</li>
+        </ul>
+      </div>
+
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#0d9488,#2dd4bf)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-teal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Departman Yönetimi</div>
+            <div class="mcard-sub">Organizasyon yapısı yönetimi</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Departman oluşturma ve düzenleme</li>
+          <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Departman bazlı modül erişimi</li>
+          <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Personel listesi görünümü</li>
+          <li><span class="tick bg-teal" style="color:#0d9488">✓</span> Pozisyon tanımları</li>
+        </ul>
+      </div>
+
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#7c3aed,#c084fc)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 19.07a10 10 0 010-14.14"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Sistem Ayarları</div>
+            <div class="mcard-sub">Platform geneli yapılandırma</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> Şirket bilgileri ve logo</li>
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> Bildirim tercihleri</li>
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> E-posta ayarları (SMTP)</li>
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> Dosya depolama ayarları (S3)</li>
+          <li><span class="tick bg-purple" style="color:#7c3aed">✓</span> Oturum ve token süresi</li>
+        </ul>
+      </div>
+
+      <div class="mcard">
+        <div class="mcard-accent" style="background:linear-gradient(90deg,#db2777,#f472b6)"></div>
+        <div class="mcard-head">
+          <div class="mcard-icon bg-pink">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#db2777" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="mcard-title">Bildirim Merkezi</div>
+            <div class="mcard-sub">Merkezi bildirim ve uyarı sistemi</div>
+          </div>
+        </div>
+        <ul class="mcard-features">
+          <li><span class="tick bg-pink" style="color:#db2777">✓</span> Gerçek zamanlı in-app bildirimler</li>
+          <li><span class="tick bg-pink" style="color:#db2777">✓</span> Bildirim tipi sınıflandırması</li>
+          <li><span class="tick bg-pink" style="color:#db2777">✓</span> Okundu / okunmadı takibi</li>
+          <li><span class="tick bg-pink" style="color:#db2777">✓</span> Toplu okundu işaretleme</li>
+          <li><span class="tick bg-pink" style="color:#db2777">✓</span> Bildirim filtreleme</li>
+        </ul>
+      </div>
+
+    </div>
+
+  </div>
+  <div class="slide-footer">
+    <span>CALISTALITY – Entegre Kalite Yönetim Platformu</span>
+    <span>Sayfa 7 / 10</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 8 — TEKNOLOJİ ALTYAPISI (DARK)
+═══════════════════════════════════════════════════ -->
+<section class="slide dark-slide" id="s8" style="padding-top:80px; min-height:100vh">
+  <div style="max-width:1100px; width:100%; position:relative; z-index:2">
+
+    <div class="sh">
+      <div class="sh-icon" style="background:rgba(255,255,255,0.1)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+        </svg>
+      </div>
+      <div><h2>Teknoloji Altyapısı</h2><p>Kullanılan teknolojiler ve mimari kararlar</p></div>
+      <div class="sh-line"></div>
+    </div>
+
+    <div class="tech-grid" style="margin-bottom:28px">
+      <div class="tech-card">
+        <div class="tech-icon">⚡</div>
+        <div class="tech-name">Next.js 14</div>
+        <div class="tech-desc">App Router + SSR/SSG</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🔷</div>
+        <div class="tech-name">TypeScript</div>
+        <div class="tech-desc">Tip güvenli geliştirme</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🐘</div>
+        <div class="tech-name">PostgreSQL</div>
+        <div class="tech-desc">Prisma ORM ile</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🔐</div>
+        <div class="tech-name">NextAuth.js</div>
+        <div class="tech-desc">JWT kimlik doğrulama</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">☁️</div>
+        <div class="tech-name">AWS S3</div>
+        <div class="tech-desc">Dosya depolama</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">📊</div>
+        <div class="tech-name">Recharts</div>
+        <div class="tech-desc">Grafik & görselleştirme</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">🎨</div>
+        <div class="tech-name">Tailwind CSS</div>
+        <div class="tech-desc">Radix UI bileşenleri</div>
+      </div>
+      <div class="tech-card">
+        <div class="tech-icon">📄</div>
+        <div class="tech-name">jsPDF</div>
+        <div class="tech-desc">PDF rapor üretimi</div>
+      </div>
+    </div>
+
+    <div class="feat-grid">
+      <div class="feat-box">
+        <h4>Güvenlik Özellikleri</h4>
+        <ul>
+          <li><span class="feat-dot" style="background:#3b82f6"></span>JWT oturum yönetimi (8 saatlik token)</li>
+          <li><span class="feat-dot" style="background:#3b82f6"></span>Rol + modül bazlı granüler erişim kontrolü</li>
+          <li><span class="feat-dot" style="background:#3b82f6"></span>API rate limiting (DDoS koruması)</li>
+          <li><span class="feat-dot" style="background:#3b82f6"></span>Oturum geçmişi ve denetim logu</li>
+          <li><span class="feat-dot" style="background:#3b82f6"></span>Bcrypt şifreli kullanıcı kimlik doğrulama</li>
+          <li><span class="feat-dot" style="background:#3b82f6"></span>Yönetici onaylı kullanıcı kaydı akışı</li>
+        </ul>
+      </div>
+      <div class="feat-box">
+        <h4>Platform Yetenekleri</h4>
+        <ul>
+          <li><span class="feat-dot" style="background:#22c55e"></span>90+ REST API endpoint, force-dynamic</li>
+          <li><span class="feat-dot" style="background:#22c55e"></span>PDF ve CSV/XLSX dışa aktarım</li>
+          <li><span class="feat-dot" style="background:#22c55e"></span>Doküman versiyon kontrolü</li>
+          <li><span class="feat-dot" style="background:#22c55e"></span>Gerçek zamanlı bildirim sistemi</li>
+          <li><span class="feat-dot" style="background:#22c55e"></span>Özelleştirilebilir onay iş akışları</li>
+          <li><span class="feat-dot" style="background:#22c55e"></span>AWS S3 ile güvenli dosya yönetimi</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+  <div class="slide-footer" style="position:absolute">
+    <span>CALISTALITY – Entegre Kalite Yönetim Platformu</span>
+    <span>Sayfa 8 / 10</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 9 — STANDARTLAR & UYUMLULUK
+═══════════════════════════════════════════════════ -->
+<section class="slide dark-slide" id="s9" style="padding-top:80px; min-height:100vh; background: linear-gradient(135deg,#0f172a,#1a1040)">
+  <div style="max-width:1100px; width:100%; position:relative; z-index:2">
+
+    <div class="sh">
+      <div class="sh-icon" style="background:rgba(255,255,255,0.1)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>
+        </svg>
+      </div>
+      <div><h2>Desteklenen Standartlar & Uyumluluk</h2><p>Platform hangi uluslararası standartları destekler?</p></div>
+      <div class="sh-line"></div>
+    </div>
+
+    <div class="compliance-grid" style="margin-bottom:32px">
+      <div class="comp-card">
+        <div class="comp-logo">📋</div>
+        <div class="comp-name">ISO 9001:2015</div>
+        <div class="comp-desc">Kalite Yönetim Sistemi — Doküman, denetim, CAPA, şikayet</div>
+      </div>
+      <div class="comp-card">
+        <div class="comp-logo">🍽</div>
+        <div class="comp-name">ISO 22000 / HACCP</div>
+        <div class="comp-desc">Gıda Güvenliği Yönetimi — Sıcaklık, haşere, CCP takibi</div>
+      </div>
+      <div class="comp-card">
+        <div class="comp-logo">⛑</div>
+        <div class="comp-name">ISO 45001:2018</div>
+        <div class="comp-desc">İş Sağlığı ve Güvenliği — Kaza, KKD, risk yönetimi</div>
+      </div>
+      <div class="comp-card">
+        <div class="comp-logo">🌱</div>
+        <div class="comp-name">ISO 14001:2015</div>
+        <div class="comp-desc">Çevre Yönetim Sistemi — Enerji, atık, karbon takibi</div>
+      </div>
+      <div class="comp-card">
+        <div class="comp-logo">💡</div>
+        <div class="comp-name">ISO 50001</div>
+        <div class="comp-desc">Enerji Yönetim Sistemi — Tüketim analizi ve hedefler</div>
+      </div>
+      <div class="comp-card">
+        <div class="comp-logo">📊</div>
+        <div class="comp-name">BSC & KPI</div>
+        <div class="comp-desc">Balanced Scorecard — Strateji haritası ve performans karnesi</div>
+      </div>
+      <div class="comp-card">
+        <div class="comp-logo">🔬</div>
+        <div class="comp-name">LQA</div>
+        <div class="comp-desc">Laboratuvar Kalite Değerlendirme — Otel endüstrisi standartları</div>
+      </div>
+      <div class="comp-card">
+        <div class="comp-logo">🏨</div>
+        <div class="comp-name">Otelcilik Standartları</div>
+        <div class="comp-desc">Misafir şikayeti, hijyen, hizmet kalitesi ve süreç standartları</div>
+      </div>
+    </div>
+
+    <div class="feat-box" style="border-color:rgba(255,255,255,0.1)">
+      <h4>Neden CALISTALITY?</h4>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-top:4px">
+        <div>
+          <ul style="list-style:none; display:flex; flex-direction:column; gap:10px">
+            <li style="display:flex; gap:10px; align-items:center; font-size:12.5px; color:rgba(255,255,255,0.7)">
+              <span style="width:20px; height:20px; background:rgba(59,130,246,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#60a5fa; flex-shrink:0">✓</span>
+              Tüm modüller tek platformda entegre
+            </li>
+            <li style="display:flex; gap:10px; align-items:center; font-size:12.5px; color:rgba(255,255,255,0.7)">
+              <span style="width:20px; height:20px; background:rgba(59,130,246,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#60a5fa; flex-shrink:0">✓</span>
+              Kağıtsız dijital iş akışları
+            </li>
+          </ul>
+        </div>
+        <div>
+          <ul style="list-style:none; display:flex; flex-direction:column; gap:10px">
+            <li style="display:flex; gap:10px; align-items:center; font-size:12.5px; color:rgba(255,255,255,0.7)">
+              <span style="width:20px; height:20px; background:rgba(34,197,94,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#4ade80; flex-shrink:0">✓</span>
+              Denetim hazırlığını kolaylaştırır
+            </li>
+            <li style="display:flex; gap:10px; align-items:center; font-size:12.5px; color:rgba(255,255,255,0.7)">
+              <span style="width:20px; height:20px; background:rgba(34,197,94,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#4ade80; flex-shrink:0">✓</span>
+              Anlık raporlama ve izleme
+            </li>
+          </ul>
+        </div>
+        <div>
+          <ul style="list-style:none; display:flex; flex-direction:column; gap:10px">
+            <li style="display:flex; gap:10px; align-items:center; font-size:12.5px; color:rgba(255,255,255,0.7)">
+              <span style="width:20px; height:20px; background:rgba(168,85,247,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#c084fc; flex-shrink:0">✓</span>
+              Bulut tabanlı, her cihazdan erişim
+            </li>
+            <li style="display:flex; gap:10px; align-items:center; font-size:12.5px; color:rgba(255,255,255,0.7)">
+              <span style="width:20px; height:20px; background:rgba(168,85,247,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#c084fc; flex-shrink:0">✓</span>
+              Türkçe arayüz ve destek
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="slide-footer" style="position:absolute">
+    <span>CALISTALITY – Entegre Kalite Yönetim Platformu</span>
+    <span>Sayfa 9 / 10</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     SLIDE 10 — ROL TABLOSU
+═══════════════════════════════════════════════════ -->
+<section class="slide section-slide" id="s10" style="background:#f8fafc; padding-top:100px">
+  <div class="slide-inner" style="max-width:1100px; width:100%">
+
+    <div class="sh">
+      <div class="sh-icon" style="background:#eff6ff">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+        </svg>
+      </div>
+      <div><h2>Kullanıcı Rolleri ve Erişim Seviyeleri</h2><p>Kim neye erişebilir?</p></div>
+      <div class="sh-line"></div>
+    </div>
+
+    <div class="rtable-wrap" style="margin-bottom:28px">
+      <table class="rtable">
+        <thead>
+          <tr>
+            <th>Rol</th>
+            <th>Erişim Seviyesi</th>
+            <th>Modül Erişimi</th>
+            <th>Özel Yetkiler</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Admin</strong></td>
+            <td><span class="badge bg-badge-red">Tam Yönetici</span></td>
+            <td>Tüm modüller</td>
+            <td>Kullanıcı yönetimi, sistem ayarları, silme</td>
+          </tr>
+          <tr>
+            <td><strong>Yönetici / Genel Müdür</strong></td>
+            <td><span class="badge bg-badge-purple">Tam Erişim</span></td>
+            <td>Tüm modüller</td>
+            <td>Onay yetkisi, raporlar, tüm departmanlar</td>
+          </tr>
+          <tr>
+            <td><strong>Kalite Müdürü</strong></td>
+            <td><span class="badge bg-badge-blue">Kalite Odaklı</span></td>
+            <td>Doküman, CAPA, Denetim, Şikayet, Risk</td>
+            <td>CAPA kapatma, denetim planlama</td>
+          </tr>
+          <tr>
+            <td><strong>İSG Uzmanı</strong></td>
+            <td><span class="badge bg-badge-orange">İSG Odaklı</span></td>
+            <td>İSG, Risk, HACCP, Eğitim</td>
+            <td>Kaza kaydı, KKD yönetimi, risk onayı</td>
+          </tr>
+          <tr>
+            <td><strong>Departman Müdürü</strong></td>
+            <td><span class="badge bg-badge-green">Departman Tam</span></td>
+            <td>Tüm modüller (departman bazlı)</td>
+            <td>Kendi departmanı için tüm işlemler</td>
+          </tr>
+          <tr>
+            <td><strong>İK Müdürü</strong></td>
+            <td><span class="badge bg-badge-teal">İK Odaklı</span></td>
+            <td>Eğitim, KPI, Kullanıcı, Komite</td>
+            <td>Eğitim planlama, performans karnesi</td>
+          </tr>
+          <tr>
+            <td><strong>Personel</strong></td>
+            <td><span class="badge" style="background:#f1f5f9; color:#475569">Sınırlı</span></td>
+            <td>Atanan modüller</td>
+            <td>Kendi kayıtlarını görme, form doldurma</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SON KAPAK -->
+    <div style="background:linear-gradient(135deg,#1e3a8a,#2563eb,#0d9488); border-radius:20px; padding:36px 40px; text-align:center; color:white">
+      <div style="font-size:13px; font-weight:600; color:rgba(255,255,255,0.7); letter-spacing:1px; margin-bottom:12px; text-transform:uppercase">Entegre Kurumsal Kalite Platformu</div>
+      <div style="font-size:36px; font-weight:900; letter-spacing:-1.5px; margin-bottom:10px">CALISTALITY</div>
+      <div style="font-size:14px; color:rgba(255,255,255,0.7); max-width:500px; margin:0 auto; line-height:1.7">
+        Kalite, Güvenlik, Strateji ve Uyum — hepsi tek platformda.
+        Kurumunuzun dijital dönüşüm yolculuğuna başlayın.
+      </div>
+      <div style="display:flex; gap:12px; justify-content:center; margin-top:24px; flex-wrap:wrap">
+        <span style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); color:white; font-size:12px; padding:7px 18px; border-radius:30px; font-weight:500">19 Modül</span>
+        <span style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); color:white; font-size:12px; padding:7px 18px; border-radius:30px; font-weight:500">Web Tabanlı</span>
+        <span style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); color:white; font-size:12px; padding:7px 18px; border-radius:30px; font-weight:500">Türkçe Arayüz</span>
+        <span style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); color:white; font-size:12px; padding:7px 18px; border-radius:30px; font-weight:500">ISO Uyumlu</span>
+      </div>
+    </div>
+
+  </div>
+  <div class="slide-footer">
+    <span>CALISTALITY – Entegre Kalite Yönetim Platformu</span>
+    <span>Sayfa 10 / 10</span>
+  </div>
+</section>
+
+</body>
+</html>
