@@ -1,426 +1,407 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
-import { format, subMonths, addMonths, startOfMonth } from 'date-fns';
+import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { ArrowLeft, ChevronLeft, ChevronRight, RefreshCw, TrendingUp, TrendingDown, Euro } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { RefreshCw, TrendingUp, TrendingDown, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell,
+  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine,
 } from 'recharts';
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-interface CategoryStats {
-  eur: number;
-  tl: number;
-  budgetEUR: number;
-  budgetTL: number;
+interface RevenueRow {
+  label: string; isTotal: boolean;
+  todayTL: number; todayEUR: number;
+  mtdActualTL: number; mtdActualEUR: number;
+  mtdBudgetTL: number; mtdBudgetEUR: number;
+  ytdActualEUR: number; ytdBudgetEUR: number;
+  lyTodayEUR: number; lyMonthEUR: number; lyYearEUR: number;
 }
 
-interface StatsPayload {
-  monthly: {
-    totalEUR: number;
-    budgetEUR: number;
-    budgetVariancePct: number;
-    byCategory: Record<string, CategoryStats>;
-  };
-  prevMonthly: { totalEUR: number; monthOverMonthPct: number };
+interface TrendPoint {
+  date: string;
+  roomsEUR: number; fbEUR: number; spaEUR: number; otherEUR: number; totalEUR: number;
 }
 
-interface DeptSummary {
-  key: string;
-  name: string;
-  subtitle: string;
-  color: string;
-  eur: number;
-  budgetEUR: number;
-  variancePct: number;
-  share: number;
-  cats: { label: string; eur: number; budgetEUR: number; pct: number }[];
-}
+interface KapakData { reportDate: string; revenueData: RevenueRow[] }
 
-// ── Config ─────────────────────────────────────────────────────────────────
+// ─── Department config ────────────────────────────────────────────────────────
 
-const CAT_LABELS: Record<string, string> = {
-  'TOTAL ROOM REVENUES': 'Oda Gelirleri',
-  'TOTAL EXTRA FOOD REVENUES': 'Yiyecek',
-  'TOTAL EXTRA BEVERAGE REVENUES': 'İçecek',
-  'TOTAL SPA REVENUE': 'Spa',
-  'TOTAL OTHER REVENUES': 'Diğer',
-  'TOTAL FOOTBALL REVENUE': 'Futbol',
-  'TOTAL A LA CARTE REVENUE': 'Alakart',
-  'TOTAL TRANSPORTATIONS REVENUE': 'Transfer',
-  'TOTAL SPORT ACADEMY REVENUE': 'Spor Akademi',
-};
-
-const DEPT_GROUPS = [
-  {
-    key: 'rooms',
-    name: 'Odalar',
-    subtitle: 'Rooms Division',
-    color: '#4f46e5',
-    cats: ['TOTAL ROOM REVENUES'],
-  },
-  {
-    key: 'fnb',
-    name: 'Yiyecek & İçecek',
-    subtitle: 'Food & Beverage',
-    color: '#0891b2',
-    cats: ['TOTAL EXTRA FOOD REVENUES', 'TOTAL EXTRA BEVERAGE REVENUES', 'TOTAL A LA CARTE REVENUE'],
-  },
-  {
-    key: 'spa',
-    name: 'Spa & Spor',
-    subtitle: 'Leisure',
-    color: '#7c3aed',
-    cats: ['TOTAL SPA REVENUE', 'TOTAL FOOTBALL REVENUE', 'TOTAL SPORT ACADEMY REVENUE'],
-  },
-  {
-    key: 'other',
-    name: 'Diğer',
-    subtitle: 'Other Revenues',
-    color: '#d97706',
-    cats: ['TOTAL OTHER REVENUES', 'TOTAL TRANSPORTATIONS REVENUE'],
-  },
+const DEPTS = [
+  { key: 'all',   label: 'Tümü',  emoji: '', patterns: [] as string[], color: '#4f46e5' },
+  { key: 'rooms', label: 'Rooms', emoji: '🏨', patterns: ['ALL.INC', 'HB ROOM'],  color: '#4f46e5' },
+  { key: 'fb',    label: 'F&B',   emoji: '🍽️', patterns: ['F&B FOOD', 'F&B BEV'], color: '#0891b2' },
+  { key: 'spa',   label: 'Spa',   emoji: '💆', patterns: ['SPA'],                 color: '#16a34a' },
+  { key: 'other', label: 'Diğer', emoji: '🔧', patterns: ['MISC'],                color: '#f59e0b' },
 ];
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+const TOTAL_PATTERNS = ['TOTAL SALES REVENUE', 'TOTAL SALES', 'TOTALS', 'TOPLAM'];
+const PIE_COLORS = ['#4f46e5', '#0891b2', '#16a34a', '#f59e0b', '#db2777'];
 
-function fmtEUR(n: number) {
-  return new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(n) + ' €';
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function matchLabel(label: string, patterns: string[]) {
+  const up = label.toUpperCase();
+  return patterns.some((p) => up.includes(p));
 }
 
-function buildDepts(byCategory: Record<string, CategoryStats>, totalEUR: number): DeptSummary[] {
-  return DEPT_GROUPS.map((g) => {
-    const matching = g.cats.map((c) => byCategory[c]).filter(Boolean);
-    const eur = matching.reduce((s, v) => s + v.eur, 0);
-    const budgetEUR = matching.reduce((s, v) => s + v.budgetEUR, 0);
-    const variancePct = budgetEUR > 0 ? ((eur - budgetEUR) / budgetEUR) * 100 : 0;
-    const share = totalEUR > 0 ? (eur / totalEUR) * 100 : 0;
-    const cats = g.cats
-      .map((c) => ({
-        label: CAT_LABELS[c] ?? c,
-        eur: byCategory[c]?.eur ?? 0,
-        budgetEUR: byCategory[c]?.budgetEUR ?? 0,
-        pct: (byCategory[c]?.budgetEUR ?? 0) > 0
-          ? ((byCategory[c]?.eur ?? 0) / (byCategory[c]?.budgetEUR ?? 0)) * 100
-          : 0,
-      }))
-      .filter((c) => c.eur > 0 || c.budgetEUR > 0);
-    return { ...g, eur, budgetEUR, variancePct, share, cats };
-  }).filter((d) => d.eur > 0 || d.budgetEUR > 0);
+const fmt0 = (n: number) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(n);
+const fmtEUR = (n: number) => n === 0 ? '—' : `${fmt0(n)} €`;
+const fmtPct = (n: number, sign = false) => n === 0 ? '—' : `${sign && n > 0 ? '+' : ''}${n.toFixed(1)}%`;
+const varPct = (a: number, b: number) => b > 0 ? ((a - b) / b) * 100 : 0;
+const shortDate = (d: string) => format(new Date(d), 'd MMM', { locale: tr });
+
+const TOOLTIP_STYLE = { fontSize: 11, borderRadius: 8, border: '1px solid #e5e7eb' };
+
+function TargetBadge({ pct }: { pct: number }) {
+  if (pct >= 5)  return <div className="flex items-center gap-1 text-green-600 text-xs"><CheckCircle className="h-4 w-4" />Hedef aşıldı</div>;
+  if (pct >= -5) return <div className="flex items-center gap-1 text-amber-600 text-xs"><AlertTriangle className="h-4 w-4" />Hedefe yakın</div>;
+  return <div className="flex items-center gap-1 text-red-600 text-xs"><XCircle className="h-4 w-4" />Hedefin altında</div>;
 }
 
-// ── Sub-components ─────────────────────────────────────────────────────────
-
-function DeptCard({ dept }: { dept: DeptSummary }) {
-  const achievement = dept.budgetEUR > 0 ? (dept.eur / dept.budgetEUR) * 100 : 0;
-  const up = dept.variancePct >= 0;
-  return (
-    <Card className="border-t-4" style={{ borderTopColor: dept.color }}>
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-base">{dept.name}</CardTitle>
-            <CardDescription className="text-xs mt-0.5">{dept.subtitle}</CardDescription>
-          </div>
-          <Badge className={`text-[10px] ${up ? 'bg-green-100 text-green-700 hover:bg-green-100' : dept.variancePct > -10 ? 'bg-amber-100 text-amber-700 hover:bg-amber-100' : 'bg-red-100 text-red-700 hover:bg-red-100'}`}>
-            {up ? '+' : ''}{dept.variancePct.toFixed(1)}%
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div>
-          <div className="flex items-end justify-between mb-1">
-            <p className="text-2xl font-bold text-gray-900">{fmtEUR(dept.eur)}</p>
-            <p className="text-xs text-gray-400">%{dept.share.toFixed(1)} pay</p>
-          </div>
-          <p className="text-xs text-gray-500">Bütçe: {fmtEUR(dept.budgetEUR)}</p>
-          <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${Math.min(achievement, 100)}%`,
-                backgroundColor: dept.color,
-                opacity: 0.85,
-              }}
-            />
-          </div>
-          <p className="text-[10px] text-gray-400 mt-0.5">{achievement.toFixed(1)}% bütçe gerçekleşme</p>
-        </div>
-
-        {dept.cats.length > 1 && (
-          <div className="space-y-1.5 pt-1 border-t">
-            {dept.cats.map((c) => (
-              <div key={c.label} className="flex items-center justify-between text-xs">
-                <span className="text-gray-600">{c.label}</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-800">{fmtEUR(c.eur)}</span>
-                  {c.budgetEUR > 0 && (
-                    <Badge className={`text-[9px] px-1 py-0 ${c.pct >= 100 ? 'bg-green-100 text-green-700 hover:bg-green-100' : c.pct >= 80 ? 'bg-amber-100 text-amber-700 hover:bg-amber-100' : 'bg-red-100 text-red-700 hover:bg-red-100'}`}>
-                      {c.pct.toFixed(0)}%
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// ── Main Page ──────────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function DepartmanPage() {
-  const [refDate, setRefDate] = useState(() => startOfMonth(new Date()));
-  const [data, setData] = useState<StatsPayload | null>(null);
+  const [kapak, setKapak] = useState<KapakData | null>(null);
+  const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeDept, setActiveDept] = useState('all');
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const dateStr = format(refDate, 'yyyy-MM-dd');
-      const res = await fetch(`/api/finance/revenue/stats?date=${dateStr}`);
-      const json = await res.json();
-      if (json.success) setData(json.data);
+      const [kRes, tRes] = await Promise.all([
+        fetch('/api/finance/kapak?latest=true'),
+        fetch('/api/finance/kapak/trend?days=30'),
+      ]);
+      const [kJson, tJson] = await Promise.all([kRes.json(), tRes.json()]);
+      if (kJson.success) setKapak(kJson.data);
+      if (tJson.success) setTrend(tJson.data);
     } finally {
       setLoading(false);
     }
-  }, [refDate]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const depts = data ? buildDepts(data.monthly.byCategory, data.monthly.totalEUR) : [];
+  const rows = kapak?.revenueData ?? [];
+  const latestDate = kapak ? format(new Date(kapak.reportDate), 'd MMMM yyyy', { locale: tr }) : '';
 
-  const barData = depts.map((d) => ({
-    name: d.name,
-    Gerçekleşen: Math.round(d.eur),
-    Bütçe: Math.round(d.budgetEUR),
-    color: d.color,
+  // Build dept summaries
+  const deptSummaries = DEPTS.filter((d) => d.key !== 'all').map((dept) => {
+    const totalRows = rows.filter((r) => !matchLabel(r.label, TOTAL_PATTERNS) && matchLabel(r.label, dept.patterns));
+    const actual  = totalRows.reduce((s, r) => s + r.mtdActualEUR, 0);
+    const budget  = totalRows.reduce((s, r) => s + r.mtdBudgetEUR, 0);
+    const today   = totalRows.reduce((s, r) => s + r.todayEUR, 0);
+    const ytd     = totalRows.reduce((s, r) => s + r.ytdActualEUR, 0);
+    const ytdBudg = totalRows.reduce((s, r) => s + r.ytdBudgetEUR, 0);
+    const ly      = totalRows.reduce((s, r) => s + r.lyMonthEUR, 0);
+    const todayTL = totalRows.reduce((s, r) => s + r.todayTL, 0);
+    const vPct    = varPct(actual, budget);
+    return { ...dept, actual, budget, today, todayTL, ytd, ytdBudg, ly, vPct, totalRows };
+  });
+
+  // All non-total rows for details
+  const subRows = rows.filter((r) => !r.isTotal);
+
+  // Filter by active dept
+  const visibleDepts = activeDept === 'all' ? deptSummaries : deptSummaries.filter((d) => d.key === activeDept);
+
+  // Total across all depts
+  const grandActual  = deptSummaries.reduce((s, d) => s + d.actual, 0);
+  const grandBudget  = deptSummaries.reduce((s, d) => s + d.budget, 0);
+  const grandToday   = deptSummaries.reduce((s, d) => s + d.today, 0);
+  const grandYTD     = deptSummaries.reduce((s, d) => s + d.ytd, 0);
+  const grandLY      = deptSummaries.reduce((s, d) => s + d.ly, 0);
+
+  // Pie chart — today
+  const pieData = deptSummaries.filter((d) => d.today > 0).map((d, i) => ({
+    name: `${d.emoji} ${d.label}`, value: d.today, color: PIE_COLORS[i],
   }));
 
-  const monthLabel = format(refDate, 'MMMM yyyy', { locale: tr });
+  // Budget variance bar
+  const varData = deptSummaries.filter((d) => d.budget > 0).map((d) => ({
+    dept: d.label, variance: d.vPct,
+  }));
+
+  // Multi-line trend
+  const lineData = trend.map((d) => ({
+    gun: shortDate(d.date),
+    Oda: d.roomsEUR, 'F&B': d.fbEUR, Spa: d.spaEUR, Diğer: d.otherEUR,
+  }));
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64 text-muted-foreground">
+        <RefreshCw className="h-5 w-5 animate-spin mr-2" /> Yükleniyor...
+      </div>
+    );
+  }
+
+  if (!kapak) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-3">
+        <p className="text-muted-foreground">Veri bulunamadı</p>
+        <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4 mr-1" />Yenile</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard/finance">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Dashboard
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Departman Raporları</h1>
-            <p className="text-sm text-gray-500">Gelir dağılımı ve bütçe performansı</p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold">Departman Raporu</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Son veri: {latestDate}</p>
         </div>
-
-        <div className="flex items-center gap-2">
-          {/* Month nav */}
-          <div className="flex items-center gap-1 border rounded-lg overflow-hidden bg-white">
-            <button
-              onClick={() => setRefDate((d) => startOfMonth(subMonths(d, 1)))}
-              className="p-1.5 hover:bg-gray-50 text-gray-500"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <span className="px-3 text-sm font-medium text-gray-700 capitalize min-w-[120px] text-center">
-              {monthLabel}
-            </span>
-            <button
-              onClick={() => setRefDate((d) => startOfMonth(addMonths(d, 1)))}
-              className="p-1.5 hover:bg-gray-50 text-gray-500"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-
-          <Button variant="outline" size="sm" onClick={load}>
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={load}><RefreshCw className="h-4 w-4 mr-1" />Yenile</Button>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center h-48 text-gray-400">
-          <RefreshCw className="h-5 w-5 animate-spin mr-2" />
-          Yükleniyor...
-        </div>
-      ) : depts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-48 text-gray-400 gap-2">
-          <Euro className="h-10 w-10 opacity-30" />
-          <p className="font-medium">{monthLabel} için veri bulunamadı</p>
-          <Link href="/dashboard/finance/gelirler/yukle">
-            <Button size="sm" variant="outline">Veri Yükle</Button>
-          </Link>
-        </div>
-      ) : (
-        <>
-          {/* Summary row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {depts.map((d) => (
-              <div key={d.key} className="flex items-start gap-3 p-4 rounded-xl border bg-white">
-                <div className="w-2.5 h-10 rounded-full flex-shrink-0 mt-0.5" style={{ backgroundColor: d.color }} />
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide truncate">{d.name}</p>
-                  <p className="text-lg font-bold text-gray-900 mt-0.5">{fmtEUR(d.eur)}</p>
-                  <div className={`flex items-center gap-1 text-xs font-medium mt-0.5 ${d.variancePct >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                    {d.variancePct >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                    {d.variancePct >= 0 ? '+' : ''}{d.variancePct.toFixed(1)}% bütçe
-                  </div>
-                </div>
+      {/* Dept tabs */}
+      <div className="flex gap-2 flex-wrap">
+        {DEPTS.map((d) => (
+          <button
+            key={d.key}
+            onClick={() => setActiveDept(d.key)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+              activeDept === d.key
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'border-border hover:bg-muted'
+            }`}
+          >
+            {d.emoji} {d.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Grand total summary row */}
+      <Card className="border-l-4 border-l-primary">
+        <CardContent className="py-3 px-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            <div><p className="text-xs text-muted-foreground">TOPLAM Bugün</p><p className="text-lg font-bold">{fmtEUR(grandToday)}</p></div>
+            <div><p className="text-xs text-muted-foreground">TOPLAM MTD</p><p className="text-lg font-bold">{fmtEUR(grandActual)}</p></div>
+            <div><p className="text-xs text-muted-foreground">MTD Bütçe</p><p className="text-lg font-bold text-muted-foreground">{fmtEUR(grandBudget)}</p></div>
+            <div>
+              <p className="text-xs text-muted-foreground">MTD Sapma</p>
+              <div className={`flex items-center gap-1 text-lg font-bold ${varPct(grandActual, grandBudget) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {varPct(grandActual, grandBudget) >= 0 ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+                {fmtPct(varPct(grandActual, grandBudget), true)}
               </div>
-            ))}
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">TOPLAM YTD</p>
+              <p className="text-lg font-bold">{fmtEUR(grandYTD)}</p>
+              {grandLY > 0 && <p className="text-xs text-muted-foreground">LY: {fmtEUR(grandLY)}</p>}
+            </div>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Comparison Chart */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-gray-600">
-                Gerçekleşen vs Bütçe — {monthLabel}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={barData} margin={{ left: 8, right: 8, top: 4, bottom: 0 }} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#374151' }} axisLine={false} tickLine={false} />
-                  <YAxis
-                    tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false}
-                    tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}K`}
-                  />
-                  <Tooltip
-                    formatter={(v: number) => fmtEUR(v)}
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="Gerçekleşen" radius={[4, 4, 0, 0]}>
-                    {barData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
-                  </Bar>
-                  <Bar dataKey="Bütçe" fill="#e5e7eb" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Department Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {depts.map((d) => (
-              <DeptCard key={d.key} dept={d} />
-            ))}
-          </div>
-
-          {/* Summary Table */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold text-gray-600">Departman Özet Tablosu</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-gray-50">
-                      <th className="text-left py-2.5 px-3 text-gray-500 font-medium">Departman</th>
-                      <th className="text-right py-2.5 px-3 text-gray-500 font-medium">Gerçekleşen</th>
-                      <th className="text-right py-2.5 px-3 text-gray-500 font-medium">Bütçe</th>
-                      <th className="text-right py-2.5 px-3 text-gray-500 font-medium">Gerçekleşme</th>
-                      <th className="text-right py-2.5 px-3 text-gray-500 font-medium">Toplam Pay</th>
-                      <th className="text-right py-2.5 px-3 text-gray-500 font-medium">Sapma</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {depts.map((d) => {
-                      const achievement = d.budgetEUR > 0 ? (d.eur / d.budgetEUR) * 100 : 0;
-                      return (
-                        <tr key={d.key} className="border-b last:border-0 hover:bg-gray-50">
-                          <td className="py-2.5 px-3">
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-4 rounded-sm" style={{ backgroundColor: d.color }} />
-                              <span className="font-medium text-gray-700">{d.name}</span>
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-semibold text-gray-900">
-                            {fmtEUR(d.eur)}
-                          </td>
-                          <td className="py-2.5 px-3 text-right text-gray-500">
-                            {d.budgetEUR > 0 ? fmtEUR(d.budgetEUR) : '—'}
-                          </td>
-                          <td className="py-2.5 px-3 text-right">
-                            {d.budgetEUR > 0 ? (
-                              <div className="flex items-center justify-end gap-2">
-                                <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full rounded-full"
-                                    style={{
-                                      width: `${Math.min(achievement, 100)}%`,
-                                      backgroundColor: d.color,
-                                    }}
-                                  />
-                                </div>
-                                <span className="text-xs text-gray-600 w-10 text-right">
-                                  {achievement.toFixed(0)}%
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-gray-300 text-xs">—</span>
-                            )}
-                          </td>
-                          <td className="py-2.5 px-3 text-right text-gray-600 text-xs">
-                            %{d.share.toFixed(1)}
-                          </td>
-                          <td className="py-2.5 px-3 text-right">
-                            {d.budgetEUR > 0 ? (
-                              <Badge className={`text-[10px] ${d.variancePct >= 0 ? 'bg-green-100 text-green-700 hover:bg-green-100' : d.variancePct > -10 ? 'bg-amber-100 text-amber-700 hover:bg-amber-100' : 'bg-red-100 text-red-700 hover:bg-red-100'}`}>
-                                {d.variancePct >= 0 ? '+' : ''}{d.variancePct.toFixed(1)}%
-                              </Badge>
-                            ) : (
-                              <span className="text-gray-300 text-xs">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    <tr className="border-t-2 border-gray-200 bg-gray-50 font-bold">
-                      <td className="py-2.5 px-3 text-gray-900">Toplam</td>
-                      <td className="py-2.5 px-3 text-right text-gray-900">
-                        {fmtEUR(data?.monthly.totalEUR ?? 0)}
+      {/* Dept performance table */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">Departman Performans Tablosu</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[700px]">
+              <thead className="border-b border-border">
+                <tr className="bg-muted/50">
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground min-w-[120px]">Departman</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Bugün (€)</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">MTD Actual (€)</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">MTD Budget (€)</th>
+                  <th className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground">Var%</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">YTD (€)</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">YTD Budget (€)</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">LY MTD (€)</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">YoY%</th>
+                  <th className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground">Durum</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleDepts.map((dept) => (
+                  <>
+                    <tr key={dept.key} className="border-b border-border/40 bg-muted/20 font-semibold">
+                      <td className="px-3 py-2 text-xs">{dept.emoji} {dept.label}</td>
+                      <td className="px-3 py-2 text-right text-xs">{fmtEUR(dept.today)}</td>
+                      <td className="px-3 py-2 text-right text-xs">{fmtEUR(dept.actual)}</td>
+                      <td className="px-3 py-2 text-right text-xs text-muted-foreground">{fmtEUR(dept.budget)}</td>
+                      <td className="px-3 py-2 text-center">
+                        <Badge className={`text-[10px] px-1.5 py-0 ${dept.vPct >= 0 ? 'bg-green-100 text-green-700 hover:bg-green-100' : 'bg-red-100 text-red-700 hover:bg-red-100'}`}>
+                          {fmtPct(dept.vPct, true)}
+                        </Badge>
                       </td>
-                      <td className="py-2.5 px-3 text-right text-gray-600">
-                        {fmtEUR(data?.monthly.budgetEUR ?? 0)}
-                      </td>
-                      <td className="py-2.5 px-3 text-right">
-                        {data?.monthly.budgetEUR ? (
-                          <span className="text-xs text-gray-600">
-                            {((data.monthly.totalEUR / data.monthly.budgetEUR) * 100).toFixed(0)}%
+                      <td className="px-3 py-2 text-right text-xs">{fmtEUR(dept.ytd)}</td>
+                      <td className="px-3 py-2 text-right text-xs text-muted-foreground">{fmtEUR(dept.ytdBudg)}</td>
+                      <td className="px-3 py-2 text-right text-xs text-muted-foreground">{dept.ly > 0 ? fmtEUR(dept.ly) : '—'}</td>
+                      <td className="px-3 py-2 text-right text-xs">
+                        {dept.ly > 0 ? (
+                          <span className={`font-medium ${varPct(dept.actual, dept.ly) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {fmtPct(varPct(dept.actual, dept.ly), true)}
                           </span>
                         ) : '—'}
                       </td>
-                      <td className="py-2.5 px-3 text-right text-gray-600 text-xs">%100</td>
-                      <td className="py-2.5 px-3 text-right">
-                        <Badge className={`text-[10px] ${(data?.monthly.budgetVariancePct ?? 0) >= 0 ? 'bg-green-100 text-green-700 hover:bg-green-100' : 'bg-red-100 text-red-700 hover:bg-red-100'}`}>
-                          {(data?.monthly.budgetVariancePct ?? 0) >= 0 ? '+' : ''}
-                          {(data?.monthly.budgetVariancePct ?? 0).toFixed(1)}%
-                        </Badge>
-                      </td>
+                      <td className="px-3 py-2 text-center"><TargetBadge pct={dept.vPct} /></td>
                     </tr>
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
+                    {/* Sub-rows for active dept */}
+                    {activeDept === dept.key && subRows.filter((r) => matchLabel(r.label, dept.patterns)).map((sub, si) => (
+                      <tr key={`${dept.key}-sub-${si}`} className="border-b border-border/30 hover:bg-muted/10">
+                        <td className="px-3 py-1.5 text-xs text-muted-foreground pl-8">{sub.label}</td>
+                        <td className="px-3 py-1.5 text-right text-xs">{fmtEUR(sub.todayEUR)}</td>
+                        <td className="px-3 py-1.5 text-right text-xs">{fmtEUR(sub.mtdActualEUR)}</td>
+                        <td className="px-3 py-1.5 text-right text-xs text-muted-foreground">{fmtEUR(sub.mtdBudgetEUR)}</td>
+                        <td className="px-3 py-1.5 text-center text-xs">
+                          {sub.mtdBudgetEUR > 0 ? (
+                            <span className={`text-xs ${varPct(sub.mtdActualEUR, sub.mtdBudgetEUR) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {fmtPct(varPct(sub.mtdActualEUR, sub.mtdBudgetEUR), true)}
+                            </span>
+                          ) : '—'}
+                        </td>
+                        <td className="px-3 py-1.5 text-right text-xs">{fmtEUR(sub.ytdActualEUR)}</td>
+                        <td className="px-3 py-1.5 text-right text-xs text-muted-foreground">{fmtEUR(sub.ytdBudgetEUR)}</td>
+                        <td className="px-3 py-1.5 text-right text-xs text-muted-foreground">{sub.lyMonthEUR > 0 ? fmtEUR(sub.lyMonthEUR) : '—'}</td>
+                        <td className="px-3 py-1.5 text-right text-xs">
+                          {sub.lyMonthEUR > 0 ? (
+                            <span className={`${varPct(sub.mtdActualEUR, sub.lyMonthEUR) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {fmtPct(varPct(sub.mtdActualEUR, sub.lyMonthEUR), true)}
+                            </span>
+                          ) : '—'}
+                        </td>
+                        <td />
+                      </tr>
+                    ))}
+                  </>
+                ))}
+                {/* Grand total row */}
+                <tr className="border-t-2 border-border bg-muted/40 font-bold">
+                  <td className="px-3 py-2.5 text-xs">TOPLAM</td>
+                  <td className="px-3 py-2.5 text-right text-xs">{fmtEUR(grandToday)}</td>
+                  <td className="px-3 py-2.5 text-right text-xs">{fmtEUR(grandActual)}</td>
+                  <td className="px-3 py-2.5 text-right text-xs">{fmtEUR(grandBudget)}</td>
+                  <td className="px-3 py-2.5 text-center">
+                    <Badge className={`text-[10px] px-1.5 py-0 ${varPct(grandActual, grandBudget) >= 0 ? 'bg-green-100 text-green-700 hover:bg-green-100' : 'bg-red-100 text-red-700 hover:bg-red-100'}`}>
+                      {fmtPct(varPct(grandActual, grandBudget), true)}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-2.5 text-right text-xs">{fmtEUR(grandYTD)}</td>
+                  <td className="px-3 py-2.5 text-right text-xs">{fmtEUR(deptSummaries.reduce((s,d) => s+d.ytdBudg, 0))}</td>
+                  <td className="px-3 py-2.5 text-right text-xs">{grandLY > 0 ? fmtEUR(grandLY) : '—'}</td>
+                  <td className="px-3 py-2.5 text-right text-xs">
+                    {grandLY > 0 && (
+                      <span className={varPct(grandActual, grandLY) >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {fmtPct(varPct(grandActual, grandLY), true)}
+                      </span>
+                    )}
+                  </td>
+                  <td />
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* Pie — today's mix */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Departman Katkısı — Bugün (€)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {pieData.length === 0 ? (
+              <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">Veri yok</div>
+            ) : (
+              <>
+                <ResponsiveContainer width="100%" height={150}>
+                  <PieChart>
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={3} dataKey="value">
+                      {pieData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: number) => fmtEUR(v)} contentStyle={TOOLTIP_STYLE} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="space-y-1 mt-1">
+                  {pieData.map((d, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
+                        <span className="text-muted-foreground">{d.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{fmtEUR(d.value)}</span>
+                        <span className="text-muted-foreground">{grandToday > 0 ? `${((d.value/grandToday)*100).toFixed(0)}%` : ''}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Budget variance */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Bütçe Sapması — MTD (%)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {varData.length === 0 ? (
+              <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">Veri yok</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={varData} margin={{ left: 8, right: 32, top: 4, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                  <XAxis dataKey="dept" tick={{ fontSize: 10, fill: '#374151' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${v.toFixed(0)}%`} />
+                  <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`, 'Sapma']} contentStyle={TOOLTIP_STYLE} />
+                  <ReferenceLine y={0} stroke="#9ca3af" />
+                  <Bar dataKey="variance" radius={[3,3,0,0]}
+                    label={{ position: 'top', fontSize: 10, formatter: (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` }}>
+                    {varData.map((d, i) => <Cell key={i} fill={d.variance >= 0 ? '#16a34a' : '#dc2626'} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Multi-line trend */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">Departman Trend — MTD Son 30 Gün (€)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {lineData.length === 0 ? (
+            <div className="h-48 flex items-center justify-center text-sm text-muted-foreground">Veri yok</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={lineData} margin={{ left: 0, right: 8, top: 4, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                <XAxis dataKey="gun" tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: '#6b7280' }} tickLine={false} axisLine={false} tickFormatter={(v: number) => `${(v/1000).toFixed(0)}K`} />
+                <Tooltip formatter={(v: number) => fmtEUR(v)} contentStyle={TOOLTIP_STYLE} />
+                <Legend wrapperStyle={{ fontSize: 10 }} />
+                <Line type="monotone" dataKey="Oda"   stroke="#4f46e5" strokeWidth={2.5} dot={false} />
+                <Line type="monotone" dataKey="F&B"   stroke="#0891b2" strokeWidth={2}   dot={false} />
+                <Line type="monotone" dataKey="Spa"   stroke="#16a34a" strokeWidth={2}   dot={false} />
+                <Line type="monotone" dataKey="Diğer" stroke="#f59e0b" strokeWidth={2}   dot={false} strokeDasharray="4 3" />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
     </div>
   );
 }
