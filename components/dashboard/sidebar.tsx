@@ -253,6 +253,7 @@ const menuItems = [
       { title: 'Gelir Analizi', href: '/dashboard/finance/gelirler/analiz' },
       { title: 'İstatistikler', href: '/dashboard/finance/gelirler/istatistikler' },
       { title: 'Departman Raporu', href: '/dashboard/finance/gelirler/departman' },
+      { title: 'Esnek Bütçe Sapma', href: '/dashboard/finance/gelirler/esnek-butce' },
     ],
   },
   {
