@@ -13,7 +13,7 @@ import {
   PolarAngleAxis, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Legend, Cell,
 } from 'recharts';
-import { useFinanceFilters } from '@/hooks/use-finance-filters';
+import { useFinanceFilters, type DateRange } from '@/hooks/use-finance-filters';
 import { FinanceFilterBar } from '@/components/finance/filter-bar';
 import { downloadCSV } from '@/lib/csv-export';
 
@@ -52,6 +52,39 @@ const varPct = (a: number, b: number) => b > 0 ? ((a - b) / b) * 100 : 0;
 const shortDate = (d: string) => format(new Date(d), 'd MMM', { locale: tr });
 const TOOLTIP_STYLE = { fontSize: 11, borderRadius: 8, border: '1px solid #e5e7eb' };
 const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+
+// Seçilen periyoda göre hangi stat alanlarının gösterileceği
+function getPeriodStats(stat: Statistics, dateRange: DateRange) {
+  if (dateRange === 'today' || dateRange === 'week') {
+    return {
+      label:    'Bugün',
+      activeCol: 'today' as const,
+      occ:      stat.occupancyToday,   lyOcc:  stat.lyOccupancyToday,  occBudget: stat.occupancyBudget,
+      adr:      stat.adrToday,         lyAdr:  stat.lyAdrToday,        adrBudget: stat.adrBudget,
+      pax:      stat.paxToday,         lyPax:  stat.lyPaxToday,        paxBudget: stat.paxBudget,
+      soldRoom: stat.soldRoomToday,    availRoom: stat.availRoomToday,
+    };
+  }
+  if (dateRange === 'year') {
+    return {
+      label:    'YTD',
+      activeCol: 'ytd' as const,
+      occ:      stat.occupancyYTD,     lyOcc:  stat.lyOccupancyYTD,   occBudget: stat.occupancyBudget,
+      adr:      stat.adrYTD,           lyAdr:  stat.lyAdrYTD,         adrBudget: stat.adrBudget,
+      pax:      stat.paxYTD,           lyPax:  stat.lyPaxMTD,         paxBudget: stat.paxBudget,
+      soldRoom: stat.soldRoomYTD,      availRoom: stat.availRoomYTD,
+    };
+  }
+  // month (MTD) — default
+  return {
+    label:    'MTD',
+    activeCol: 'mtd' as const,
+    occ:      stat.occupancyMTD,     lyOcc:  stat.lyOccupancyMTD,   occBudget: stat.occupancyBudget,
+    adr:      stat.adrMTD,           lyAdr:  stat.lyAdrMTD,         adrBudget: stat.adrBudget,
+    pax:      stat.paxMTD,           lyPax:  stat.lyPaxMTD,         paxBudget: stat.paxBudget,
+    soldRoom: stat.soldRoomMTD,      availRoom: stat.availRoomMTD,
+  };
+}
 
 // ─── Heatmap ──────────────────────────────────────────────────────────────────
 
@@ -277,8 +310,15 @@ export default function IstatistiklerPage() {
     );
   }
 
-  const revpar   = stat.adrMTD    > 0 && stat.occupancyMTD   > 0 ? stat.adrMTD    * (stat.occupancyMTD   / 100) : 0;
-  const lyRevpar = stat.lyAdrMTD  > 0 && stat.lyOccupancyMTD > 0 ? stat.lyAdrMTD  * (stat.lyOccupancyMTD / 100) : 0;
+  const ps       = getPeriodStats(stat, filters.dateRange);
+  const revpar   = ps.adr   > 0 && ps.occ   > 0 ? ps.adr   * (ps.occ   / 100) : 0;
+  const lyRevpar = ps.lyAdr > 0 && ps.lyOcc > 0 ? ps.lyAdr * (ps.lyOcc / 100) : 0;
+
+  // Tablo sütun vurgu stili
+  const colHdr = (col: 'today' | 'mtd' | 'ytd') =>
+    ps.activeCol === col
+      ? 'px-3 py-2 text-right text-xs font-bold text-primary bg-primary/5'
+      : 'px-3 py-2 text-right text-xs font-semibold text-muted-foreground';
 
   return (
     <div className="space-y-6">
@@ -304,10 +344,10 @@ export default function IstatistiklerPage() {
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Doluluk MTD', value: fmtPct(stat.occupancyMTD), sub: `Bütçe: ${fmtPct(stat.occupancyBudget)}`, ly: `LY: ${fmtPct(stat.lyOccupancyMTD)}`, up: stat.occupancyMTD >= stat.lyOccupancyMTD, color: '#7c3aed' },
-          { label: 'ADR MTD',     value: fmtEUR(stat.adrMTD),       sub: `Bütçe: ${fmtEUR(stat.adrBudget)}`,       ly: `LY: ${fmtEUR(stat.lyAdrMTD)}`,       up: stat.adrMTD >= stat.lyAdrMTD,            color: '#0891b2' },
-          { label: 'RevPAR MTD',  value: fmtEUR(revpar),            sub: 'ADR × Occ%',                              ly: `LY: ${fmtEUR(lyRevpar)}`,             up: revpar >= lyRevpar,                      color: '#0f766e' },
-          { label: 'PAX MTD',     value: fmt0(stat.paxMTD),         sub: `Bütçe: ${fmt0(stat.paxBudget)}`,          ly: `LY: ${fmt0(stat.lyPaxMTD)}`,          up: stat.paxMTD >= stat.lyPaxMTD,            color: '#db2777' },
+          { label: `Doluluk (${ps.label})`, value: fmtPct(ps.occ),  sub: `Bütçe: ${fmtPct(ps.occBudget)}`, ly: `LY: ${fmtPct(ps.lyOcc)}`,  up: ps.occ   >= ps.lyOcc,   color: '#7c3aed' },
+          { label: `ADR (${ps.label})`,     value: fmtEUR(ps.adr),  sub: `Bütçe: ${fmtEUR(ps.adrBudget)}`, ly: `LY: ${fmtEUR(ps.lyAdr)}`,  up: ps.adr   >= ps.lyAdr,   color: '#0891b2' },
+          { label: `RevPAR (${ps.label})`,  value: fmtEUR(revpar),  sub: 'ADR × Occ%',                      ly: `LY: ${fmtEUR(lyRevpar)}`,  up: revpar   >= lyRevpar,    color: '#0f766e' },
+          { label: `PAX (${ps.label})`,     value: fmt0(ps.pax),    sub: `Bütçe: ${fmt0(ps.paxBudget)}`,   ly: `LY: ${fmt0(ps.lyPax)}`,    up: ps.pax   >= ps.lyPax,   color: '#db2777' },
         ].map((m) => (
           <Card key={m.label} className="border-l-4" style={{ borderLeftColor: m.color }}>
             <CardContent className="pt-4 pb-4">
@@ -326,7 +366,12 @@ export default function IstatistiklerPage() {
       {/* Statistics table */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">Oda İstatistikleri Tablosu</CardTitle>
+          <CardTitle className="text-sm font-semibold">
+            Oda İstatistikleri Tablosu
+            <span className="ml-2 text-[10px] font-normal text-primary border border-primary/30 bg-primary/5 px-1.5 py-0.5 rounded">
+              {ps.label} seçili
+            </span>
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -334,11 +379,11 @@ export default function IstatistiklerPage() {
               <thead className="border-b border-border">
                 <tr className="bg-muted/50">
                   <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground sticky left-0 bg-muted/50 min-w-[180px]">Metrik</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Bugün</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">MTD</th>
+                  <th className={colHdr('today')}>Bugün</th>
+                  <th className={colHdr('mtd')}>MTD</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">MTD Bütçe</th>
                   <th className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground">Var%</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">YTD</th>
+                  <th className={colHdr('ytd')}>YTD</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">LY Bugün</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">LY MTD</th>
                   <th className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground">YoY%</th>
