@@ -52,7 +52,6 @@ function isGrandTotal(row: RevenueRow) {
 
 const fmt0 = (n: number) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(n);
 const fmtEUR = (n: number) => n === 0 ? '—' : `${fmt0(n)} €`;
-const fmtTL  = (n: number) => n === 0 ? '—' : `${fmt0(n)} ₺`;
 const fmtPct = (n: number, sign = false) => n === 0 ? '—' : `${sign && n > 0 ? '+' : ''}${n.toFixed(1)}%`;
 const varPct = (actual: number, budget: number) => budget > 0 ? ((actual - budget) / budget) * 100 : 0;
 const yoyPct = (cur: number, ly: number) => ly > 0 ? ((cur - ly) / ly) * 100 : 0;
@@ -90,7 +89,6 @@ function TableRow({ row, indent = 0, expanded, onToggle, hasChildren }: {
           <span className={`text-xs ${isTotal ? 'font-bold' : ''}`}>{row.label}</span>
         </div>
       </td>
-      <td className="px-3 py-2 text-right text-xs whitespace-nowrap">{fmtTL(row.todayTL)}</td>
       <td className="px-3 py-2 text-right text-xs whitespace-nowrap">{fmtEUR(row.todayEUR)}</td>
       <td className="px-3 py-2 text-right text-xs whitespace-nowrap">{fmtEUR(row.mtdActualEUR)}</td>
       <td className="px-3 py-2 text-right text-xs whitespace-nowrap">{fmtEUR(row.mtdBudgetEUR)}</td>
@@ -210,7 +208,6 @@ export default function GelirlerPage() {
               <thead className="border-b border-border">
                 <tr className="bg-muted/50">
                   <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground sticky left-0 bg-muted/50 min-w-[220px]">Gelir Kalemi</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">Günlük (₺)</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">Günlük (€)</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">MTD Actual (€)</th>
                   <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">MTD Budget (€)</th>

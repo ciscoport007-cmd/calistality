@@ -166,8 +166,8 @@ function computeAlerts(kapak: KapakData | null, trend: TrendPoint[]): Alert[] {
   if (trend.length >= 2) {
     const last = trend[trend.length - 1];
     const prev = trend[trend.length - 2];
-    if (prev.todayTL > 0) {
-      const dayChg = ((last.todayTL - prev.todayTL) / prev.todayTL) * 100;
+    if (prev.todayEUR > 0) {
+      const dayChg = ((last.todayEUR - prev.todayEUR) / prev.todayEUR) * 100;
       if (dayChg <= -10) alerts.push({ type: 'warn', msg: `Bugünkü gelir dünden ${fmtPct(dayChg)} düştü` });
     }
   }
@@ -312,11 +312,11 @@ export default function GenelBakis() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           title="Bugünkü Gelir (Today)"
-          main={fmtTL(todayTL)}
-          sub1={`EUR: ${fmtEUR(todayEUR)}`}
-          sub2={trend.length >= 2 ? `Dün: ${fmtTL(trend[trend.length-2]?.todayTL ?? 0)}` : undefined}
-          trend={trend.length >= 2 && (trend[trend.length-2]?.todayTL ?? 0) > 0
-            ? ((todayTL - (trend[trend.length-2]?.todayTL ?? 0)) / (trend[trend.length-2]?.todayTL ?? 1)) * 100
+          main={fmtEUR(todayEUR)}
+          sub1={`₺: ${fmtTL(todayTL)}`}
+          sub2={trend.length >= 2 ? `Dün: ${fmtEUR(trend[trend.length-2]?.todayEUR ?? 0)}` : undefined}
+          trend={trend.length >= 2 && (trend[trend.length-2]?.todayEUR ?? 0) > 0
+            ? ((todayEUR - (trend[trend.length-2]?.todayEUR ?? 0)) / (trend[trend.length-2]?.todayEUR ?? 1)) * 100
             : undefined}
         />
         <KpiCard
