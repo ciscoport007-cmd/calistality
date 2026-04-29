@@ -77,6 +77,94 @@ function TargetBadge({ pct }: { pct: number }) {
   return               <div className="flex items-center gap-1 text-red-600 text-xs"><XCircle       className="h-4 w-4" />Hedefin altında</div>;
 }
 
+// ─── Alacarte table types & component ─────────────────────────────────────────
+
+interface AlacarteRow {
+  label: string;
+  todayEUR: number; todayTL: number;
+  mtdEUR: number; mtdTL: number;
+  mtdBudgetEUR: number; lyMtdEUR: number; ytdEUR: number;
+  rowCount: number;
+}
+
+function AlacarteTable({ currency }: { currency: 'eur' | 'tl' | 'both' }) {
+  const [rows, setRows] = useState<AlacarteRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/finance/revenue/alacarte')
+      .then((r) => r.json())
+      .then((j) => { if (j.success) setRows(j.data); })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const fmtVal = (eur: number, tl: number) => {
+    if (currency === 'tl')   return fmtTL(tl);
+    if (currency === 'both') return `${fmtEUR(eur)} / ${fmtTL(tl)}`;
+    return fmtEUR(eur);
+  };
+
+  const hasData = rows.some((r) => r.mtdEUR > 0 || r.todayEUR > 0);
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Alacarte Performans Tablosu</p>
+      {loading ? (
+        <div className="h-10 flex items-center text-xs text-muted-foreground">Yükleniyor…</div>
+      ) : !hasData ? (
+        <div className="rounded-lg border p-3 text-xs text-muted-foreground">
+          Detay sayfalarında restoran verisi bulunamadı. Excel yüklenirken restoran satır adlarının eşleştiğinden emin olun.
+        </div>
+      ) : (
+        <div className="rounded-lg border overflow-hidden">
+          <table className="w-full text-xs">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="px-3 py-2 text-left font-semibold text-muted-foreground">Restoran</th>
+                <th className="px-3 py-2 text-right font-semibold text-muted-foreground">Bugün</th>
+                <th className="px-3 py-2 text-right font-semibold text-muted-foreground">MTD</th>
+                <th className="px-3 py-2 text-right font-semibold text-muted-foreground">Bütçe</th>
+                <th className="px-3 py-2 text-center font-semibold text-muted-foreground">Sap%</th>
+                <th className="px-3 py-2 text-right font-semibold text-muted-foreground">LY MTD</th>
+                <th className="px-3 py-2 text-center font-semibold text-muted-foreground">YoY%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => {
+                const sapPct = r.mtdBudgetEUR > 0 ? varPct(r.mtdEUR, r.mtdBudgetEUR) : null;
+                const yoyPct = r.lyMtdEUR > 0 ? varPct(r.mtdEUR, r.lyMtdEUR) : null;
+                return (
+                  <tr key={i} className="border-t border-border/40 hover:bg-muted/10">
+                    <td className="px-3 py-1.5 font-medium">{r.label}</td>
+                    <td className="px-3 py-1.5 text-right">{r.todayEUR > 0 ? fmtVal(r.todayEUR, r.todayTL) : '—'}</td>
+                    <td className="px-3 py-1.5 text-right font-semibold">{r.mtdEUR > 0 ? fmtVal(r.mtdEUR, r.mtdTL) : '—'}</td>
+                    <td className="px-3 py-1.5 text-right text-muted-foreground">{r.mtdBudgetEUR > 0 ? fmtEUR(r.mtdBudgetEUR) : '—'}</td>
+                    <td className="px-3 py-1.5 text-center">
+                      {sapPct !== null ? (
+                        <span className={`font-semibold ${sapPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {fmtPct(sapPct, true)}
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td className="px-3 py-1.5 text-right text-muted-foreground">{r.lyMtdEUR > 0 ? fmtEUR(r.lyMtdEUR) : '—'}</td>
+                    <td className="px-3 py-1.5 text-center">
+                      {yoyPct !== null ? (
+                        <span className={`font-semibold ${yoyPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {fmtPct(yoyPct, true)}
+                        </span>
+                      ) : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Detail Sheet ─────────────────────────────────────────────────────────────
 
 function DeptDetailSheet({ dept, subRows, trend, open, onClose, currency }: {
@@ -185,6 +273,9 @@ function DeptDetailSheet({ dept, subRows, trend, open, onClose, currency }: {
               </div>
             </div>
           )}
+
+          {/* Alacarte restoran tablosu — sadece F&B departmanı */}
+          {dept.key === 'fb' && <AlacarteTable currency={currency} />}
         </div>
       </SheetContent>
     </Sheet>
