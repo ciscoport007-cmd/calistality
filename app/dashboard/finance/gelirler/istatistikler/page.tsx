@@ -38,7 +38,13 @@ interface Statistics {
 interface TrendPoint {
   date: string;
   occupancyToday: number; occupancyMTD: number; occupancyBudget: number; lyOccupancyToday: number;
-  adrToday: number; adrMTD: number; soldRoomToday: number;
+  adrToday: number; adrMTD: number; soldRoomToday: number; paxToday: number;
+}
+
+interface WeekStats {
+  occ: number; lyOcc: number;
+  adr: number;
+  soldRoom: number; pax: number;
 }
 
 interface KapakData { reportDate: string; statistics: Statistics | null }
@@ -53,9 +59,31 @@ const shortDate = (d: string) => format(new Date(d), 'd MMM', { locale: tr });
 const TOOLTIP_STYLE = { fontSize: 11, borderRadius: 8, border: '1px solid #e5e7eb' };
 const WEEKDAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
+// Pazartesi'den bugüne kadar günlük trend verilerinden WTD ortalamaları hesapla
+function computeWeekStats(trend: TrendPoint[]): WeekStats | null {
+  const now = new Date();
+  const dow = now.getDay(); // 0=Pazar, 1=Pzt, ..., 6=Cmt
+  const daysFromMon = (dow + 6) % 7; // Pazartesi=0, Salı=1, ..., Pazar=6
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - daysFromMon);
+  monday.setHours(0, 0, 0, 0);
+
+  const weekData = trend.filter((d) => new Date(d.date + 'T00:00:00') >= monday);
+  if (weekData.length === 0) return null;
+
+  const n = weekData.length;
+  return {
+    occ:      weekData.reduce((s, d) => s + d.occupancyToday, 0) / n,
+    lyOcc:    weekData.reduce((s, d) => s + d.lyOccupancyToday, 0) / n,
+    adr:      weekData.reduce((s, d) => s + d.adrToday, 0) / n,
+    soldRoom: weekData.reduce((s, d) => s + d.soldRoomToday, 0),
+    pax:      weekData.reduce((s, d) => s + d.paxToday, 0),
+  };
+}
+
 // Seçilen periyoda göre hangi stat alanlarının gösterileceği
-function getPeriodStats(stat: Statistics, dateRange: DateRange) {
-  if (dateRange === 'today' || dateRange === 'week') {
+function getPeriodStats(stat: Statistics, dateRange: DateRange, week?: WeekStats | null) {
+  if (dateRange === 'today') {
     return {
       label:    'Bugün',
       activeCol: 'today' as const,
@@ -63,6 +91,16 @@ function getPeriodStats(stat: Statistics, dateRange: DateRange) {
       adr:      stat.adrToday,         lyAdr:  stat.lyAdrToday,        adrBudget: stat.adrBudget,
       pax:      stat.paxToday,         lyPax:  stat.lyPaxToday,        paxBudget: stat.paxBudget,
       soldRoom: stat.soldRoomToday,    availRoom: stat.availRoomToday,
+    };
+  }
+  if (dateRange === 'week') {
+    return {
+      label:    'Bu Hafta',
+      activeCol: 'today' as const,
+      occ:      week?.occ      ?? stat.occupancyMTD,   lyOcc:  week?.lyOcc  ?? stat.lyOccupancyMTD,  occBudget: stat.occupancyBudget,
+      adr:      week?.adr      ?? stat.adrMTD,          lyAdr:  stat.lyAdrMTD,                        adrBudget: stat.adrBudget,
+      pax:      week?.pax      ?? stat.paxMTD,          lyPax:  stat.lyPaxMTD,                        paxBudget: stat.paxBudget,
+      soldRoom: week?.soldRoom ?? stat.soldRoomMTD,     availRoom: stat.availRoomMTD,
     };
   }
   if (dateRange === 'year') {
@@ -310,7 +348,8 @@ export default function IstatistiklerPage() {
     );
   }
 
-  const ps       = getPeriodStats(stat, filters.dateRange);
+  const weekStats = filters.dateRange === 'week' ? computeWeekStats(trend) : null;
+  const ps        = getPeriodStats(stat, filters.dateRange, weekStats);
   const revpar   = ps.adr   > 0 && ps.occ   > 0 ? ps.adr   * (ps.occ   / 100) : 0;
   const lyRevpar = ps.lyAdr > 0 && ps.lyOcc > 0 ? ps.lyAdr * (ps.lyOcc / 100) : 0;
 
